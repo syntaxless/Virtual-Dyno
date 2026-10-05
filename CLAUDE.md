@@ -89,6 +89,15 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
   and the prompt line. There is no desktop/tablet split any more (the old two-column grid and its 900px
   breakpoint are gone). Keep How It Works below Car & Conditions; `smoke.py` checks the order and Load Data's
   full width at every width.
+- **Graph replay is real time.** Every plotted point keeps its log time (`s` on the raw points, `tm` on the binned
+  curve `build()` returns, forced non-decreasing). `replay()` plays the plotted part of the pull in as many seconds
+  as it took in the log, so the sweep speeds up and slows down with the engine; `playAt(g)` turns the progress `grow`
+  (0 to 1 of the pull's time, not of the rpm range) into the rpm or mph reached. While it plays, `#ro` shows a live
+  readout (elapsed seconds, rpm, hp, lb-ft, whp); at the end it goes back to the `HINT` text. Moving over the graph
+  is ignored while it plays; a click or tap skips to the end. Reduced-motion visitors get the whole curve at once.
+  The big numbers still roll up to the final peaks right away. A pull can be 10 s or more, so playback runs on every
+  load and Replay press; `smoke.py`'s `realtime` check loads the demo log and times it (about 10 s of the run). On
+  phones `#ro` reserves two lines, because the live readout wraps and the page would otherwise jump when it starts.
 - **Load Data**: its two upload boxes sit in `.drops`, an auto-fit grid (`minmax(260px,1fr)`), so they are side by
   side when there is room (tablet and up) and stacked on phones. The weather form (`#wx`) is capped at 560px and the
   hint/message lines at 90ch so they stay readable at full width.

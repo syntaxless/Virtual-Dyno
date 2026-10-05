@@ -5,7 +5,8 @@
 Checks layout at phone/tablet/desktop widths (including which banner variant shows, Load Data full width with its two upload boxes side by side or stacked), the collapsible
 Car & Conditions and How It Works sections, the one-line SAE checkbox, theme switching/persistence,
 the boot-in animation gate, and the self-hosted font (loads from the site, nothing third-party is
-requested, and the page degrades to a plain heading when the font file cannot load).
+requested, and the page degrades to a plain heading when the font file cannot load), and real-time Replay
+(takes as long as the pull did, live readout, click to skip).
 """
 import asyncio
 import sys
@@ -166,10 +167,48 @@ async def font(browser):
         await ctx.close()
 
 
+async def realtime(browser):
+    """Replay plays in real time: it takes as long as the pull did, shows a live readout, and a click skips it."""
+    ctx, pg, errs = await open_page(browser, reduced_motion=False)
+    await pg.click("#demo")
+    r = await pg.evaluate("""()=>new Promise(res=>{
+        const t0=performance.now(),span=cur[cur.length-1].tm-cur[0].tm,label=document.querySelector('#pull').selectedOptions[0].text;
+        let live=false;const iv=setInterval(()=>{live=live||/\\d\\.\\d s ·/.test(document.getElementById('ro').textContent);
+          if(grow>=1||performance.now()-t0>30000){clearInterval(iv);res({elapsed:(performance.now()-t0)/1000,span,label,live,
+            end:/\\d\\.\\d s ·/.test(document.getElementById('ro').textContent)})}},20)})""")
+    pull_s = float(r["label"].rsplit(",", 1)[1].split()[0])      # "Pull 1: 2,404-6,685 rpm, 9.6 s"
+    check("Replay takes as long as the pull did (real time)", abs(r["elapsed"] - r["span"]) <= 0.5 and 0.8 * pull_s <= r["span"] <= pull_s + 0.1,
+          f"played in {r['elapsed']:.1f} s, plotted span {r['span']:.1f} s, pull {pull_s} s")
+    check("a live time/value readout shows while it plays, and goes away at the end", r["live"] and not r["end"], str(r))
+    # play again: moving over the graph does not interrupt it, a click skips to the end
+    await pg.click("#replay")
+    await pg.wait_for_timeout(700)
+    box = await pg.locator("#cv").bounding_box()
+    await pg.mouse.move(box["x"] + box["width"] * .5, box["y"] + box["height"] * .5)
+    await pg.wait_for_timeout(150)
+    playing = await pg.evaluate("grow<1")
+    await pg.mouse.down(); await pg.mouse.up()
+    await pg.wait_for_timeout(150)
+    done = await pg.evaluate("[grow, /\\d\\.\\d s ·/.test(document.getElementById('ro').textContent)]")
+    await pg.wait_for_timeout(400)
+    later = await pg.evaluate("grow")
+    check("hovering the graph does not interrupt Replay; a click skips to the end", playing and done[0] == 1 and not done[1] and later == 1,
+          f"still playing after hover {playing}, after click {done}, later {later}")
+    check("no page errors during playback", not errs, "; ".join(errs))
+    await ctx.close()
+    # reduced motion: the whole curve at once
+    ctx, pg, errs = await open_page(browser, reduced_motion=True)
+    await pg.click("#demo")
+    await pg.wait_for_timeout(200)
+    g = await pg.evaluate("grow")
+    check("reduced motion shows the whole curve at once", g == 1 and not errs, f"grow {g} {errs}")
+    await ctx.close()
+
+
 async def main():
     async with async_playwright() as pw:
         browser = await pw.chromium.launch()
-        for step in (layout, collapsible, sae_checkbox, themes, boot, font):
+        for step in (layout, collapsible, sae_checkbox, themes, boot, font, realtime):
             await step(browser)
         await browser.close()
     bad = results.count(False)

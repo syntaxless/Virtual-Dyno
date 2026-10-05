@@ -147,7 +147,7 @@ input[type=range]::-moz-range-thumb{width:12px;height:20px;background:var(--fg);
 @keyframes blink2{50%{opacity:0}}
 @media (max-width:430px){#car{width:216px;height:68px}}
 @media (max-width:480px){.ph .pl{display:none}.ph button{padding:0 5px}}
-@media (max-width:600px){body{padding-left:10px;padding-right:10px;font-size:20px}.app{padding:12px 12px 8px}.foot{margin:0 12px}.ps1{padding:2px 12px 14px}.stats{grid-template-columns:minmax(0,1fr)}.stat b{font-size:64px}#cv{height:300px}.win{box-shadow:0 0 0 4px var(--bezel),0 0 0 5px #000,0 0 40px rgba(var(--rgb),.14),inset 0 0 70px rgba(var(--rgb),.07)}}
+@media (max-width:600px){body{padding-left:10px;padding-right:10px;font-size:20px}#ro{min-height:48px}.app{padding:12px 12px 8px}.foot{margin:0 12px}.ps1{padding:2px 12px 14px}.stats{grid-template-columns:minmax(0,1fr)}.stat b{font-size:64px}#cv{height:300px}.win{box-shadow:0 0 0 4px var(--bezel),0 0 0 5px #000,0 0 40px rgba(var(--rgb),.14),inset 0 0 70px rgba(var(--rgb),.07)}}
 @media (prefers-reduced-motion:reduce){.type,.ps1 i{animation:none}}
 </style></head><body>
 <main class="win" aria-label="Virtual Dyno">
@@ -322,7 +322,7 @@ function analyze(reset){
       const w=rpm[i]*Math.PI/30,kr=w/vv,ei=isFinite(kr)?Ie*kr*kr*ac*vv:0;
       const va=vv+hwd,Pw=((m+mw)*ac+.5*rho*p.cd*p.area*va*Math.abs(va)+p.crr*m*G+m*G*Math.sin(gr))*vv;
       const Pc=Pw/(1-lf)+ei;
-      pts.push({r:X[i],hw:Pw/HP*kc,hp:Pc/HP*kc,tq:Pc/w*LBFT*kc})}
+      pts.push({r:X[i],s:t[i],hw:Pw/HP*kc,hp:Pc/HP*kc,tq:Pc/w*LBFT*kc})}
     return{a,b,pts,lo:Math.round(X[a]),hi:Math.round(X[b]),dur:t[b]-t[a],rm:rpm[b]/(vs[b]/MPH),v0:vs[a]/MPH,v1:vs[b]/MPH}}).filter(q=>q.pts.length>5);
   if(reset||sel>=pulls.length){sel=0;pulls.forEach((q,i)=>{if(q.hi-q.lo>pulls[sel].hi-pulls[sel].lo)sel=i})}
   if(reset&&GPS&&pulls.length)return fromGPS(1);render()}
@@ -330,9 +330,10 @@ function analyze(reset){
 function build(pull,p){
   const B={};for(const q of pull.pts){const k=Math.round(q.r/AX.bin);(B[k]=B[k]||[]).push(q)}
   const avg=(a,f)=>a.reduce((s,q)=>s+q[f],0)/a.length;
-  let c=Object.keys(B).map(Number).sort((a,b)=>a-b).map(k=>({r:avg(B[k],'r'),hp:avg(B[k],'hp'),tq:avg(B[k],'tq'),hw:avg(B[k],'hw')}));
+  let c=Object.keys(B).map(Number).sort((a,b)=>a-b).map(k=>({r:avg(B[k],'r'),tm:avg(B[k],'s'),hp:avg(B[k],'hp'),tq:avg(B[k],'tq'),hw:avg(B[k],'hw')}));
   const R=Math.round(p.smooth/4);
-  if(R>0)c=c.map((q,i)=>{const a=c.slice(Math.max(0,i-R),i+R+1);return{r:q.r,hp:avg(a,'hp'),tq:avg(a,'tq'),hw:avg(a,'hw')}});
+  if(R>0)c=c.map((q,i)=>{const a=c.slice(Math.max(0,i-R),i+R+1);return{r:q.r,tm:q.tm,hp:avg(a,'hp'),tq:avg(a,'tq'),hw:avg(a,'hw')}});
+  let tmax=-Infinity;for(const q of c){tmax=Math.max(tmax,q.tm);q.tm=tmax}
   return c}
 
 function roll(id,to){
@@ -343,9 +344,26 @@ function roll(id,to){
   const t0=performance.now(),dur=from?600:1500;
   const step=now=>{const k=Math.min(1,(now-t0)/dur),v=from+(to-from)*(1-Math.pow(1-k,3));el.textContent=Math.round(v);shown[id]=v;if(k<1)el._r=requestAnimationFrame(step);else shown[id]=to};
   el._r=requestAnimationFrame(step)}
+const HINT='hover or touch the graph for exact values';
+// Where the playback is when it is `g` (0..1) of the way through the plotted part of the pull, by log time, not by rpm:
+// x is the rpm (or mph) reached, s the seconds elapsed, q the nearest point of the curve.
+function playAt(g){
+  const n=cur.length,T0=cur[0].tm,T1=cur[n-1].tm;
+  if(g>=1||n<2)return{x:cur[n-1].r,s:T1-T0,q:cur[n-1]};
+  const e=T0+g*(T1-T0);let i=0;while(i<n-1&&cur[i].tm<e)i++;
+  const a=cur[Math.max(0,i-1)],b=cur[i],f=b.tm>a.tm?Math.min(1,Math.max(0,(e-a.tm)/(b.tm-a.tm))):1;
+  return{x:a.r+(b.r-a.r)*f,s:e-T0,q:f<.5?a:b}}
+// Replay runs in real time: it takes as long as the pull did and speeds up and slows down with the engine.
 function replay(){
-  cancelAnimationFrame(gAF);if(reduce){grow=1;draw();return}
-  const t0=performance.now(),step=now=>{const k=Math.min(1,(now-t0)/2600);grow=k;draw();if(k<1)gAF=requestAnimationFrame(step)};
+  cancelAnimationFrame(gAF);if(reduce||!cur||cur.length<2){grow=1;draw();return}
+  const t0=performance.now(),span=()=>Math.max(.3,cur[cur.length-1].tm-cur[0].tm);
+  const step=now=>{
+    if(!cur||cur.length<2){grow=1;return}
+    grow=Math.min(1,(now-t0)/1000/span());draw();
+    if(grow<1){const a=playAt(grow),q=a.q;
+      $('#ro').textContent=`${a.s.toFixed(1)} s · ${Math.round(a.x).toLocaleString()} ${AX.u} · ${Math.round(q.hp)} hp · ${isFinite(q.tq)?Math.round(q.tq)+' lb-ft · ':''}${Math.round(q.hw)} whp`;
+      gAF=requestAnimationFrame(step)}
+    else $('#ro').textContent=HINT};
   grow=0;gAF=requestAnimationFrame(step)}
 
 function render(){
@@ -364,7 +382,7 @@ function render(){
   $('#s1 em').textContent=`at ${at(h)} · ${dl(h.hp,292,'hp')}`;
   $('#s2 em').textContent=hasT?`at ${at(t)} · ${dl(t.tq,280,'lb-ft')}`:'Enter RPM per mph (under Car & Conditions) to get torque';
   $('#s3 em').textContent=`at ${at(w)} · after ${P().loss}% loss`;
-  $('#ro').textContent='hover or touch the graph for exact values';
+  $('#ro').textContent=HINT;
   if(fresh){fresh=false;replay()}else draw()}
 
 function draw(){
@@ -387,7 +405,7 @@ function draw(){
   x.textAlign='center';
   for(let v=Math.ceil(x0/xs)*xs;v<=x1;v+=xs)x.fillText(AX.u=='rpm'?v/1000+'K':v,X(v),H-9);
   x.textAlign='left';x.fillText('hp / lb-ft',4,18);x.textAlign='right';x.fillText(AX.u,W-4,H-9);
-  const xc=mn+grow*(mxr-mn),tip={},col={hp:C('--s1'),tq:C('--s2'),hw:C('--s3')};
+  const xc=playAt(grow).x,tip={},col={hp:C('--s1'),tq:C('--s2'),hw:C('--s3')};
   const pts=k=>{const P=[];
     for(let i=0;i<cur.length;i++){const q=cur[i];if(!isFinite(q[k]))continue;
       if(q.r<=xc)P.push([X(q.r),Y(q[k])]);else{const o=cur[i-1];if(o&&isFinite(o[k])){const w=(xc-o.r)/(q.r-o.r);P.push([X(xc),Y(o[k]+(q[k]-o[k])*w)])}break}}
@@ -404,11 +422,13 @@ function draw(){
     L.forEach(([k,s])=>{const y=Math.max(tip[k][1]+5,py+15);py=y;x.fillStyle=col[k];x.fillText(s,tip[k][0]+9,y)})}}
 
 function hover(e){
-  if(!cur)return;const rc=e.target.getBoundingClientRect(),rp=mp.inv(e.clientX-rc.left);
+  if(!cur)return;
+  if(grow<1){if(e.type!='pointerdown')return;cancelAnimationFrame(gAF);grow=1}   // a click or tap while it plays skips to the end
+  const rc=e.target.getBoundingClientRect(),rp=mp.inv(e.clientX-rc.left);
   let bi=0;cur.forEach((q,i)=>{if(Math.abs(q.r-rp)<Math.abs(cur[bi].r-rp))bi=i});hov=bi;const q=cur[bi];
   $('#ro').textContent=`${Math.round(q.r).toLocaleString()} ${AX.u} · ${Math.round(q.hp)} hp · ${isFinite(q.tq)?Math.round(q.tq)+' lb-ft · ':''}${Math.round(q.hw)} whp`;if(grow>=1)draw()}
 $('#cv').addEventListener('pointermove',hover);$('#cv').addEventListener('pointerdown',hover);
-$('#cv').addEventListener('pointerleave',()=>{hov=-1;if(cur){$('#ro').textContent='hover or touch the graph for exact values';draw()}});
+$('#cv').addEventListener('pointerleave',()=>{hov=-1;if(cur){if(grow>=1)$('#ro').textContent=HINT;draw()}});
 
 function calcDA(){
   const p=P(),Tc=(p.temp-32)*5/9,T=Tc+273.15,pa=atm.baro>0?atm.baro*6894.76:atm.alt!=null?101325*Math.pow(1-2.25577e-5*atm.alt*.3048,5.25588):null;
