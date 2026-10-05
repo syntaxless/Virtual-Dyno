@@ -33,11 +33,10 @@ def init_script(expand=False):
 
 
 async def open_page(browser, width=1200, height=900, expand=False, reduced_motion=True, seed_boot=True,
-                    block_font=False, car=None, **ctx_kw):
+                    block_font=False, **ctx_kw):
     """Open index.html in a fresh context. Returns (context, page, errors).
 
     block_font=True makes the .woff2 request fail, to see the page the way a visitor would if the font could not load.
-    car='<id>' forces that car (the page otherwise picks one at random), e.g. car='mk1truck'.
     """
     ctx = await browser.new_context(
         viewport={"width": width, "height": height},
@@ -54,6 +53,6 @@ async def open_page(browser, width=1200, height=900, expand=False, reduced_motio
         await page.add_init_script(init_script(expand))
     elif expand:
         raise ValueError("expand requires seed_boot=True")
-    await page.goto(URL + (f"?car={car}" if car else ""))
+    await page.goto(URL)
     await page.wait_for_timeout(300)
     return ctx, page, errors

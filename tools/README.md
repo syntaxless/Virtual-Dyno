@@ -14,10 +14,9 @@ Run from anywhere, e.g. `python tools/smoke.py`.
 
 | Script | What it does | Needs |
 |---|---|---|
-| `shot.py` | Screenshot at chosen widths/scroll/theme into `tools/out/` (`--click '#howtg'` opens a section first, `--nofont` shows the look when the font cannot load, `--car <id>` picks the car; it is random otherwise). The quick look after a text or color edit. | nothing |
-| `smoke.py` | Layout at six widths (no JS errors, no horizontal scroll, banner variant and fit, SAE label on one line), both collapsible sections, themes, boot-in gate, self-hosted font (loads from the site, no third-party requests, fallback heading when blocked), the car list (every sprite well formed, random pick that never repeats). Exit 1 on failure. | nothing |
+| `shot.py` | Screenshot at chosen widths/scroll/theme into `tools/out/` (`--click '#howtg'` opens a section first, `--nofont` shows the look when the font cannot load). The quick look after a text or color edit. | nothing |
+| `smoke.py` | Layout at six widths (no JS errors, no horizontal scroll, banner variant and fit, SAE label on one line), both collapsible sections, themes, boot-in gate, self-hosted font (loads from the site, no third-party requests, fallback heading when blocked). Exit 1 on failure. | nothing |
 | `functional.py` | GPS-only calculation, error handling, and (with a log) the reference numbers, SAE, density-altitude override, GPS attach, weather paste. | log optional |
-| `cargen.py` | Authoring aid, not a check: describes a car in metres, prints its sprite rows to paste into `CARS` in `index.html`; `--sheet` renders every car from the page, both themes, into `tools/out/cars_*.png`. | nothing |
 | `weather.py` | About 20 weather-lookup scenarios against a mocked Open-Meteo, diffed against `data/weather_expected.txt`. `--update` re-saves it. | `DYNO_LOG` |
 
 Environment variables:

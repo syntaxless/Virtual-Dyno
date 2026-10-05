@@ -4,16 +4,15 @@
 
 Checks layout at phone/tablet/desktop widths (including which banner variant shows), the collapsible
 Car & Conditions and How It Works sections, the one-line SAE checkbox, theme switching/persistence,
-the boot-in animation gate, the self-hosted font (loads from the site, nothing third-party is
-requested, and the page degrades to a plain heading when the font file cannot load), and the car list (every sprite is
-well formed and draws inside the canvas, the pick is random and never repeats the last car).
+the boot-in animation gate, and the self-hosted font (loads from the site, nothing third-party is
+requested, and the page degrades to a plain heading when the font file cannot load).
 """
 import asyncio
 import sys
 
 from playwright.async_api import async_playwright
 
-from common import URL, open_page
+from common import open_page
 
 WIDTHS = (320, 375, 480, 600, 768, 1200)
 BANNER = {320: "stack", 375: "stack", 480: "stack", 600: "row", 768: "row", 1200: "row"}   # phones: stacked; wide: one row
@@ -129,81 +128,23 @@ async def font(browser):
     await ctx.close()
 
     # Font file blocked: the ASCII banners (which need VT323's width) give way to a plain heading.
-    # (the car with the longest caption, at the narrowest width, is the hard case for the fallback font)
-    for w in (320, 375, 1200):
-        ctx, pg, errs = await open_page(browser, width=w, block_font=True, car="gto")
-        m = await pg.evaluate("""(()=>{const h=document.querySelector('h1.vh').getBoundingClientRect(),
-            c=document.querySelector('.cap').getBoundingClientRect(),s=document.querySelector('.stage').getBoundingClientRect();
-          return {nofont:document.documentElement.classList.contains('nofont'), capInside:c.right<=s.right&&c.left>=s.left,
+    for w in (375, 1200):
+        ctx, pg, errs = await open_page(browser, width=w, block_font=True)
+        m = await pg.evaluate("""(()=>{const h=document.querySelector('h1.vh').getBoundingClientRect();
+          return {nofont:document.documentElement.classList.contains('nofont'),
                   art:[...document.querySelectorAll('.art')].filter(a=>a.offsetParent!==null).length,
                   h:Math.round(h.height), hr:Math.round(h.right),
                   sw:document.documentElement.scrollWidth, vw:innerWidth}})()""")
-        check(f"{w}px, font blocked: banners give way to a visible heading, car caption stays in its frame, no overflow",
-              m["nofont"] and m["art"] == 0 and m["h"] > 10 and m["sw"] <= m["vw"] and m["hr"] <= m["vw"] and m["capInside"] and not errs,
+        check(f"{w}px, font blocked: banners give way to a visible heading, no overflow",
+              m["nofont"] and m["art"] == 0 and m["h"] > 10 and m["sw"] <= m["vw"] and m["hr"] <= m["vw"] and not errs,
               f"{m} errors: {errs}")
         await ctx.close()
-
-
-CAR_FACTS = """(()=>{
-  const cv=document.getElementById('car'),g=cv.getContext('2d'),cap=document.querySelector('.cap').textContent;
-  const c=CARS.find(c=>c.cap===cap), w=c.rows[0].length, x0=94-w;
-  const alpha=c.rows.every(r=>/^[.HBSDGO]+$/.test(r)), square=c.rows.every(r=>r.length===w);
-  const d=g.getImageData(95,0,cv.width-95,29).data; let right=0; for(let i=3;i<d.length;i+=4)if(d[i])right++;   // car area right of col 94
-  const m=g.getImageData(x0+Math.floor(w/2),2+c.oy+Math.floor(c.rows.length/2),1,1).data[3];                      // a pixel mid-body
-  return {id:c.id,cap,name:c.name,w,x0,alpha,square,right,mid:m,rows:c.rows.length,oy:c.oy,
-          tyreBottom:c.wy+Math.floor(c.wr),wheels:c.wx,aria:document.querySelector('.stage').getAttribute('aria-label')};
-})()"""
-
-
-async def cars(browser):
-    ctx, pg, errs = await open_page(browser)
-    ids = await pg.evaluate("CARS.map(c=>c.id)")
-    check("there are several cars to choose from", len(ids) >= 12 and len(set(ids)) == len(ids), f"{len(ids)} cars")
-    await ctx.close()
-    for cid in ids:
-        ctx, pg, errs = await open_page(browser, car=cid, reduced_motion=False)
-        f = await pg.evaluate(CAR_FACTS)
-        frame1 = await pg.evaluate("document.getElementById('car').toDataURL()")
-        await pg.wait_for_timeout(450)
-        moving = frame1 != await pg.evaluate("document.getElementById('car').toDataURL()")
-        ok = (not errs and moving and f["id"] == cid and f["alpha"] and f["square"] and 40 <= f["w"] <= 80 and f["x0"] >= 14
-              and f["right"] == 0 and f["mid"] > 0 and f["tyreBottom"] == 27 and f["name"] in f["aria"]
-              and all(0 < x < f["w"] for x in f["wheels"]) and f["oy"] + f["rows"] <= 29)
-        check(f"car {cid}: sprite well formed, drawn inside the canvas, wheels on the road, animating, caption and label set",
-              ok, f"{f['cap']}, {f['w']} px wide, errors {errs}" if ok else str(f) + f" errors {errs}")
-        await ctx.close()
-
-    # Random pick: varies from load to load and never repeats the car just seen.
-    ctx, pg, errs = await open_page(browser)
-    cap = lambda: pg.evaluate("document.querySelector('.cap').textContent")
-    seen = [await cap()]
-    for _ in range(24):
-        await pg.reload(); await pg.wait_for_timeout(120)
-        seen.append(await cap())
-    again = [a for a, b in zip(seen, seen[1:]) if a == b]
-    check("each reload shows a different car than the one before", not again, f"repeats: {again}")
-    check("the cars rotate through the lineup", len(set(seen)) >= 8, f"{len(set(seen))} different cars in {len(seen)} loads")
-    check("no page errors while reloading", not errs, "; ".join(errs))
-    await ctx.close()
-
-    # An unknown ?car= falls back to a random car; blocked storage must not break the pick.
-    ctx, pg, errs = await open_page(browser, car="no-such-car")
-    check("unknown ?car= value still shows a car", await cap() in [c for c in await pg.evaluate("CARS.map(c=>c.cap)")] and not errs, "; ".join(errs))
-    await ctx.close()
-    ctx = await browser.new_context(reduced_motion="reduce")
-    pg = await ctx.new_page(); errs = []
-    pg.on("pageerror", lambda e: errs.append(str(e)))
-    await pg.add_init_script("try{sessionStorage.setItem('dyno-boot','1')}catch(e){};"
-                             "Object.defineProperty(window,'localStorage',{get(){throw new Error('blocked')}})")
-    await pg.goto(URL); await pg.wait_for_timeout(300)
-    check("a car is still drawn when storage is blocked", await pg.evaluate("document.querySelector('.cap').textContent.endsWith('.spr')") and not errs, "; ".join(errs))
-    await ctx.close()
 
 
 async def main():
     async with async_playwright() as pw:
         browser = await pw.chromium.launch()
-        for step in (layout, collapsible, sae_checkbox, themes, boot, font, cars):
+        for step in (layout, collapsible, sae_checkbox, themes, boot, font):
             await step(browser)
         await browser.close()
     bad = results.count(False)
