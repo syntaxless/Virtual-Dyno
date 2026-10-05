@@ -2,7 +2,7 @@
 
   python tools/smoke.py
 
-Checks layout at phone/tablet/desktop widths (including which banner variant shows), the collapsible
+Checks layout at phone/tablet/desktop widths (including which banner variant shows, Load Data full width with its two upload boxes side by side or stacked), the collapsible
 Car & Conditions and How It Works sections, the one-line SAE checkbox, theme switching/persistence,
 the boot-in animation gate, and the self-hosted font (loads from the site, nothing third-party is
 requested, and the page degrades to a plain heading when the font file cannot load).
@@ -27,6 +27,9 @@ LAYOUT = """(()=>{
           shown:shown.length, artMode:art&&art.classList.contains('row')?'row':'stack', artOver:art?art.scrollWidth-art.clientWidth:999,
           stageGap:art?Math.round(art.getBoundingClientRect().top-document.querySelector('.stage').getBoundingClientRect().bottom):-999,
           stageRight:Math.round(document.querySelector('.stage').getBoundingClientRect().right),
+          loadW:Math.round(document.querySelector('.load').getBoundingClientRect().width),mainW:Math.round(document.querySelector('.main').getBoundingClientRect().width),
+          loadAbove:Math.round(document.querySelector('.main').getBoundingClientRect().top-document.querySelector('.load').getBoundingClientRect().bottom),
+          dropRowDiff:Math.round(document.getElementById('gdrop').getBoundingClientRect().top-document.getElementById('drop').getBoundingClientRect().top),
           howGap:Math.round(document.querySelector('.how').getBoundingClientRect().top-document.querySelector('.cond').getBoundingClientRect().bottom),
           saeLines:lines, saeOver:Math.round(l.lastElementChild.getBoundingClientRect().right-l.parentNode.getBoundingClientRect().right)};
 })()"""
@@ -50,6 +53,12 @@ async def layout(browser):
         check(f"{w}px: ASCII art fits", m["artOver"] <= 1, f"overflow {m['artOver']}px")
         check(f"{w}px: car animation sits above the banner and inside the screen",
               m["stageGap"] >= 0 and m["stageRight"] <= m["vw"], f"gap {m['stageGap']}px, right edge {m['stageRight']}")
+        check(f"{w}px: Load Data is full width, above the results", abs(m["loadW"] - m["mainW"]) <= 1 and m["loadAbove"] >= 0,
+              f"load {m['loadW']}px vs results {m['mainW']}px, {m['loadAbove']}px above")
+        if w >= 768:
+            check(f"{w}px: the two upload boxes sit side by side", m["dropRowDiff"] == 0, f"top offset {m['dropRowDiff']}px")
+        if w <= 480:
+            check(f"{w}px: the two upload boxes stack on a phone", m["dropRowDiff"] > 20, f"top offset {m['dropRowDiff']}px")
         check(f"{w}px: How It Works sits below Car & Conditions", m["howGap"] >= 0, f"{m['howGap']}px below")
         check(f"{w}px: SAE checkbox label on one line", m["saeLines"] == 1 and m["saeOver"] <= 0,
               f"{m['saeLines']} line(s), {m['saeOver']}px past column")

@@ -72,11 +72,13 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
 - **Collapsible sections**: Car & Conditions (`#condtg` button, `#condbody` panel) and How It Works (`#howtg`,
   `#howbody`) both start collapsed and share one click handler that flips `aria-expanded`, the panel's `hidden`
   attribute and the fieldset's `.shut` class. The "Estimates only" line is deliberately outside How It Works, in
-  the `.notes` wrapper, so the disclaimer is always visible. Order is Load Data, results, Car & Conditions, then
-  How It Works (`.notes`): the desktop grid areas are `"head head" "load main" "cond cond" "notes notes"` and the
-  stacked layout (900px and below) just follows the DOM order, which is the same. Keep How It Works below Car &
-  Conditions in both; `smoke.py` checks it at every width. (Under Load Data on desktop there is empty space when the
-  results column is taller; that is accepted.)
+  the `.notes` wrapper, so the disclaimer is always visible. The page is one column at every width, in DOM order:
+  header, Load Data, results (`.main`), Car & Conditions, then How It Works (`.notes`). There is no desktop/tablet
+  split any more (the old two-column grid and its 900px breakpoint are gone). Keep How It Works below Car &
+  Conditions; `smoke.py` checks the order and Load Data's full width at every width.
+- **Load Data**: its two upload boxes sit in `.drops`, an auto-fit grid (`minmax(260px,1fr)`), so they are side by
+  side when there is room (tablet and up) and stacked on phones. The weather form (`#wx`) is capped at 560px and the
+  hint/message lines at 90ch so they stay readable at full width.
 - **SAE option** is `label.chk`: a hidden checkbox plus a `[ ]`/`[X]` box drawn by CSS. It is `nowrap` on purpose,
   so the label must stay short enough to fit a 320px screen.
 - Text and punctuation in the file are plain ASCII (straight apostrophes), which VT323 renders reliably.

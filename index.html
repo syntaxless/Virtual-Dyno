@@ -34,8 +34,7 @@ body{margin:0;min-height:100vh;padding:max(16px,env(safe-area-inset-top)) 16px m
 .ph button[aria-pressed="true"]{background:var(--ink);color:var(--fg);text-decoration:none}
 .ph button:focus-visible{outline:1px dashed var(--ink);outline-offset:2px}
 @media (prefers-contrast:more){.crt{display:none}}
-.app{display:grid;grid-template-columns:330px minmax(0,1fr);grid-template-areas:"head head" "load main" "cond cond" "notes notes";grid-template-rows:auto auto auto auto;gap:16px 18px;padding:16px 20px 12px;align-items:start}
-.head{grid-area:head}.load{grid-area:load}.main{grid-area:main}.notes{grid-area:notes}.cond{grid-area:cond}
+.app{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;padding:16px 20px 12px;align-items:start}
 .boot{color:var(--mut);font-size:22px}
 .head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:14px 24px}
 .hgrp{flex:1 1 440px;min-width:0;container-type:inline-size}
@@ -72,7 +71,10 @@ legend{padding:0 8px;color:var(--hi)}
 .cond.shut,.how.shut{padding-top:0;padding-bottom:0}
 .main{display:flex;flex-direction:column;gap:16px;min-width:0}
 .hint{margin:0 0 10px;color:var(--mut);font-size:20px}
+.drops{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;margin-bottom:10px}
 .drop{display:block;margin-bottom:10px;padding:8px 12px;border:1px dashed var(--dim);cursor:pointer}
+.drops .drop{margin-bottom:0}
+.load .hint,.load .msg{max-width:90ch}#wx{max-width:560px}
 .drop b{display:block;font-weight:400;color:var(--hi)}
 .drop b::before{content:"> ";color:var(--fg)}
 .drop span{color:var(--mut);font-size:20px}
@@ -143,7 +145,6 @@ input[type=range]::-moz-range-thumb{width:12px;height:20px;background:var(--fg);
 .ps1 i{display:inline-block;width:.5em;height:.8em;margin-left:2px;vertical-align:-.05em;background:var(--fg);box-shadow:0 0 8px var(--fg);animation:blink2 1.06s steps(1) infinite}
 @keyframes blink2{50%{opacity:0}}
 @media (max-width:430px){#car{width:216px;height:68px}}
-@media (max-width:900px){.app{grid-template-columns:minmax(0,1fr);grid-template-areas:none;grid-template-rows:none}.head,.load,.main,.notes,.cond{grid-area:auto}}
 @media (max-width:480px){.ph .pl{display:none}.ph button{padding:0 5px}}
 @media (max-width:600px){body{padding-left:10px;padding-right:10px;font-size:20px}.app{padding:12px 12px 8px}.foot{margin:0 12px}.ps1{padding:2px 12px 14px}.stats{grid-template-columns:minmax(0,1fr)}.stat b{font-size:64px}#cv{height:300px}.win{box-shadow:0 0 0 4px var(--bezel),0 0 0 5px #000,0 0 40px rgba(var(--rgb),.14),inset 0 0 70px rgba(var(--rgb),.07)}}
 @media (prefers-reduced-motion:reduce){.type,.ps1 i{animation:none}}
@@ -185,8 +186,10 @@ input[type=range]::-moz-range-thumb{width:12px;height:20px;background:var(--fg);
  </header>
   <fieldset class="load"><legend>Load Data</legend>
    <p class="hint">Use either one, or both together for the best accuracy.</p>
+   <div class="drops">
    <label class="drop" id="drop"><input type="file" id="file" accept=".csv,.txt,text/csv" class="vh"><b>Cobb Accessport log</b><span>drop a .csv or click to browse</span></label>
    <label class="drop" id="gdrop"><input type="file" id="gps" accept=".gpx,.csv,.txt" class="vh"><b>RaceBox, Dragy or GPX</b><span>drop a track or click to browse</span></label>
+   </div>
    <button class="btn" id="demo" type="button">Try a demo log</button>
    <div class="msg" id="msg"></div><div class="msg" id="gmsg"></div>
    <div id="wx" hidden>
