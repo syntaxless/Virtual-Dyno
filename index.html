@@ -37,7 +37,8 @@ body{margin:0;min-height:100vh;padding:max(16px,env(safe-area-inset-top)) 16px m
 .app{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;padding:16px 20px 12px;align-items:start}
 .boot{color:var(--mut);font-size:22px}
 .head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:14px 24px}
-.hgrp{flex:1 1 440px;min-width:0;container-type:inline-size}
+.hgrp{flex:1 1 440px;min-width:0;container:hgrp/inline-size}
+.ban{container:ban/inline-size}
 .stage{position:relative;width:fit-content;margin:14px 0 8px;border:1px solid var(--dim);padding:14px 10px 6px;line-height:0}
 .stage .cap{position:absolute;top:-.6em;left:10px;padding:0 8px;background:var(--bg);color:var(--mut);font-size:20px;line-height:1;letter-spacing:.04em}
 #car{display:block;width:324px;height:102px;image-rendering:pixelated;cursor:default}
@@ -45,7 +46,7 @@ body{margin:0;min-height:100vh;padding:max(16px,env(safe-area-inset-top)) 16px m
 html.bt .type{animation:typing .6s steps(14) .15s backwards}
 @keyframes typing{from{width:0}}
 @keyframes rv{from{clip-path:inset(0 -50px 100% -50px)}to{clip-path:inset(-50px)}}
-html.bt :is(.art,.hgrp p,.stage,.load,.stats,.run,.est,.notes,.cond,.foot,.ps1){animation:rv var(--d) steps(var(--s)) var(--t) backwards}
+html.bt :is(.art,.hgrp p,.stage,.load,.stats,.run,.notes,.cond,.sign,.foot,.ps1){animation:rv var(--d) steps(var(--s)) var(--t) backwards}
 html.bt .art{--s:19;--d:0.3s;--t:.95s}
 html.bt .art.row{--s:12;--d:.15s}
 html.bt .hgrp p{--s:3;--d:.12s;--t:1.2s}
@@ -53,15 +54,16 @@ html.bt .stage{--s:6;--d:.2s;--t:.75s}
 html.bt .load{--s:10;--d:.25s;--t:1.2s}
 html.bt .stats{--s:6;--d:.15s;--t:1.25s}
 html.bt .run{--s:12;--d:.3s;--t:1.45s}
-html.bt .est{--s:2;--d:.06s;--t:1.74s}
 html.bt .cond{--s:3;--d:.08s;--t:1.8s}
 html.bt .notes{--s:3;--d:.08s;--t:1.88s}
-html.bt .foot{--s:2;--d:.06s;--t:1.96s}
-html.bt .ps1{--s:1;--d:.04s;--t:2.0s}
+html.bt .sign{--s:10;--d:.14s;--t:1.96s}
+html.bt .foot{--s:2;--d:.06s;--t:2.1s}
+html.bt .ps1{--s:1;--d:.04s;--t:2.16s}
 .art{display:block;margin:8px 0 6px;font:400 28px/.8 var(--mono);color:var(--hi);text-shadow:0 0 6px var(--fg),0 0 22px rgba(var(--rgb),.45);white-space:pre;font-size:min(28px,calc((100vw - 56px)/29));font-size:min(28px,calc(100cqw/29))}
 .art.row{display:none;font-size:min(28px,calc(100cqw/44))}
-@container (min-width:520px){.art.row{display:block}.art.stack{display:none}}
-html.nofont .art{display:none}
+@container hgrp (min-width:520px){.art.row{display:block}.art.stack{display:none}}
+@container hgrp (min-width:1000px){.hero{display:flex;align-items:center;gap:24px}.hero .stage{flex:none}.ban{flex:1 1 0;min-width:0}}
+html.nofont :is(.ban,.sign){display:none}
 html.nofont h1.vh{position:static;width:auto;height:auto;margin:10px 0 16px;overflow:visible;clip:auto;font:400 32px/1 var(--mono);color:var(--hi);text-shadow:0 0 6px var(--fg),0 0 22px rgba(var(--rgb),.45)}
 .head p{margin:2px 0 4px;color:var(--mut);max-width:62ch;text-wrap:balance}
 fieldset{margin:0;min-width:0;border:1px solid var(--dim);padding:10px 14px 14px}
@@ -140,7 +142,8 @@ input[type=range]::-moz-range-thumb{width:12px;height:20px;background:var(--fg);
 #cond{margin-top:4px;color:var(--mut);font-size:19px;line-height:1.1}
 #cond:not(:empty)::before{content:"# ";color:var(--dim)}
 .notes p{margin:0;color:var(--mut);font-size:20px;line-height:1.12;max-width:84ch}
-.est{margin:0;color:var(--mut);font-size:20px;line-height:1.12;max-width:84ch}
+.sign{container-type:inline-size;margin:6px 0 0}
+.sign pre{display:block;width:max-content;margin:0 auto;font:400 18px/.8 var(--mono);color:var(--fg);white-space:pre;font-size:min(18px,calc((100vw - 56px)/31));font-size:min(18px,calc(100cqw/31))}
 .foot{margin:0 20px;padding:10px 0 8px;border-top:1px dashed var(--faint);color:var(--mut);font-size:18px;text-align:center}
 .ps1{padding:2px 20px 16px;color:var(--mut)}
 .ps1 i{display:inline-block;width:.5em;height:.8em;margin-left:2px;vertical-align:-.05em;background:var(--fg);box-shadow:0 0 8px var(--fg);animation:blink2 1.06s steps(1) infinite}
@@ -157,7 +160,9 @@ input[type=range]::-moz-range-thumb{width:12px;height:20px;background:var(--fg);
   <div class="hgrp">
    <div class="boot" aria-hidden="true">vrtl@dyno:~$ <span class="type">./virtual-dyno</span></div>
    <h1 class="vh">Virtual Dyno</h1>
+   <div class="hero">
    <div class="stage" role="img" aria-label="Animated pixel-art VW Golf (Mk7) driving along a road"><span class="cap" aria-hidden="true">mk7_golf.spr</span><canvas id="car" width="108" height="34" aria-hidden="true"></canvas></div>
+    <div class="ban">
    <div class="art row" aria-hidden="true">::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 ::.##.....##.####.########..########.##.....##....###....##.......########..##....##.##....##..#######. ::
@@ -189,6 +194,8 @@ input[type=range]::-moz-range-thumb{width:12px;height:20px;background:var(--fg);
 ::                                                                 ::
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::</div>
+    </div>
+   </div>
    <p>Estimate horsepower and torque from a log file, gps data, or both.</p>
   </div>
  </header>
@@ -230,7 +237,6 @@ input[type=range]::-moz-range-thumb{width:12px;height:20px;background:var(--fg);
    <div class="cvw"><canvas id="cv" role="img" aria-label="Dyno graph of horsepower and torque"></canvas></div><div id="ro">hover or touch the graph for exact values</div><div id="cond"></div>
   </fieldset>
  </section>
-  <p class="est">Estimates only: real dynos will differ.</p>
   <fieldset class="cond shut"><legend><button type="button" class="tg" id="condtg" aria-expanded="false" aria-controls="condbody">Car &amp; Conditions</button></legend>
    <div id="condbody" hidden>
    <div class="fields" id="fields"></div>
@@ -248,6 +254,16 @@ input[type=range]::-moz-range-thumb{width:12px;height:20px;background:var(--fg);
     </div>
    </fieldset>
   </div>
+  <div class="sign" role="img" aria-label="TURBOLOSER"><pre aria-hidden="true">··········································································
+:                                                                        :
+:  ##### #    # #####  #####   ####  #       ####   ####  ###### #####   :
+:    #   #    # #    # #    # #    # #      #    # #      #      #    #  :
+:    #   #    # #    # #####  #    # #      #    #  ####  #####  #    #  :
+:    #   #    # #####  #    # #    # #      #    #      # #      #####   :
+:    #   #    # #   #  #    # #    # #      #    # #    # #      #   #   :
+:    #    ####  #    # #####   ####  ######  ####   ####  ###### #    #  :
+:                                                                        :
+··········································································</pre></div>
 </div>
 <footer class="foot">This site was built with AI and AI makes mistakes because it's only human.</footer>
 <div class="ps1" aria-hidden="true">vrtl@dyno:~$ <i></i></div>

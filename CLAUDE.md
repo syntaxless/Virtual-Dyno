@@ -47,8 +47,8 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
   12 rows by 106 columns). Both are figlet "banner3" lettering with the spaces drawn as dots, inside a frame of
   colons (two colon rows above and below, two colon columns at each side, and one blank row at the bottom). The row
   is the owner's own art; the stack was made with `pyfiglet` font `banner3` for each word, framed the same way, with
-  DYNO centred under VIRTUAL. A container query on `.hgrp` (`@container (min-width:520px)`) shows the single row
-  when there is room and the stacked version on phones, because the row is too small to read below that. The art
+  DYNO centred under VIRTUAL. A container query on `.hgrp` (`@container hgrp (min-width:520px)`) shows the single
+  row when there is room and the stacked version on phones, because the row is too small to read below that. The art
   keeps `line-height:.8` (one cell is 0.4em wide and 0.8em tall, a 1:2 terminal cell). Each variant sets its font
   size as `min(28px, calc(100cqw/N))` with `N = ceil(columns * 0.4 + 1)`, because a VT323 character advances 0.4em:
   N is 29 for the stack and 44 for the row. If you change the art, recompute N (the stack's also has a `100vw`
@@ -56,10 +56,16 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
   The sizing assumes VT323 loaded. A fallback font is wider (measured: VT323 0.40em per character, DejaVu Sans Mono
   0.60, Liberation Mono 0.60) and the banner would overflow its column, so the page checks for it: `noFont()` sets
   `html.nofont` when the `--mono` stack measures wider than 0.45em per character (it runs when the font load settles
-  and again after 3.5 s). `html.nofont` hides both banners and shows the `h1` as a plain 32px "Virtual Dyno" heading.
-- **Header order**: boot prompt line, then the car (`.stage` with the `#car` canvas: 324px wide, 216px at 430px and
-  below), then the banner, then the intro. The car lives inside `.hgrp`, the same container the banner's container
-  query measures.
+  and again after 3.5 s). `html.nofont` hides the banners (`.ban`) and the TURBOLOSER sign and shows the `h1` as a
+  plain 32px "Virtual Dyno" heading.
+- **Header order**: boot prompt line, then `.hero` (the car, `.stage` with the `#car` canvas: 324px wide, 216px at
+  430px and below, and the banner wrapper `.ban`), then the intro. There are two named containers: `.hgrp` (the
+  header column; the `@container hgrp` queries measure it) and `.ban` (what the banner's `cqw` font size measures).
+  When `.hgrp` is at least 1000px wide (a window of about 1084px and up) `.hero` becomes a flex row: the car on the
+  left and the one-row banner to its right, centred vertically, with the banner scaled to the width that is left
+  (about 14px at 1000, 17px at the 1160px window maximum). Below 1000px the banner sits under the car at full
+  width (row from 520px, stack below), as before. `smoke.py` checks both arrangements, and that the beside-the-car
+  banner stays at 13px or more; if you change the art or the car's width, recheck that threshold.
 - **Fonts**: one stack, `--mono` on `:root`, drives both the CSS and the graph canvas (the canvas reads the variable).
   VT323 is the look; the rest is the fallback: `ui-monospace`, SF Mono, Cascadia Mono, Menlo, Consolas, DejaVu Sans
   Mono, Liberation Mono, then `monospace`. Courier New is deliberately not in it (thin and light next to VT323).
@@ -71,15 +77,22 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
 - **Boot-in animation**: `html.bt` is set by a head script on the first visit per session (`sessionStorage`
   key `dyno-boot`); `#boot` in the URL replays it; reduced-motion visitors never get it; a click or key skips it;
   it removes itself after about 2.3 s. Each block's timing is set with `--s/--d/--t` variables in the `html.bt`
-  rules, and the banner's `--s` equals its row count (19 for the stack, 12 for the row).
+  rules, and the banner's `--s` equals its row count (19 for the stack, 12 for the row; the sign's is 10). The last
+  blocks are timed to finish before the cleanup: sign 1.96 s, footer 2.1 s, prompt 2.16 s.
 - **Collapsible sections**: Car & Conditions (`#condtg` button, `#condbody` panel) and How It Works (`#howtg`,
   `#howbody`) both start collapsed and share one click handler that flips `aria-expanded`, the panel's `hidden`
-  attribute and the fieldset's `.shut` class. The "Estimates only" line (`p.est`) is deliberately outside both
-  collapsibles, so the disclaimer is always visible. The page is one column at every width, in DOM order:
-  header, Load Data, results (`.main`), the Estimates line (`.est`), Car & Conditions, then How It Works (`.notes`).
-  There is no desktop/tablet split any more (the old two-column grid and its 900px breakpoint are gone). Keep the
-  Estimates line directly above Car & Conditions and How It Works below it; `smoke.py` checks the order and Load
-  Data's full width at every width.
+  attribute and the fieldset's `.shut` class. There is no "Estimates only" disclaimer line any more (the owner
+  removed it: the intro already says it estimates). The page is one column at every width, in DOM order: header,
+  Load Data, results (`.main`), Car & Conditions, How It Works (`.notes`), then the TURBOLOSER sign, the footer
+  and the prompt line. There is no desktop/tablet split any more (the old two-column grid and its 900px
+  breakpoint are gone). Keep How It Works below Car & Conditions; `smoke.py` checks the order and Load Data's
+  full width at every width.
+- **TURBOLOSER sign** (`div.sign`, below How It Works, above the footer): the owner's 10-row by 74-column art, a
+  dotted frame with the word in `#` letters, in a `<pre>`. The wrapper is `role="img" aria-label="TURBOLOSER"` and
+  the `<pre>` is `aria-hidden`. The wrapper is its own container (`container-type:inline-size`) so `cqw` works, and
+  the font is `min(18px, calc(100cqw/31))`, with `31 = ceil(74 * 0.4 + 1)` (recompute it if the art changes, and
+  keep the `100vw` fallback declaration). The `<pre>` is `width:max-content` with auto margins, so it is centred.
+  Hidden by `html.nofont`. The art uses only `#`, `:`, spaces and the middle dot `·` (U+00B7, in the VT323 subset).
 - **Load Data**: its two upload boxes sit in `.drops`, an auto-fit grid (`minmax(260px,1fr)`), so they are side by
   side when there is room (tablet and up) and stacked on phones. The weather form (`#wx`) is capped at 560px and the
   hint/message lines at 90ch so they stay readable at full width.

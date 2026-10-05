@@ -14,8 +14,9 @@ from playwright.async_api import async_playwright
 
 from common import open_page
 
-WIDTHS = (320, 375, 480, 600, 768, 1200)
-BANNER = {320: "stack", 375: "stack", 480: "stack", 600: "row", 768: "row", 1200: "row"}   # phones: stacked; wide: one row
+WIDTHS = (320, 375, 480, 600, 768, 1024, 1100, 1200)
+BANNER = {320: "stack", 375: "stack", 480: "stack", 600: "row", 768: "row", 1024: "row", 1100: "row", 1200: "row"}   # phones: stacked; wider: one row
+BESIDE = (1100, 1200)   # from a 1000px-wide header (about a 1084px window) the banner sits to the right of the car; below that it sits under it
 
 # Layout facts measured in the page: horizontal overflow, banner variant and fit, SAE label on one line.
 LAYOUT = """(()=>{
@@ -25,14 +26,21 @@ LAYOUT = """(()=>{
   const lines=Math.round(l.getBoundingClientRect().height/lh);   // label height / line height (ignores the hidden 1px input)
   return {sw:document.documentElement.scrollWidth, vw:innerWidth,
           shown:shown.length, artMode:art&&art.classList.contains('row')?'row':'stack', artOver:art?art.scrollWidth-art.clientWidth:999,
-          stageGap:art?Math.round(art.getBoundingClientRect().top-document.querySelector('.stage').getBoundingClientRect().bottom):-999,
-          stageRight:Math.round(document.querySelector('.stage').getBoundingClientRect().right),
+          artL:art?Math.round(art.getBoundingClientRect().left):-999, artT:art?Math.round(art.getBoundingClientRect().top):-999,
+          artB:art?Math.round(art.getBoundingClientRect().bottom):-999, artPx:art?parseFloat(getComputedStyle(art).fontSize):0,
+          stageL:Math.round(document.querySelector('.stage').getBoundingClientRect().left),
+          stageR:Math.round(document.querySelector('.stage').getBoundingClientRect().right),
+          stageT:Math.round(document.querySelector('.stage').getBoundingClientRect().top),
+          stageB:Math.round(document.querySelector('.stage').getBoundingClientRect().bottom),
           loadW:Math.round(document.querySelector('.load').getBoundingClientRect().width),mainW:Math.round(document.querySelector('.main').getBoundingClientRect().width),
           loadAbove:Math.round(document.querySelector('.main').getBoundingClientRect().top-document.querySelector('.load').getBoundingClientRect().bottom),
           dropRowDiff:Math.round(document.getElementById('gdrop').getBoundingClientRect().top-document.getElementById('drop').getBoundingClientRect().top),
-          estAbove:Math.round(document.querySelector('.est').getBoundingClientRect().top-document.querySelector('.main').getBoundingClientRect().bottom),
-          estBelow:Math.round(document.querySelector('.cond').getBoundingClientRect().top-document.querySelector('.est').getBoundingClientRect().bottom),
-          estH:Math.round(document.querySelector('.est').getBoundingClientRect().height),
+          signAbove:Math.round(document.querySelector('.sign').getBoundingClientRect().top-document.querySelector('.notes').getBoundingClientRect().bottom),
+          signBelow:Math.round(document.querySelector('.foot').getBoundingClientRect().top-document.querySelector('.sign').getBoundingClientRect().bottom),
+          signOver:document.querySelector('.sign pre').scrollWidth-document.querySelector('.sign pre').clientWidth,
+          signL:Math.round(document.querySelector('.sign pre').getBoundingClientRect().left), signR:Math.round(document.querySelector('.sign pre').getBoundingClientRect().right),
+          signPx:parseFloat(getComputedStyle(document.querySelector('.sign pre')).fontSize),
+          signLabel:document.querySelector('.sign').getAttribute('aria-label'),
           howGap:Math.round(document.querySelector('.how').getBoundingClientRect().top-document.querySelector('.cond').getBoundingClientRect().bottom),
           saeLines:lines, saeOver:Math.round(l.lastElementChild.getBoundingClientRect().right-l.parentNode.getBoundingClientRect().right)};
 })()"""
@@ -54,17 +62,24 @@ async def layout(browser):
         check(f"{w}px: exactly one banner shown, the {BANNER[w]} one", m["shown"] == 1 and m["artMode"] == BANNER[w],
               f"{m['shown']} shown, mode {m['artMode']}")
         check(f"{w}px: ASCII art fits", m["artOver"] <= 1, f"overflow {m['artOver']}px")
-        check(f"{w}px: car animation sits above the banner and inside the screen",
-              m["stageGap"] >= 0 and m["stageRight"] <= m["vw"], f"gap {m['stageGap']}px, right edge {m['stageRight']}")
+        if w in BESIDE:
+            check(f"{w}px: the banner sits to the right of the car, side by side, and is still legible",
+                  m["artL"] >= m["stageR"] and m["artT"] < m["stageB"] and m["artB"] > m["stageT"] and m["artPx"] >= 13
+                  and m["artL"] - m["stageR"] >= 8,
+                  f"banner x {m['artL']}..., car right edge {m['stageR']}, banner y {m['artT']}-{m['artB']}, car y {m['stageT']}-{m['stageB']}, {m['artPx']:.1f}px font")
+        else:
+            check(f"{w}px: car animation sits above the banner and inside the screen",
+                  m["artT"] >= m["stageB"] and m["stageR"] <= m["vw"], f"banner top {m['artT']}, car bottom {m['stageB']}, car right edge {m['stageR']}")
         check(f"{w}px: Load Data is full width, above the results", abs(m["loadW"] - m["mainW"]) <= 1 and m["loadAbove"] >= 0,
               f"load {m['loadW']}px vs results {m['mainW']}px, {m['loadAbove']}px above")
         if w >= 768:
             check(f"{w}px: the two upload boxes sit side by side", m["dropRowDiff"] == 0, f"top offset {m['dropRowDiff']}px")
         if w <= 480:
             check(f"{w}px: the two upload boxes stack on a phone", m["dropRowDiff"] > 20, f"top offset {m['dropRowDiff']}px")
-        check(f"{w}px: the estimates line is visible, between the results and Car & Conditions",
-              m["estH"] > 0 and m["estAbove"] >= 0 and m["estBelow"] >= 0,
-              f"height {m['estH']}px, {m['estAbove']}px below results, {m['estBelow']}px above Car & Conditions")
+        check(f"{w}px: the TURBOLOSER sign sits below How It Works, above the footer, fits and is centred",
+              m["signAbove"] >= 0 and m["signBelow"] >= 0 and m["signOver"] <= 1 and m["signL"] >= 0 and m["signR"] <= m["vw"]
+              and abs((m["signL"] + m["signR"]) / 2 - m["vw"] / 2) <= 4 and m["signPx"] >= 8 and m["signLabel"] == "TURBOLOSER",
+              f"{m['signAbove']}px below How It Works, {m['signBelow']}px above footer, overflow {m['signOver']}px, x {m['signL']}..{m['signR']}, {m['signPx']:.1f}px font")
         check(f"{w}px: How It Works sits below Car & Conditions", m["howGap"] >= 0, f"{m['howGap']}px below")
         check(f"{w}px: SAE checkbox label on one line", m["saeLines"] == 1 and m["saeOver"] <= 0,
               f"{m['saeLines']} line(s), {m['saeOver']}px past column")
@@ -81,8 +96,6 @@ async def collapsible(browser):
         check(f"{name} opens", await st() == ["true", False])
         await pg.click(f"#{tg}")
         check(f"{name} closes again", await st() == ["false", True])
-    check("the estimates-only line stays visible while How It Works is collapsed",
-          await pg.evaluate("document.querySelector('.est').offsetParent!==null"))
     await ctx.close()
 
 
@@ -144,15 +157,15 @@ async def font(browser):
     check("no third-party requests on load", not outside, "; ".join(outside))
     await ctx.close()
 
-    # Font file blocked: the ASCII banners (which need VT323's width) give way to a plain heading.
+    # Font file blocked: the ASCII banners and the sign (which need VT323's width) give way to a plain heading.
     for w in (375, 1200):
         ctx, pg, errs = await open_page(browser, width=w, block_font=True)
         m = await pg.evaluate("""(()=>{const h=document.querySelector('h1.vh').getBoundingClientRect();
           return {nofont:document.documentElement.classList.contains('nofont'),
-                  art:[...document.querySelectorAll('.art')].filter(a=>a.offsetParent!==null).length,
+                  art:[...document.querySelectorAll('.art,.sign')].filter(a=>a.offsetParent!==null).length,
                   h:Math.round(h.height), hr:Math.round(h.right),
                   sw:document.documentElement.scrollWidth, vw:innerWidth}})()""")
-        check(f"{w}px, font blocked: banners give way to a visible heading, no overflow",
+        check(f"{w}px, font blocked: banners and sign give way to a visible heading, no overflow",
               m["nofont"] and m["art"] == 0 and m["h"] > 10 and m["sw"] <= m["vw"] and m["hr"] <= m["vw"] and not errs,
               f"{m} errors: {errs}")
         await ctx.close()
