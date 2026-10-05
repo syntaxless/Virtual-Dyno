@@ -35,6 +35,7 @@ LAYOUT = """(()=>{
           stageB:Math.round(document.querySelector('.stage').getBoundingClientRect().bottom),
           loadW:Math.round(document.querySelector('.load').getBoundingClientRect().width),mainW:Math.round(document.querySelector('.main').getBoundingClientRect().width),
           loadAbove:Math.round(document.querySelector('.main').getBoundingClientRect().top-document.querySelector('.load').getBoundingClientRect().bottom),
+          introW:Math.round(document.querySelector('.head p').getBoundingClientRect().width),hgrpW:Math.round(document.querySelector('.hgrp').getBoundingClientRect().width),
           hintW:Math.round(document.querySelector('.load .hint').getBoundingClientRect().width),
           dropsW:Math.round(document.querySelector('.drops').getBoundingClientRect().width),
           dropRowDiff:Math.round(document.getElementById('gdrop').getBoundingClientRect().top-document.getElementById('drop').getBoundingClientRect().top),
@@ -71,6 +72,9 @@ async def layout(browser):
               f"load {m['loadW']}px vs results {m['mainW']}px, {m['loadAbove']}px above")
         check(f"{w}px: Load Data hint lines use the full section width", m["hintW"] >= m["dropsW"] - 2,
               f"hint {m['hintW']}px, upload row {m['dropsW']}px")
+        if w > 600:
+            check(f"{w}px: the intro line uses the full header width", m["introW"] >= m["hgrpW"] - 2,
+                  f"intro {m['introW']}px of {m['hgrpW']}px")
         if w >= 768:
             check(f"{w}px: the two upload boxes sit side by side", m["dropRowDiff"] == 0, f"top offset {m['dropRowDiff']}px")
         if w <= 480:

@@ -68,6 +68,8 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
   (about 14px at 1000, 17px at the 1160px window maximum). Below 1000px the banner sits under the car at full
   width (row from 520px, stack below), as before. `smoke.py` checks both arrangements, and that the beside-the-car
   banner stays at 13px or more; if you change the art or the car's width, recheck that threshold.
+  The intro line under it (`.head p`) is capped at 62ch and balanced on phones (600px and below) and has no cap
+  above that, so it is one full-width line on tablet and desktop (the owner's request); `smoke.py` checks it.
 - **Fonts**: one stack, `--mono` on `:root`, drives both the CSS and the graph canvas (the canvas reads the variable).
   VT323 is the look; the rest is the fallback: `ui-monospace`, SF Mono, Cascadia Mono, Menlo, Consolas, DejaVu Sans
   Mono, Liberation Mono, then `monospace`. Courier New is deliberately not in it (thin and light next to VT323).
