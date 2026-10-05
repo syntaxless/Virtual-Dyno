@@ -27,6 +27,7 @@ LAYOUT = """(()=>{
           shown:shown.length, artMode:art&&art.classList.contains('row')?'row':'stack', artOver:art?art.scrollWidth-art.clientWidth:999,
           stageGap:art?Math.round(art.getBoundingClientRect().top-document.querySelector('.stage').getBoundingClientRect().bottom):-999,
           stageRight:Math.round(document.querySelector('.stage').getBoundingClientRect().right),
+          howGap:Math.round(document.querySelector('.how').getBoundingClientRect().top-document.querySelector('.cond').getBoundingClientRect().bottom),
           saeLines:lines, saeOver:Math.round(l.lastElementChild.getBoundingClientRect().right-l.parentNode.getBoundingClientRect().right)};
 })()"""
 
@@ -49,6 +50,7 @@ async def layout(browser):
         check(f"{w}px: ASCII art fits", m["artOver"] <= 1, f"overflow {m['artOver']}px")
         check(f"{w}px: car animation sits above the banner and inside the screen",
               m["stageGap"] >= 0 and m["stageRight"] <= m["vw"], f"gap {m['stageGap']}px, right edge {m['stageRight']}")
+        check(f"{w}px: How It Works sits below Car & Conditions", m["howGap"] >= 0, f"{m['howGap']}px below")
         check(f"{w}px: SAE checkbox label on one line", m["saeLines"] == 1 and m["saeOver"] <= 0,
               f"{m['saeLines']} line(s), {m['saeOver']}px past column")
         await ctx.close()

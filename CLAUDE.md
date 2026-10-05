@@ -72,7 +72,11 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
 - **Collapsible sections**: Car & Conditions (`#condtg` button, `#condbody` panel) and How It Works (`#howtg`,
   `#howbody`) both start collapsed and share one click handler that flips `aria-expanded`, the panel's `hidden`
   attribute and the fieldset's `.shut` class. The "Estimates only" line is deliberately outside How It Works, in
-  the `.notes` wrapper, so the disclaimer is always visible.
+  the `.notes` wrapper, so the disclaimer is always visible. Order is Load Data, results, Car & Conditions, then
+  How It Works (`.notes`): the desktop grid areas are `"head head" "load main" "cond cond" "notes notes"` and the
+  stacked layout (900px and below) just follows the DOM order, which is the same. Keep How It Works below Car &
+  Conditions in both; `smoke.py` checks it at every width. (Under Load Data on desktop there is empty space when the
+  results column is taller; that is accepted.)
 - **SAE option** is `label.chk`: a hidden checkbox plus a `[ ]`/`[X]` box drawn by CSS. It is `nowrap` on purpose,
   so the label must stay short enough to fit a 320px screen.
 - Text and punctuation in the file are plain ASCII (straight apostrophes), which VT323 renders reliably.
