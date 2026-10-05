@@ -43,12 +43,14 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
   allow-list appears twice (the head script and the `setPhos` init). Update both when adding or removing a theme.
   A stored value that is no longer allowed falls back to green.
 - **ASCII title**: an `<h1 class="vh">` (visually hidden, for accessibility) followed by two banner variants, both
-  `aria-hidden`: `.art.stack` (VIRTUAL over DYNO, 16 rows by 70 columns) and `.art.row` (VIRTUAL DYNO on one row,
-  8 rows by 115 columns). Both are figlet "banner3-D" output. A container query on `.hgrp`
-  (`@container (min-width:520px)`) shows the single row when there is room and the stacked version on phones,
-  because the row would be unreadably small below that. Each variant sets its font size as
-  `min(28px, calc(100cqw/N))` with `N = ceil(columns * 0.4 + 1)`, because a VT323 character advances 0.4em:
-  N is 29 for the stack and 47 for the row. If you change the art, recompute N (the stack's also has a `100vw`
+  `aria-hidden`: `.art.stack` (VIRTUAL over DYNO, 14 rows by 60 columns) and `.art.row` (VIRTUAL DYNO on one row,
+  7 rows by 97 columns). Both are figlet "Larry 3D" lettering: the row is the owner's own rendering (its word gap is
+  tighter than pyfiglet's), the stack was made with `pyfiglet` font `larry3d` for each word and left aligned. A
+  container query on `.hgrp` (`@container (min-width:640px)`) shows the single row when there is room and the
+  stacked version below that, because the row is hard to read under about 16px. The art keeps `line-height:.8`
+  (one cell is 0.4em wide and 0.8em tall, a 1:2 terminal cell); taller lines break the diagonal strokes apart. Each
+  variant sets its font size as `min(28px, calc(100cqw/N))` with `N = ceil(columns * 0.4 + 1)`, because a VT323
+  character advances 0.4em: N is 25 for the stack and 40 for the row. If you change the art, recompute N (the stack's also has a `100vw`
   fallback declaration) and run `smoke.py`, which checks that exactly one variant shows and that it fits at every width.
   The sizing assumes VT323 loaded. A fallback font is wider (measured: VT323 0.40em per character, DejaVu Sans Mono
   0.60, Liberation Mono 0.60) and the banner would overflow its column, so the page checks for it: `noFont()` sets
@@ -68,7 +70,7 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
 - **Boot-in animation**: `html.bt` is set by a head script on the first visit per session (`sessionStorage`
   key `dyno-boot`); `#boot` in the URL replays it; reduced-motion visitors never get it; a click or key skips it;
   it removes itself after about 2.3 s. Each block's timing is set with `--s/--d/--t` variables in the `html.bt`
-  rules, and the banner's `--s` equals its row count (16 for the stack, 8 for the row).
+  rules, and the banner's `--s` equals its row count (14 for the stack, 7 for the row).
 - **Collapsible sections**: Car & Conditions (`#condtg` button, `#condbody` panel) and How It Works (`#howtg`,
   `#howbody`) both start collapsed and share one click handler that flips `aria-expanded`, the panel's `hidden`
   attribute and the fieldset's `.shut` class. The "Estimates only" line is deliberately outside How It Works, in

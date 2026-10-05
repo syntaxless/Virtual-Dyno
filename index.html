@@ -46,8 +46,8 @@ html.bt .type{animation:typing .6s steps(14) .15s backwards}
 @keyframes typing{from{width:0}}
 @keyframes rv{from{clip-path:inset(0 -50px 100% -50px)}to{clip-path:inset(-50px)}}
 html.bt :is(.art,.hgrp p,.stage,.load,.stats,.run,.notes,.cond,.foot,.ps1){animation:rv var(--d) steps(var(--s)) var(--t) backwards}
-html.bt .art{--s:16;--d:0.3s;--t:.95s}
-html.bt .art.row{--s:8;--d:.15s}
+html.bt .art{--s:14;--d:0.3s;--t:.95s}
+html.bt .art.row{--s:7;--d:.15s}
 html.bt .hgrp p{--s:3;--d:.12s;--t:1.2s}
 html.bt .stage{--s:6;--d:.2s;--t:.75s}
 html.bt .load{--s:10;--d:.25s;--t:1.2s}
@@ -57,9 +57,9 @@ html.bt .cond{--s:3;--d:.08s;--t:1.8s}
 html.bt .notes{--s:3;--d:.08s;--t:1.88s}
 html.bt .foot{--s:2;--d:.06s;--t:1.96s}
 html.bt .ps1{--s:1;--d:.04s;--t:2.0s}
-.art{display:block;margin:8px 0 6px;font:400 28px/.8 var(--mono);color:var(--hi);text-shadow:0 0 6px var(--fg),0 0 22px rgba(var(--rgb),.45);white-space:pre;font-size:min(28px,calc((100vw - 56px)/29));font-size:min(28px,calc(100cqw/29))}
-.art.row{display:none;font-size:min(28px,calc(100cqw/47))}
-@container (min-width:520px){.art.row{display:block}.art.stack{display:none}}
+.art{display:block;margin:8px 0 6px;font:400 28px/.8 var(--mono);color:var(--hi);text-shadow:0 0 6px var(--fg),0 0 22px rgba(var(--rgb),.45);white-space:pre;font-size:min(28px,calc((100vw - 56px)/25));font-size:min(28px,calc(100cqw/25))}
+.art.row{display:none;font-size:min(28px,calc(100cqw/40))}
+@container (min-width:640px){.art.row{display:block}.art.stack{display:none}}
 html.nofont .art{display:none}
 html.nofont h1.vh{position:static;width:auto;height:auto;margin:10px 0 16px;overflow:visible;clip:auto;font:400 32px/1 var(--mono);color:var(--hi);text-shadow:0 0 6px var(--fg),0 0 22px rgba(var(--rgb),.45)}
 .head p{margin:2px 0 4px;color:var(--mut);max-width:62ch;text-wrap:balance}
@@ -157,30 +157,27 @@ input[type=range]::-moz-range-thumb{width:12px;height:20px;background:var(--fg);
    <div class="boot" aria-hidden="true">vrtl@dyno:~$ <span class="type">./virtual-dyno</span></div>
    <h1 class="vh">Virtual Dyno</h1>
    <div class="stage" role="img" aria-label="Animated pixel-art VW Golf (Mk7) driving along a road"><span class="cap" aria-hidden="true">mk7_golf.spr</span><canvas id="car" width="108" height="34" aria-hidden="true"></canvas></div>
-   <div class="art row" aria-hidden="true">'##::::'##:'####:'########::'########:'##::::'##::::'###::::'##::::::::::'########::'##:::'##:'##::: ##::'#######::
- ##:::: ##:. ##:: ##.... ##:... ##..:: ##:::: ##:::'## ##::: ##:::::::::: ##.... ##:. ##:'##:: ###:: ##:'##.... ##:
- ##:::: ##:: ##:: ##:::: ##:::: ##:::: ##:::: ##::'##:. ##:: ##:::::::::: ##:::: ##::. ####::: ####: ##: ##:::: ##:
- ##:::: ##:: ##:: ########::::: ##:::: ##:::: ##:'##:::. ##: ##:::::::::: ##:::: ##:::. ##:::: ## ## ##: ##:::: ##:
-. ##:: ##::: ##:: ##.. ##:::::: ##:::: ##:::: ##: #########: ##:::::::::: ##:::: ##:::: ##:::: ##. ####: ##:::: ##:
-:. ## ##:::: ##:: ##::. ##::::: ##:::: ##:::: ##: ##.... ##: ##:::::::::: ##:::: ##:::: ##:::: ##:. ###: ##:::: ##:
-::. ###::::'####: ##:::. ##:::: ##::::. #######:: ##:::: ##: ########:::: ########::::: ##:::: ##::. ##:. #######::
-:::...:::::....::..:::::..:::::..::::::.......:::..:::::..::........:::::........::::::..:::::..::::..:::.......:::</div>
-   <div class="art stack" aria-hidden="true">'##::::'##:'####:'########::'########:'##::::'##::::'###::::'##:::::::
- ##:::: ##:. ##:: ##.... ##:... ##..:: ##:::: ##:::'## ##::: ##:::::::
- ##:::: ##:: ##:: ##:::: ##:::: ##:::: ##:::: ##::'##:. ##:: ##:::::::
- ##:::: ##:: ##:: ########::::: ##:::: ##:::: ##:'##:::. ##: ##:::::::
-. ##:: ##::: ##:: ##.. ##:::::: ##:::: ##:::: ##: #########: ##:::::::
-:. ## ##:::: ##:: ##::. ##::::: ##:::: ##:::: ##: ##.... ##: ##:::::::
-::. ###::::'####: ##:::. ##:::: ##::::. #######:: ##:::: ##: ########:
-:::...:::::....::..:::::..:::::..::::::.......:::..:::::..::........::
-'########::'##:::'##:'##::: ##::'#######::
- ##.... ##:. ##:'##:: ###:: ##:'##.... ##:
- ##:::: ##::. ####::: ####: ##: ##:::: ##:
- ##:::: ##:::. ##:::: ## ## ##: ##:::: ##:
- ##:::: ##:::: ##:::: ##. ####: ##:::: ##:
- ##:::: ##:::: ##:::: ##:. ###: ##:::: ##:
- ########::::: ##:::: ##::. ##:. #######::
-........::::::..:::::..::::..:::.......:::</div>
+   <div class="art row" aria-hidden="true"> __  __  ______   ____    ______  __  __  ______  __       ____     __    __  __  __  _____
+/\ \/\ \/\__  _\ /\  _`\ /\__  _\/\ \/\ \/\  _  \/\ \     /\  _`\  /\ \  /\ \/\ \/\ \/\  __`\
+\ \ \ \ \/_/\ \/ \ \ \L\ \/_/\ \/\ \ \ \ \ \ \L\ \ \ \    \ \ \/\ \\ `\`\\/'/\ \ `\\ \ \ \/\ \
+ \ \ \ \ \ \ \ \  \ \ ,  /  \ \ \ \ \ \ \ \ \  __ \ \ \  __\ \ \ \ \`\ `\ /'  \ \ , ` \ \ \ \ \
+  \ \ \_/ \ \_\ \__\ \ \\ \  \ \ \ \ \ \_\ \ \ \/\ \ \ \L\ \\ \ \_\ \ `\ \ \   \ \ \`\ \ \ \_\ \
+   \ `\___/ /\_____\\ \_\ \_\ \ \_\ \ \_____\ \_\ \_\ \____/ \ \____/   \ \_\   \ \_\ \_\ \_____\
+    `\/__/  \/_____/ \/_/\/ /  \/_/  \/_____/\/_/\/_/\/___/   \/___/     \/_/    \/_/\/_/\/_____/</div>
+   <div class="art stack" aria-hidden="true"> __  __  ______   ____    ______  __  __  ______  __
+/\ \/\ \/\__  _\ /\  _`\ /\__  _\/\ \/\ \/\  _  \/\ \
+\ \ \ \ \/_/\ \/ \ \ \L\ \/_/\ \/\ \ \ \ \ \ \L\ \ \ \
+ \ \ \ \ \ \ \ \  \ \ ,  /  \ \ \ \ \ \ \ \ \  __ \ \ \  __
+  \ \ \_/ \ \_\ \__\ \ \\ \  \ \ \ \ \ \_\ \ \ \/\ \ \ \L\ \
+   \ `\___/ /\_____\\ \_\ \_\ \ \_\ \ \_____\ \_\ \_\ \____/
+    `\/__/  \/_____/ \/_/\/ /  \/_/  \/_____/\/_/\/_/\/___/
+ ____     __    __  __  __  _____
+/\  _`\  /\ \  /\ \/\ \/\ \/\  __`\
+\ \ \/\ \\ `\`\\/'/\ \ `\\ \ \ \/\ \
+ \ \ \ \ \`\ `\ /'  \ \ , ` \ \ \ \ \
+  \ \ \_\ \ `\ \ \   \ \ \`\ \ \ \_\ \
+   \ \____/   \ \_\   \ \_\ \_\ \_____\
+    \/___/     \/_/    \/_/\/_/\/_____/</div>
    <p>Estimate horsepower and torque from a log file, gps data, or both.</p>
   </div>
  </header>
