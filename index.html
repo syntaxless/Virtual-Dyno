@@ -14,8 +14,8 @@ try{let s;try{s=sessionStorage.getItem("dyno-boot");sessionStorage.setItem("dyno
 <meta property="og:url" content="https://dyno.turboloser.co/">
 <meta name="twitter:card" content="summary">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"Online Virtual Dyno","alternateName":"Virtual Dyno","url":"https://dyno.turboloser.co/"}</script>
-<link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
 <style>
+@font-face{font-family:"VT323";font-style:normal;font-weight:400;font-display:block;src:url(fonts/vt323-latin-400-normal.woff2) format("woff2")}
 :root{--desk:#010503;--bg:#030f08;--screen:#020b06;--fg:#46f08a;--hi:#d6ffe6;--mut:#37b46c;--dim:#1c7a45;--faint:#0e3d22;--s1:#46f08a;--s2:#ffb938;--s3:#59e4ff;--err:#ff6b5e;--ink:#02100a;--rgb:70,240,138;--halo:#08240f;--bezel:#08140d;--mono:"VT323",ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;color-scheme:dark}
 :root[data-phosphor="color"]{--desk:#001a21;--bg:#002b36;--screen:#00212b;--fg:#268bd2;--hi:#eee8d5;--mut:#93a1a1;--dim:#839496;--faint:#586e75;--s1:#268bd2;--s2:#b58900;--s3:#2aa198;--err:#ef5f5c;--ink:#002b36;--rgb:38,139,210;--halo:#073642;--bezel:#073642}
 *{box-sizing:border-box}
@@ -60,6 +60,8 @@ html.bt .ps1{--s:1;--d:.04s;--t:2.0s}
 .art{display:block;margin:8px 0 6px;font:400 28px/.8 var(--mono);color:var(--hi);text-shadow:0 0 6px var(--fg),0 0 22px rgba(var(--rgb),.45);white-space:pre;font-size:min(28px,calc((100vw - 56px)/29));font-size:min(28px,calc(100cqw/29))}
 .art.row{display:none;font-size:min(28px,calc(100cqw/47))}
 @container (min-width:520px){.art.row{display:block}.art.stack{display:none}}
+html.nofont .art{display:none}
+html.nofont h1.vh{position:static;width:auto;height:auto;margin:10px 0 16px;overflow:visible;clip:auto;font:400 32px/1 var(--mono);color:var(--hi);text-shadow:0 0 6px var(--fg),0 0 22px rgba(var(--rgb),.45)}
 .head p{margin:2px 0 4px;color:var(--mut);max-width:62ch;text-wrap:balance}
 fieldset{margin:0;min-width:0;border:1px solid var(--dim);padding:10px 14px 14px}
 legend{padding:0 8px;color:var(--hi)}
@@ -482,7 +484,10 @@ $('#gps').onchange=e=>{const f=e.target.files[0];e.target.value='';readGPS(f)};
 const gz=$('#gdrop');gz.ondragover=e=>{e.preventDefault();gz.classList.add('on')};gz.ondragleave=()=>gz.classList.remove('on');
 gz.ondrop=e=>{e.preventDefault();gz.classList.remove('on');readGPS(e.dataTransfer.files[0])};
 $('#replay').onclick=()=>{fresh=true;render()};
-if(document.fonts)document.fonts.ready.then(()=>draw());
+/* The banner is sized for VT323 (0.4em per character). If the font did not load, a wider fallback would overflow it,
+   so show a plain heading instead; re-check once the font settles or the 3 s block period ends. */
+function noFont(){const t=document.createElement('span');t.style.cssText='position:absolute;visibility:hidden;white-space:pre;font:100px var(--mono)';t.textContent='0'.repeat(20);document.body.appendChild(t);const adv=t.getBoundingClientRect().width/2000;t.remove();document.documentElement.classList.toggle('nofont',adv>.45)}
+if(document.fonts){const ok=()=>{noFont();draw()};document.fonts.load('20px VT323','0').then(ok,ok);document.fonts.ready.then(()=>draw());setTimeout(noFont,3500)}
 
 const getText=url=>{const ac=new AbortController(),to=setTimeout(()=>ac.abort(),10000);
   return fetch(url,{signal:ac.signal}).then(r=>{if(!r.ok)throw Error('Open-Meteo answered with an error ('+r.status+').');return r.text()}).finally(()=>clearTimeout(to))};

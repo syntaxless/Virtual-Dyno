@@ -9,7 +9,10 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
 - `index.html` is the entire site: inline CSS and JS in one readable file. Edit it directly.
 - `CNAME` contains `dyno.turboloser.co`. Pages needs it; do not delete it.
 - `tools/` holds the browser checks (see `tools/README.md`). Nothing in it is deployed.
-- Only external dependencies: the VT323 Google Fonts link, and Open-Meteo APIs called with `fetch`.
+- `fonts/` holds the self-hosted VT323 (`vt323-latin-400-normal.woff2`) and its licence, `OFL.txt`. Deployed; keep the
+  licence next to the font.
+- The only external dependency is the Open-Meteo API, called with `fetch` on user action. The page makes no
+  third-party request on load (no Google Fonts), and `smoke.py` checks that.
 
 ## Workflow
 
@@ -47,15 +50,21 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
   `min(28px, calc(100cqw/N))` with `N = ceil(columns * 0.4 + 1)`, because a VT323 character advances 0.4em:
   N is 29 for the stack and 47 for the row. If you change the art, recompute N (the stack's also has a `100vw`
   fallback declaration) and run `smoke.py`, which checks that exactly one variant shows and that it fits at every width.
-  The sizing assumes VT323 loaded. If the Google Fonts request is blocked, the fallback font is wider (measured:
-  VT323 0.40em per character, DejaVu Sans Mono 0.60, Liberation Mono 0.60) and the banner overflows its column;
-  self-hosting VT323 and/or a small JS fit would fix that.
+  The sizing assumes VT323 loaded. A fallback font is wider (measured: VT323 0.40em per character, DejaVu Sans Mono
+  0.60, Liberation Mono 0.60) and the banner would overflow its column, so the page checks for it: `noFont()` sets
+  `html.nofont` when the `--mono` stack measures wider than 0.45em per character (it runs when the font load settles
+  and again after 3.5 s). `html.nofont` hides both banners and shows the `h1` as a plain 32px "Virtual Dyno" heading.
 - **Header order**: boot prompt line, then the car (`.stage` with the `#car` canvas: 324px wide, 216px at 430px and
   below), then the banner, then the intro. The car lives inside `.hgrp`, the same container the banner's container
   query measures.
 - **Fonts**: one stack, `--mono` on `:root`, drives both the CSS and the graph canvas (the canvas reads the variable).
   VT323 is the look; the rest is the fallback: `ui-monospace`, SF Mono, Cascadia Mono, Menlo, Consolas, DejaVu Sans
   Mono, Liberation Mono, then `monospace`. Courier New is deliberately not in it (thin and light next to VT323).
+  VT323 is self-hosted: an `@font-face` at the top of the `<style>` points at `fonts/vt323-latin-400-normal.woff2`
+  (`font-display:block`, so there is no flash of the fallback). It is the `latin` subset from `@fontsource/vt323`
+  5.3.0, which covers ASCII plus the symbols the page uses today (° ² ³ · ×, the en dash, curly quotes and the minus sign). Before putting
+  a new non-ASCII character in the page, check it is in the font (fontTools `getBestCmap()` on the `.woff`
+  from the same package) or take the `latin-ext` file; a missing glyph silently comes from another font.
 - **Boot-in animation**: `html.bt` is set by a head script on the first visit per session (`sessionStorage`
   key `dyno-boot`); `#boot` in the URL replays it; reduced-motion visitors never get it; a click or key skips it;
   it removes itself after about 2.3 s. Each block's timing is set with `--s/--d/--t` variables in the `html.bt`
@@ -73,8 +82,9 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
 ## Testing gotchas
 
 - The big numbers count up for ~1.5 s: wait 2.6 s before reading them (`COUNTUP_MS` in `tools/common.py`).
-- Tests seed `sessionStorage` to skip the boot-in, click `#condtg` to expand Car & Conditions, and inject a local
-  VT323 because the page's Google Fonts request is blocked. Run `tools/setup_font.sh` once per machine.
+- Tests seed `sessionStorage` to skip the boot-in and click `#condtg` to expand Car & Conditions. The font needs
+  no setup: the page loads `fonts/` from the repo like the live site does. `open_page(block_font=True)` and
+  `shot.py --nofont` fail the `.woff2` request to show the fallback look.
 - Do not assert on wording in `smoke.py`; copy changes are normal. `weather.py` is a snapshot, so a legitimate
   message change means reviewing the diff and running it with `--update`.
 - Reference result for the owner's log (`GolfR_NewEngine_4thGearPull_10_01_2026.csv`): 396 hp, 363 lb-ft,

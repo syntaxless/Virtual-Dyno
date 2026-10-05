@@ -4,7 +4,8 @@
 
 Checks layout at phone/tablet/desktop widths (including which banner variant shows), the collapsible
 Car & Conditions and How It Works sections, the one-line SAE checkbox, theme switching/persistence,
-and the boot-in animation gate.
+the boot-in animation gate, and the self-hosted font (loads from the site, nothing third-party is
+requested, and the page degrades to a plain heading when the font file cannot load).
 """
 import asyncio
 import sys
@@ -109,10 +110,41 @@ async def boot(browser):
     await ctx.close()
 
 
+async def font(browser):
+    # Normal load: VT323 comes from fonts/ next to the page, and nothing leaves the site.
+    ctx, pg, errs = await open_page(browser, width=375)
+    urls = []
+    pg.on("request", lambda r: urls.append(r.url))
+    await pg.reload(); await pg.wait_for_timeout(600)
+    f = await pg.evaluate("""(async()=>{await document.fonts.ready;
+      const face=[...document.fonts].find(x=>x.family.replace(/"/g,'')==='VT323');
+      return {status:face&&face.status, check:document.fonts.check('20px VT323','0'),
+              nofont:document.documentElement.classList.contains('nofont')}})()""")
+    check("VT323 loads from the site's fonts/ folder", f["status"] == "loaded" and f["check"] and not f["nofont"], str(f))
+    check("the font file was requested from the site", any(u.endswith(".woff2") and "/fonts/" in u for u in urls),
+          "; ".join(u for u in urls if u.endswith(".woff2")) or "no .woff2 request")
+    outside = [u for u in urls if u.startswith(("http:", "https:"))]
+    check("no third-party requests on load", not outside, "; ".join(outside))
+    await ctx.close()
+
+    # Font file blocked: the ASCII banners (which need VT323's width) give way to a plain heading.
+    for w in (375, 1200):
+        ctx, pg, errs = await open_page(browser, width=w, block_font=True)
+        m = await pg.evaluate("""(()=>{const h=document.querySelector('h1.vh').getBoundingClientRect();
+          return {nofont:document.documentElement.classList.contains('nofont'),
+                  art:[...document.querySelectorAll('.art')].filter(a=>a.offsetParent!==null).length,
+                  h:Math.round(h.height), hr:Math.round(h.right),
+                  sw:document.documentElement.scrollWidth, vw:innerWidth}})()""")
+        check(f"{w}px, font blocked: banners give way to a visible heading, no overflow",
+              m["nofont"] and m["art"] == 0 and m["h"] > 10 and m["sw"] <= m["vw"] and m["hr"] <= m["vw"] and not errs,
+              f"{m} errors: {errs}")
+        await ctx.close()
+
+
 async def main():
     async with async_playwright() as pw:
         browser = await pw.chromium.launch()
-        for step in (layout, collapsible, sae_checkbox, themes, boot):
+        for step in (layout, collapsible, sae_checkbox, themes, boot, font):
             await step(browser)
         await browser.close()
     bad = results.count(False)
