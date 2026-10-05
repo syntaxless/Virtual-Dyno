@@ -22,8 +22,13 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
    - layout or CSS: also `python tools/smoke.py`
    - calculation, parsing, weather or file handling: also `tools/functional.py` and `tools/weather.py`
      (they need `DYNO_LOG`, the owner's log, which is not in the repo)
-4. Commit and push to `main` after each finished edit. The owner expects that, and Pages publishes within
-   about a minute. Verify with a cache-busted fetch such as `https://dyno.turboloser.co/?cb=123`.
+4. Commit and push to `main` after each finished edit. The owner expects that. Pages normally publishes within a
+   couple of minutes. To confirm it is live:
+   - a WebFetch caches each URL for 15 minutes and a `?cb=` query string did not reliably bypass it, so fetch a URL
+     not requested recently, such as `https://dyno.turboloser.co/index.html`; that tool also drops the text of
+     collapsed (`hidden`) panels, so check headings and visible text, not paragraphs inside a collapsed section
+   - `gh api "repos/syntaxless/virtual-dyno/deployments?per_page=1"`, then `.../deployments/<id>/statuses`, shows
+     when the newest deploy reaches `success` (the Pages builds endpoint is not available through the proxy)
 5. Never commit logs or personal data.
 
 ## How the page is built (things that are easy to break)
