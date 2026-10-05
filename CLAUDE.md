@@ -8,7 +8,8 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
 
 - `index.html` is the entire site: inline CSS and JS in one readable file. Edit it directly.
 - `CNAME` contains `dyno.turboloser.co`. Pages needs it; do not delete it.
-- `tools/` holds the browser checks (see `tools/README.md`). Nothing in it is deployed.
+- `tools/` holds the browser checks and `cargen.py`, the car-sprite authoring aid (see `tools/README.md`). Nothing in
+  it is deployed.
 - `fonts/` holds the self-hosted VT323 (`vt323-latin-400-normal.woff2`) and its licence, `OFL.txt`. Deployed; keep the
   licence next to the font.
 - The only external dependency is the Open-Meteo API, called with `fetch` on user action. The page makes no
@@ -57,6 +58,19 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
 - **Header order**: boot prompt line, then the car (`.stage` with the `#car` canvas: 324px wide, 216px at 430px and
   below), then the banner, then the intro. The car lives inside `.hgrp`, the same container the banner's container
   query measures.
+- **Cars**: `CARS` (just above the `RB` engine) is a list of 12 pixel-art cars: VW Mk7 Golf, Mk1 Rabbit and Rabbit
+  Truck, Mk3 GTI and Jetta, Mk4 R32, Mk7 Sportwagen, Porsche 964 and 930 Flachbau, Audi RS2, RS6 and 90 IMSA GTO. One is
+  picked at random per load, never the same one as last time (`localStorage` key `dyno-car`, which is allowed to be
+  missing); `?car=<id>` forces one, which tests and screenshots use. Each entry: `id`, `cap` (the caption on the
+  frame), `name` (used in the stage's aria-label), `rows` (one string per pixel row, car facing right; `H` bright,
+  `B` body, `S` mid, `D` dim, `G` glass, `O` opaque background, `.` clear), `oy` (empty rows trimmed from the top),
+  `wx`/`wy`/`wr` (wheel centre columns, centre row and radius; the engine draws and spins the wheels, so they are not
+  in `rows`) and optional `sp` (spokes). The right edge is always drawn at canvas column 94, so a longer car grows
+  leftward; keep sprites 40-80 px wide and the tyre bottom (`wy + floor(wr)`) on row 27 so it sits on the road line.
+  Colours come from the theme tokens, so a sprite needs no per-theme work. No logos, badges or lettering in a sprite.
+  To add or rework a car, describe it in `SPECS` in `tools/cargen.py` (metres, side profile), run it to print the
+  entry, paste that into `CARS`, then run `python tools/cargen.py --sheet` and look at `tools/out/cars_*.png` in both
+  themes. After pasting, `index.html` is the source of truth; `smoke.py` checks every car in the list.
 - **Fonts**: one stack, `--mono` on `:root`, drives both the CSS and the graph canvas (the canvas reads the variable).
   VT323 is the look; the rest is the fallback: `ui-monospace`, SF Mono, Cascadia Mono, Menlo, Consolas, DejaVu Sans
   Mono, Liberation Mono, then `monospace`. Courier New is deliberately not in it (thin and light next to VT323).
@@ -82,6 +96,8 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
 ## Testing gotchas
 
 - The big numbers count up for ~1.5 s: wait 2.6 s before reading them (`COUNTUP_MS` in `tools/common.py`).
+- The car is random on every load. A test or screenshot that cares which one passes `car=` to `open_page` (or
+  `--car` to `shot.py`); the layout checks are indifferent because the canvas size is fixed.
 - Tests seed `sessionStorage` to skip the boot-in and click `#condtg` to expand Car & Conditions. The font needs
   no setup: the page loads `fonts/` from the repo like the live site does. `open_page(block_font=True)` and
   `shot.py --nofont` fail the `.woff2` request to show the fallback look.

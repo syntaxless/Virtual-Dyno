@@ -8,6 +8,7 @@
   python tools/shot.py --theme color --full      # color theme, whole page
   python tools/shot.py --gpx                     # with the synthetic GPS track loaded
   python tools/shot.py --log /path/to/log.csv    # with a real Accessport log
+  python tools/shot.py --car mk1truck            # force one of the cars (ids are in CARS in index.html); default is random
   python tools/shot.py --nofont --full           # as it looks if the VT323 file fails to load
 
 Images are written to tools/out/ and their paths are printed.
@@ -32,6 +33,7 @@ async def main():
     ap.add_argument("--full", action="store_true", help="full-page screenshot")
     ap.add_argument("--gpx", action="store_true", help="load the synthetic GPS track")
     ap.add_argument("--log", help="load an Accessport .csv")
+    ap.add_argument("--car", help="car id to show (default: random, as for visitors)")
     ap.add_argument("--nofont", action="store_true", help="block the font file (fallback look)")
     ap.add_argument("--name", default="shot")
     a = ap.parse_args()
@@ -39,7 +41,7 @@ async def main():
     async with async_playwright() as pw:
         browser = await pw.chromium.launch()
         for w in [int(x) for x in a.widths.split(",")]:
-            ctx, pg, errs = await open_page(browser, width=w, height=a.height, expand=a.expand, block_font=a.nofont)
+            ctx, pg, errs = await open_page(browser, width=w, height=a.height, expand=a.expand, block_font=a.nofont, car=a.car)
             if a.theme:
                 await pg.click(f'#phos button[data-p="{a.theme}"]')
             for sel in a.click:
