@@ -1,0 +1,622 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<script>try{const p=localStorage.getItem("dyno-phosphor");if(["color"].includes(p))document.documentElement.dataset.phosphor=p}catch{/* storage unavailable */}
+try{let s;try{s=sessionStorage.getItem("dyno-boot");sessionStorage.setItem("dyno-boot","1")}catch{/* storage unavailable */}if(!matchMedia("(prefers-reduced-motion:reduce)").matches&&(!s||location.hash=="#boot"))document.documentElement.classList.add("bt")}catch{/* no boot animation */}</script>
+<title>Online Virtual Dyno</title>
+<meta name="description" content="Estimate horsepower and torque from a Cobb Accessport log or a RaceBox or Dragy GPS track, with weather and altitude corrections. Tuned for the 2016 VW Golf R.">
+<link rel="canonical" href="https://dyno.turboloser.co/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Online Virtual Dyno">
+<meta property="og:title" content="Online Virtual Dyno">
+<meta property="og:description" content="Estimate horsepower and torque from a Cobb Accessport log or a RaceBox or Dragy GPS track, with weather and altitude corrections. Tuned for the 2016 VW Golf R.">
+<meta property="og:url" content="https://dyno.turboloser.co/">
+<meta name="twitter:card" content="summary">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"Online Virtual Dyno","alternateName":"Virtual Dyno","url":"https://dyno.turboloser.co/"}</script>
+<link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+<style>
+:root{--desk:#010503;--bg:#030f08;--screen:#020b06;--fg:#46f08a;--hi:#d6ffe6;--mut:#37b46c;--dim:#1c7a45;--faint:#0e3d22;--s1:#46f08a;--s2:#ffb938;--s3:#59e4ff;--err:#ff6b5e;--ink:#02100a;--rgb:70,240,138;--halo:#08240f;--bezel:#08140d;--mono:"VT323","Courier New",ui-monospace,monospace;color-scheme:dark}
+:root[data-phosphor="color"]{--desk:#001a21;--bg:#002b36;--screen:#00212b;--fg:#268bd2;--hi:#eee8d5;--mut:#93a1a1;--dim:#839496;--faint:#586e75;--s1:#268bd2;--s2:#b58900;--s3:#2aa198;--err:#ef5f5c;--ink:#002b36;--rgb:38,139,210;--halo:#073642;--bezel:#073642}
+*{box-sizing:border-box}
+html{background:var(--desk)}
+body{margin:0;min-height:100vh;padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom));background-color:var(--desk);background-image:radial-gradient(1100px 620px at 50% -80px,var(--halo),transparent 70%);color:var(--fg);font:22px/1.2 var(--mono);text-shadow:0 0 5px rgba(var(--rgb),.32)}
+[hidden]{display:none!important}
+::selection{background:var(--fg);color:var(--ink);text-shadow:none}
+.vh{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);border:0}
+.win{position:relative;max-width:1160px;margin:0 auto;background:var(--bg);border:2px solid var(--dim);border-radius:12px;overflow:hidden;overflow:clip;box-shadow:0 0 0 7px var(--bezel),0 0 0 9px #000,0 0 70px rgba(var(--rgb),.14),inset 0 0 90px rgba(var(--rgb),.07)}
+.bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:0 12px;background:var(--fg);color:var(--ink);padding:1px 14px;font-size:21px;letter-spacing:.05em;text-shadow:none}
+.crt{position:absolute;inset:0;z-index:9;pointer-events:none;background:repeating-linear-gradient(transparent 0 2px,rgba(0,0,0,.17) 2px 3px),radial-gradient(ellipse at 50% 45%,transparent 58%,rgba(0,0,0,.5))}
+.ph{display:flex;align-items:center;gap:2px;margin-left:auto}
+.ph .pl{margin-right:8px}
+.ph button{font:inherit;letter-spacing:inherit;color:var(--ink);background:none;border:0;padding:0 8px;cursor:pointer;text-shadow:none}
+.ph button:hover{text-decoration:underline}
+.ph button[aria-pressed="true"]{background:var(--ink);color:var(--fg);text-decoration:none}
+.ph button:focus-visible{outline:1px dashed var(--ink);outline-offset:2px}
+@media (prefers-contrast:more){.crt{display:none}}
+.app{display:grid;grid-template-columns:330px minmax(0,1fr);grid-template-areas:"head head" "load main" "notes main" "cond cond";grid-template-rows:auto auto 1fr auto;gap:16px 18px;padding:16px 20px 12px;align-items:start}
+.head{grid-area:head}.load{grid-area:load}.main{grid-area:main}.notes{grid-area:notes}.cond{grid-area:cond}
+.boot{color:var(--mut);font-size:22px}
+.head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:14px 24px}
+.hgrp{flex:1 1 440px;min-width:0;container-type:inline-size}
+.stage{position:relative;flex:0 0 auto;border:1px solid var(--dim);padding:14px 10px 6px;line-height:0}
+.stage .cap{position:absolute;top:-.6em;left:10px;padding:0 8px;background:var(--bg);color:var(--mut);font-size:20px;line-height:1;letter-spacing:.04em}
+#car{display:block;width:324px;height:102px;image-rendering:pixelated;cursor:default}
+.type{display:inline-block;box-sizing:content-box;width:14ch;overflow:hidden;white-space:nowrap;vertical-align:bottom;color:var(--hi)}
+html.bt .type{animation:typing .6s steps(14) .15s backwards}
+@keyframes typing{from{width:0}}
+@keyframes rv{from{clip-path:inset(0 -50px 100% -50px)}to{clip-path:inset(-50px)}}
+html.bt :is(.art,.hgrp p,.stage,.load,.stats,.run,.notes,.cond,.foot,.ps1){animation:rv var(--d) steps(var(--s)) var(--t) backwards}
+html.bt .art{--s:16;--d:0.3s;--t:.8s}
+html.bt .hgrp p{--s:3;--d:.12s;--t:1.1s}
+html.bt .stage{--s:6;--d:.2s;--t:1.1s}
+html.bt .load{--s:10;--d:.25s;--t:1.2s}
+html.bt .stats{--s:6;--d:.15s;--t:1.25s}
+html.bt .run,html.bt .notes{--s:12;--d:.3s;--t:1.45s}
+html.bt .cond{--s:3;--d:.08s;--t:1.8s}
+html.bt .foot{--s:2;--d:.06s;--t:1.9s}
+html.bt .ps1{--s:1;--d:.04s;--t:2.0s}
+.art{display:block;margin:8px 0 6px;font:400 28px/.8 var(--mono);color:var(--hi);text-shadow:0 0 6px var(--fg),0 0 22px rgba(var(--rgb),.45);white-space:pre;font-size:min(28px,calc((100vw - 56px)/29));font-size:min(28px,calc(100cqw/29))}
+.head p{margin:2px 0 4px;color:var(--mut);max-width:62ch}
+fieldset{margin:0;min-width:0;border:1px solid var(--dim);padding:10px 14px 14px}
+legend{padding:0 8px;color:var(--hi)}
+.tg{font:inherit;letter-spacing:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;text-shadow:inherit}
+.tg::before{content:"- ";color:var(--dim)}.tg[aria-expanded=false]::before{content:"+ "}
+.tg:hover{color:var(--fg)}.tg:focus-visible{outline:1px dashed var(--hi);outline-offset:3px}
+.cond.shut{padding-top:0;padding-bottom:0}
+.main{display:flex;flex-direction:column;gap:16px;min-width:0}
+.hint{margin:0 0 10px;color:var(--mut);font-size:20px}
+.drop{display:block;margin-bottom:10px;padding:8px 12px;border:1px dashed var(--dim);cursor:pointer}
+.drop b{display:block;font-weight:400;color:var(--hi)}
+.drop b::before{content:"> ";color:var(--fg)}
+.drop span{color:var(--mut);font-size:20px}
+.drop:hover,.drop.on,.drop:focus-within{border-color:var(--fg);background:rgba(var(--rgb),.1);box-shadow:0 0 10px rgba(var(--rgb),.25)}
+.btn{display:inline-block;font:inherit;color:var(--fg);background:none;border:0;padding:2px 4px;margin:2px 0;cursor:pointer;text-decoration:none;text-shadow:inherit}
+.btn::before{content:"[ "}.btn::after{content:" ]"}
+.btn:hover{background:var(--fg);color:var(--ink);text-shadow:none}
+.btn:active{background:var(--hi);color:var(--ink)}
+.wl{display:block;margin-top:8px;color:var(--mut);font-size:20px}
+.wr{display:grid;grid-template-columns:minmax(0,6fr) minmax(0,5fr);gap:0 10px;margin-bottom:6px}
+.wr input{font-size:20px;padding:1px 4px}
+.btn:disabled{color:var(--dim);cursor:progress;background:none;text-shadow:none}
+.hint a{color:var(--fg)}.hint a:hover{background:var(--fg);color:var(--ink);text-decoration:none}
+summary{margin-top:10px;color:var(--mut);font-size:20px;cursor:pointer;list-style:none}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"+ ";color:var(--dim)}details[open]>summary::before{content:"- "}
+summary:hover,details[open]>summary{color:var(--fg)}
+summary:focus-visible{outline:1px dashed var(--hi);outline-offset:3px}
+.btn:focus-visible,.chk input:focus-visible+.bx,input[type=range]:focus-visible{outline:1px dashed var(--hi);outline-offset:3px}
+.msg{margin-top:8px;color:var(--mut);font-size:20px;word-break:break-word}
+.msg:empty{display:none}
+.msg::before{content:"> ";color:var(--dim)}
+.msg.err,.msg.err::before{color:var(--err)}
+.msg.err::before{content:"! "}
+.fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:10px 16px}
+.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px 22px;margin-top:14px;align-items:end}
+.opts .sl,.opts .chk{margin-top:0}
+label.f,.sl{display:flex;flex-direction:column;justify-content:space-between;gap:2px;color:var(--mut);font-size:20px;line-height:1.05}
+input[type=number],input[type=text],input[type=date],input[type=time],select,textarea{width:100%;margin:0;font:inherit;font-size:22px;color:var(--hi);background:#000;border:1px solid var(--dim);border-radius:0;padding:1px 6px;caret-color:var(--fg);text-shadow:none}
+input[type=number]:focus,input[type=text]:focus,input[type=date]:focus,input[type=time]:focus,select:focus,textarea:focus{outline:0;border-color:var(--fg);box-shadow:0 0 9px rgba(var(--rgb),.5)}
+select{appearance:none;-webkit-appearance:none;padding-right:26px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M0 0h12L6 8z' fill='%2346f08a'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center}
+select:disabled{opacity:.45}
+:root[data-phosphor="color"] select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M0 0h12L6 8z' fill='%23268bd2'/%3E%3C/svg%3E")}
+option{background:#000;color:var(--hi)}
+textarea{margin-top:8px;font-size:19px;resize:vertical}
+::placeholder{color:var(--mut);opacity:1}
+.sl{margin-top:12px}
+.chk{display:flex;gap:8px;align-items:center;margin-top:12px;color:var(--mut);font-size:20px;line-height:1.05;cursor:pointer;white-space:nowrap}
+.bx{flex:none;color:var(--fg)}
+.bx::before{content:"[ ]"}.chk input:checked+.bx{color:var(--hi);text-shadow:0 0 6px var(--fg)}.chk input:checked+.bx::before{content:"[X]"}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:24px;margin:2px 0 0;background:transparent;cursor:pointer}
+input[type=range]::-webkit-slider-runnable-track{height:2px;background:repeating-linear-gradient(90deg,var(--dim) 0 6px,transparent 6px 10px)}
+input[type=range]::-moz-range-track{height:2px;background:repeating-linear-gradient(90deg,var(--dim) 0 6px,transparent 6px 10px)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:20px;margin-top:-9px;background:var(--fg);border:0;border-radius:0;box-shadow:0 0 8px var(--fg)}
+input[type=range]::-moz-range-thumb{width:12px;height:20px;background:var(--fg);border:0;border-radius:0;box-shadow:0 0 8px var(--fg)}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.stat{--c:var(--fg);border-color:var(--c);padding:6px 14px 12px}
+.stat legend{color:var(--c)}
+.stat b{display:block;font-weight:400;font-size:78px;line-height:.95;color:var(--c);text-shadow:0 0 14px var(--c);white-space:nowrap}
+.stat b i{font-style:normal;font-size:26px;color:var(--mut);text-shadow:none;margin-left:8px}
+.stat em{display:block;margin-top:6px;font-style:normal;font-size:20px;line-height:1.05;color:var(--mut)}
+.run .top{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;justify-content:space-between;margin-bottom:10px}
+.run select{width:auto;max-width:100%}
+.lg{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:20px}
+.lg span{color:var(--c)}
+.lg span::before{content:"";display:inline-block;width:22px;height:3px;margin-right:7px;vertical-align:middle;background:var(--c);box-shadow:0 0 7px var(--c)}
+.lg .d::before{background:repeating-linear-gradient(90deg,var(--c) 0 6px,transparent 6px 9px)}
+.cvw{border:1px solid var(--faint)}
+#cv{display:block;width:100%;height:350px;touch-action:pan-y}
+#ro{min-height:24px;margin-top:8px;color:var(--s2);font-size:21px}
+#ro::before{content:"> ";color:var(--dim)}
+#cond{margin-top:4px;color:var(--mut);font-size:19px;line-height:1.1}
+#cond:not(:empty)::before{content:"# ";color:var(--dim)}
+.notes p{margin:0;color:var(--mut);font-size:20px;line-height:1.12;max-width:84ch}
+.notes p+p{margin-top:8px}
+.foot{margin:0 20px;padding:10px 0 8px;border-top:1px dashed var(--faint);color:var(--mut);font-size:18px;text-align:center}
+.ps1{padding:2px 20px 16px;color:var(--mut)}
+.ps1 i{display:inline-block;width:.5em;height:.8em;margin-left:2px;vertical-align:-.05em;background:var(--fg);box-shadow:0 0 8px var(--fg);animation:blink2 1.06s steps(1) infinite}
+@keyframes blink2{50%{opacity:0}}
+@media (max-width:900px){#car{width:216px;height:68px}}
+@media (max-width:900px){.app{grid-template-columns:minmax(0,1fr);grid-template-areas:none;grid-template-rows:none}.head,.load,.main,.notes,.cond{grid-area:auto}}
+@media (max-width:480px){.ph .pl{display:none}.ph button{padding:0 5px}}
+@media (max-width:600px){body{padding-left:10px;padding-right:10px;font-size:20px}.app{padding:12px 12px 8px}.foot{margin:0 12px}.ps1{padding:2px 12px 14px}.stats{grid-template-columns:minmax(0,1fr)}.stat b{font-size:64px}#cv{height:300px}.win{box-shadow:0 0 0 4px var(--bezel),0 0 0 5px #000,0 0 40px rgba(var(--rgb),.14),inset 0 0 70px rgba(var(--rgb),.07)}}
+@media (prefers-reduced-motion:reduce){.type,.ps1 i{animation:none}}
+</style></head><body>
+<main class="win" aria-label="Virtual Dyno">
+<div class="bar"><span>vrtl@dyno: ~/logs</span><div class="ph" id="phos" role="group" aria-label="Phosphor color"><span class="pl" aria-hidden="true">phosphor</span><button type="button" data-p="green" aria-pressed="true">green</button><button type="button" data-p="color" aria-pressed="false">color</button></div></div>
+<div class="app">
+ <header class="head">
+  <div class="hgrp">
+   <div class="boot" aria-hidden="true">vrtl@dyno:~$ <span class="type">./virtual-dyno</span></div>
+   <h1 class="vh">Virtual Dyno</h1><!-- htmlmin:ignore --><div class="art" aria-hidden="true">'##::::'##:'####:'########::'########:'##::::'##::::'###::::'##:::::::
+ ##:::: ##:. ##:: ##.... ##:... ##..:: ##:::: ##:::'## ##::: ##:::::::
+ ##:::: ##:: ##:: ##:::: ##:::: ##:::: ##:::: ##::'##:. ##:: ##:::::::
+ ##:::: ##:: ##:: ########::::: ##:::: ##:::: ##:'##:::. ##: ##:::::::
+. ##:: ##::: ##:: ##.. ##:::::: ##:::: ##:::: ##: #########: ##:::::::
+:. ## ##:::: ##:: ##::. ##::::: ##:::: ##:::: ##: ##.... ##: ##:::::::
+::. ###::::'####: ##:::. ##:::: ##::::. #######:: ##:::: ##: ########:
+:::...:::::....::..:::::..:::::..::::::.......:::..:::::..::........::
+'########::'##:::'##:'##::: ##::'#######::
+ ##.... ##:. ##:'##:: ###:: ##:'##.... ##:
+ ##:::: ##::. ####::: ####: ##: ##:::: ##:
+ ##:::: ##:::. ##:::: ## ## ##: ##:::: ##:
+ ##:::: ##:::: ##:::: ##. ####: ##:::: ##:
+ ##:::: ##:::: ##:::: ##:. ###: ##:::: ##:
+ ########::::: ##:::: ##::. ##:. #######::
+........::::::..:::::..::::..:::.......:::</div><!-- htmlmin:ignore -->
+   <p>Estimate horsepower and torque from a log file, gps data, or both.</p>
+  </div>
+  <div class="stage" role="img" aria-label="Animated pixel-art VW Golf (Mk7) driving along a road"><span class="cap" aria-hidden="true">mk7_golf.spr</span><canvas id="car" width="108" height="34" aria-hidden="true"></canvas></div>
+ </header>
+  <fieldset class="load"><legend>Load Data</legend>
+   <p class="hint">Use either one, or both together for the best accuracy.</p>
+   <label class="drop" id="drop"><input type="file" id="file" accept=".csv,.txt,text/csv" class="vh"><b>Cobb Accessport log</b><span>drop a .csv or click to browse</span></label>
+   <label class="drop" id="gdrop"><input type="file" id="gps" accept=".gpx,.csv,.txt" class="vh"><b>RaceBox, Dragy or GPX</b><span>drop a track or click to browse</span></label>
+   <button class="btn" id="demo" type="button">Try a demo log</button>
+   <div class="msg" id="msg"></div><div class="msg" id="gmsg"></div>
+   <div id="wx" hidden>
+    <div id="wxgps" hidden>
+     <button class="btn" id="wxget" type="button" style="margin-top:12px">Fetch weather</button>
+     <p class="hint" style="margin:6px 0 0">Fills humidity and wind for this pull from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (CC BY 4.0). Only the approximate location (about 1 km) and the date are sent.</p>
+    </div>
+    <div id="wxpl" hidden>
+     <p class="hint" style="margin:12px 0 0">No GPS track? Look up the weather by place and date instead.</p>
+     <label class="wl">Place<input type="text" id="wxplace" placeholder="City, ZIP code or lat, lon" autocomplete="off" spellcheck="false"></label>
+     <div class="wr"><label class="wl">Date<input type="date" id="wxdate"></label><label class="wl">Local Time<input type="time" id="wxtime" value="12:00"></label></div>
+     <button class="btn" id="wxpget" type="button">Fetch weather</button> <button class="btn" id="wxgeo" type="button">Use my location</button>
+     <p class="hint" style="margin:6px 0 0">Humidity and wind come from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (CC BY 4.0), which receives the place you type (or its coordinates) and the date. Wind needs the car's heading to count.</p>
+    </div>
+    <div class="msg" id="wxmsg"></div>
+    <details id="wxman" hidden><summary>Enter Weather by Hand</summary>
+     <a id="wxlink" class="btn" target="_blank" rel="noopener" style="margin-top:8px">Open the weather data</a>
+     <textarea id="wxin" rows="3" placeholder="Open the link, copy the page's text, and paste it here to fill humidity and wind"></textarea>
+    </details></div>
+  </fieldset>
+ <section class="main">
+  <div class="stats">
+   <fieldset class="stat" id="s1" style="--c:var(--fg)"><legend>Peak Crank Power</legend><b><span class="n">–</span><i>hp</i></b><em></em></fieldset>
+   <fieldset class="stat" id="s2" style="--c:var(--s2)"><legend>Peak Crank Torque</legend><b><span class="n">–</span><i>lb-ft</i></b><em></em></fieldset>
+   <fieldset class="stat" id="s3" style="--c:var(--s3)"><legend>Peak Wheel Power</legend><b><span class="n">–</span><i>whp</i></b><em></em></fieldset>
+  </div>
+  <fieldset class="run"><legend>Dyno Run</legend>
+   <div class="top"><select id="pull" aria-label="Select pull"></select><button class="btn" id="replay" type="button">Replay</button>
+    <div class="lg"><span style="--c:var(--fg)">crank hp</span><span style="--c:var(--s2)">crank torque (lb-ft)</span><span class="d" style="--c:var(--s3)">wheel hp</span></div></div>
+   <div class="cvw"><canvas id="cv" role="img" aria-label="Dyno graph of horsepower and torque"></canvas></div><div id="ro">hover or touch the graph for exact values</div><div id="cond"></div>
+  </fieldset>
+ </section>
+  <fieldset class="cond shut"><legend><button type="button" class="tg" id="condtg" aria-expanded="false" aria-controls="condbody">Car &amp; Conditions</button></legend>
+   <div id="condbody" hidden>
+   <div class="fields" id="fields"></div>
+   <div class="opts">
+   <label class="sl">Speed Source (Needs Both Files)<select id="spd"><option value="ecu">Cobb speed as logged</option><option value="cal">Cobb speed scaled to GPS</option><option value="gps">GPS speed (RaceBox or Dragy)</option></select></label>
+   <label class="chk"><input type="checkbox" id="sae" class="vh"><span class="bx" aria-hidden="true"></span><span>Correct to SAE J1349</span></label>
+   <label class="sl">Smoothing<input type="range" id="smooth" min="1" max="10" value="7"></label>
+   </div>
+   </div>
+  </fieldset>
+  <fieldset class="notes"><legend>Notes</legend>
+   <p>How it works: speed is turned into acceleration, then force = mass × acceleration + aerodynamic drag + rolling resistance + hills. Wheel power is force × speed, and crank power adds drivetrain loss and the energy spent spinning up the engine. Density altitude is filled in from your log's pressure and temperature (or from GPS altitude) and sets the air density; you can overwrite it. With GPS only there is no RPM, so power is plotted against speed. Enter RPM per mph for the gear you used to get RPM and torque.</p>
+   <p>Estimates only: real dynos will differ.</p>
+  </fieldset>
+</div>
+<footer class="foot">This site was built with AI and AI makes mistakes because AI is only human.</footer>
+<div class="ps1" aria-hidden="true">vrtl@dyno:~$ <i></i></div>
+<div class="crt" aria-hidden="true"></div>
+</main>
+<script>
+
+const $=s=>document.querySelector(s),G=9.80665,LB=.45359237,MPH=.44704,HP=745.69987,LBFT=.737562;
+const FIELDS=[['curb','Curb Weight (lb)',3300,10],['load','Driver + Fuel + Cargo (lb)',200,10],['cd','Drag Coefficient',.32,.01],['area','Frontal Area (m²)',2.2,.05],['crr','Rolling Resistance',.012,.001],['loss','Drivetrain Loss (%)',20,.5],['temp','Air Temp (°F)',70,1],['da','Density Altitude (ft)',0,100],['humid','Humidity (%)',25,5],['ped','Full-Throttle Pedal >= (%)',90,1],['wind','Wind Speed (mph)',0,1],['wdir','Wind From (° Compass)',0,10],['head','Car Heading (°)',0,1],['grade','Road Grade (%)',0,.1],['rpmpm','RPM per mph (GPS Only)',0,.1]];
+$('#fields').innerHTML=FIELDS.map(([id,l,v,st])=>`<label class="f">${l}<input type="number" id="${id}" value="${v}" step="${st}"></label>`).join('');
+const P=()=>{const o={smooth:+$('#smooth').value};FIELDS.forEach(([id])=>o[id]=+$('#'+id).value);o.sae=$('#sae').checked;o.spd=$('#spd').value;return o};
+let D=null,pulls=[],sel=0,cur=null,hov=-1,mp={},GPS=null,gi=null,cond='',atm={baro:0,alt:null},daAuto=true,fresh=false,shown={},grow=1,gAF=0,AX={u:'rpm',bin:100,tick:500,span:1000};
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function parse(text){
+  const L=text.replace(/\r/g,'').split('\n').filter(l=>l.trim());
+  const hi=L.findIndex(l=>/time/i.test(l)&&/rpm|engine speed/i.test(l));
+  if(hi<0)throw Error('No header row with Time and Engine Speed (RPM) columns was found. Make sure this is an Accessport data log .csv.');
+  const sp=l=>{const o=[];let c='',q=0;for(const ch of l){if(ch=='"')q=!q;else if(ch==','&&!q){o.push(c);c=''}else c+=ch}o.push(c);return o.map(s=>s.trim())};
+  const H=sp(L[hi]),f=(re,ex)=>H.findIndex(h=>re.test(h)&&!(ex&&ex.test(h)));
+  const ti=f(/time/i),ri=f(/rpm|engine speed/i);
+  let si=f(/vehicle speed|veh.*spd|vss/i);if(si<0)si=f(/speed/i,/engine|rpm/i);
+  let pi=f(/pedal/i);if(pi<0)pi=f(/throttle/i,/target|desired/i);
+  const ai=f(/ambient/i,/press|baro/i),bi=f(/ambient.*press|baro/i);
+  if(ti<0||ri<0||si<0)throw Error('Need Time, Engine Speed (RPM) and Vehicle Speed columns. Found: '+H.join(', '));
+  const su=/km\/?h|kph/i.test(H[si])?1/3.6:/m\/s/i.test(H[si])?1:MPH;
+  const t=[],rpm=[],v=[],ped=[],am=[],bm=[];
+  for(const l of L.slice(hi+1)){const c=sp(l).map(parseFloat);
+    if([c[ti],c[ri],c[si]].some(isNaN)||(t.length&&c[ti]<=t[t.length-1]))continue;
+    if(ai>=0&&!isNaN(c[ai]))am.push(c[ai]);
+    if(bi>=0&&!isNaN(c[bi]))bm.push(c[bi]);
+    t.push(c[ti]);rpm.push(c[ri]);v.push(c[si]*su);ped.push(pi>=0&&!isNaN(c[pi])?c[pi]:null)}
+  if(t.length<30)throw Error('Only '+t.length+' usable rows found. The log is too short to analyze.');
+  let ts=/ms|milli/i.test(H[ti])?.001:1;if(ts==1&&(t[t.length-1]-t[0])/t.length>5)ts=.001;
+  const t0=t[0];for(let i=0;i<t.length;i++)t[i]=(t[i]-t0)*ts;
+  let baro=null;if(bm.length){const u=/kpa/i.test(H[bi])?1/6.89476:/mbar|hpa/i.test(H[bi])?1/68.9476:/inhg/i.test(H[bi])?.491154:1,b=bm.reduce((s,x)=>s+x,0)/bm.length*u;if(b>8&&b<16)baro=Math.round(b*100)/100}
+  let amb=null,an=' No ambient air temp column was found, so the air temp field was left as is.';
+  if(ai>=0&&am.length){const isC=/\bc\)|°\s*c|celsius/i.test(H[ai]),a=am.reduce((s,x)=>s+x,0)/am.length,F=isC?a*9/5+32:a;
+    if(F>-40&&F<150){amb=Math.round(F*10)/10;an=` Air temp set to ${amb} °F from the average of “${H[ai]}”.`}}
+  if(baro)an+=` Pressure set to ${baro} psi from “${H[bi]}”.`;
+  return{t,rpm,v,ped:pi>=0?ped:null,n:t.length,amb,baro,info:`Using “${H[ri]}”, “${H[si]}”, ${pi>=0?'“'+H[pi]+'”':'no pedal column (pulls found from RPM and speed only)'}.${an}`}}
+
+function analyze(reset){
+  if(!D)return;const p=P();if(reset)gi=null;wxVis();const{t,ped}=D,n=t.length;let v=D.v,rpm=D.rpm;
+  if(!D.gpsOnly&&gi){if(p.spd=='cal')v=v.map(x=>x*gi.ratio);else if(p.spd=='gps')v=t.map(x=>gAt(x+gi.off,'v'))}
+  if(D.gpsOnly)rpm=v.map(x=>p.rpmpm>0?x/MPH*p.rpmpm:NaN);
+  const sp=D.gpsOnly&&!(p.rpmpm>0),X=sp?v.map(x=>x/MPH):rpm;AX=sp?{u:'mph',bin:2,tick:10,span:15}:{u:'rpm',bin:100,tick:500,span:1000};
+  const d=[];for(let i=1;i<n;i++)d.push(t[i]-t[i-1]);d.sort((a,b)=>a-b);const dt=d[d.length>>1]||.1;
+  const hw=Math.max(2,Math.round((.25+.12*p.smooth)/dt/2));
+  const ls=(i,a,b)=>{let sx=0,sy=0,sxx=0,sxy=0,m=b-a+1;for(let j=a;j<=b;j++){const x=t[j]-t[i];sx+=x;sy+=v[j];sxx+=x*x;sxy+=x*v[j]}
+    const den=m*sxx-sx*sx,s=den>1e-12?(m*sxy-sx*sy)/den:0;return[s,(sy-s*sx)/m]};
+  const g=[],vs=[];for(let i=0;i<n;i++){const r=ls(i,Math.max(0,i-hw),Math.min(n-1,i+hw));g.push(r[0]);vs.push(r[1])}
+  const ok=i=>(sp||rpm[i]>=1800)&&vs[i]>3&&g[i]>.3&&(!ped||ped[i]==null||ped[i]>=p.ped);
+  const raw=[];let s=-1;
+  const end=e=>{if(s>=0&&e>s&&t[e]-t[s]>=1.5){const r=X.slice(s,e+1);if(Math.max(...r)-Math.min(...r)>=AX.span)raw.push([s,e])}s=-1};
+  for(let i=0;i<=n;i++){
+    if(i<n&&ok(i)){if(s<0)s=i;else if(Math.abs(rpm[i]/vs[i]/(rpm[i-1]/vs[i-1])-1)>.08){end(i-1);s=i}}
+    else end(i-1)}
+  const Tc=(p.temp-32)*5/9,T=Tc+273.15,rho=1.225*Math.pow(1-2.25577e-5*p.da*.3048,4.25588);
+  const pv=Math.min(p.humid,100)/100*610.78*Math.pow(10,7.5*Tc/(Tc+237.3)),pd=Math.max(5e4,(rho-pv/(461.495*T))*287.058*T);
+  const hwd=p.wind*MPH*Math.cos((p.wdir-p.head)*Math.PI/180),gr=Math.atan(p.grade/100);
+  const cf=1.18*(99000/pd)*Math.sqrt(T/298)-.18,kc=p.sae?cf:1;
+  const srcTxt=D.gpsOnly?'GPS only':p.spd=='gps'&&gi?'Cobb log + GPS speed':p.spd=='cal'&&gi?`Cobb log scaled ×${gi.ratio.toFixed(3)} to GPS`:'Cobb log';
+  cond=`${srcTxt} · Air ${rho.toFixed(3)} kg/m³ (density altitude ${Math.round(p.da).toLocaleString()} ft, ${Math.round(p.temp)} °F, ${p.humid}% humidity) · ${hwd>=0?'headwind':'tailwind'} ${Math.abs(hwd/MPH).toFixed(1)} mph · grade ${p.grade}% · SAE J1349 factor ${cf.toFixed(3)} ${p.sae?'applied':'not applied'}`;
+  const m=(p.curb+p.load)*LB,mw=36,Ie=.2,lf=p.loss/100;
+  pulls=raw.map(([a,b])=>{const pts=[];
+    const tr=Math.round(hw/3);
+    for(let i=a+tr;i<=b-tr;i++){
+      const[ac,vv]=ls(i,Math.max(a,i-hw),Math.min(b,i+hw));if(ac<=0||vv<=0)continue;
+      const w=rpm[i]*Math.PI/30,kr=w/vv,ei=isFinite(kr)?Ie*kr*kr*ac*vv:0;
+      const va=vv+hwd,Pw=((m+mw)*ac+.5*rho*p.cd*p.area*va*Math.abs(va)+p.crr*m*G+m*G*Math.sin(gr))*vv;
+      const Pc=Pw/(1-lf)+ei;
+      pts.push({r:X[i],hw:Pw/HP*kc,hp:Pc/HP*kc,tq:Pc/w*LBFT*kc})}
+    return{a,b,pts,lo:Math.round(X[a]),hi:Math.round(X[b]),dur:t[b]-t[a],rm:rpm[b]/(vs[b]/MPH),v0:vs[a]/MPH,v1:vs[b]/MPH}}).filter(q=>q.pts.length>5);
+  if(reset||sel>=pulls.length){sel=0;pulls.forEach((q,i)=>{if(q.hi-q.lo>pulls[sel].hi-pulls[sel].lo)sel=i})}
+  if(reset&&GPS&&pulls.length)return fromGPS(1);render()}
+
+function build(pull,p){
+  const B={};for(const q of pull.pts){const k=Math.round(q.r/AX.bin);(B[k]=B[k]||[]).push(q)}
+  const avg=(a,f)=>a.reduce((s,q)=>s+q[f],0)/a.length;
+  let c=Object.keys(B).map(Number).sort((a,b)=>a-b).map(k=>({r:avg(B[k],'r'),hp:avg(B[k],'hp'),tq:avg(B[k],'tq'),hw:avg(B[k],'hw')}));
+  const R=Math.round(p.smooth/4);
+  if(R>0)c=c.map((q,i)=>{const a=c.slice(Math.max(0,i-R),i+R+1);return{r:q.r,hp:avg(a,'hp'),tq:avg(a,'tq'),hw:avg(a,'hw')}});
+  return c}
+
+function roll(id,to){
+  const el=$('#'+id+' .n');cancelAnimationFrame(el._r);
+  if(!isFinite(to)){el.textContent='–';shown[id]=0;return}
+  const from=shown[id]||0;
+  if(reduce||from===to){el.textContent=Math.round(to);shown[id]=to;return}
+  const t0=performance.now(),dur=from?600:1500;
+  const step=now=>{const k=Math.min(1,(now-t0)/dur),v=from+(to-from)*(1-Math.pow(1-k,3));el.textContent=Math.round(v);shown[id]=v;if(k<1)el._r=requestAnimationFrame(step);else shown[id]=to};
+  el._r=requestAnimationFrame(step)}
+function replay(){
+  cancelAnimationFrame(gAF);if(reduce){grow=1;draw();return}
+  const t0=performance.now(),step=now=>{const k=Math.min(1,(now-t0)/2600);grow=k;draw();if(k<1)gAF=requestAnimationFrame(step)};
+  grow=0;gAF=requestAnimationFrame(step)}
+
+function render(){
+  const S=$('#pull');$('#spd').disabled=!(D&&!D.gpsOnly&&gi);
+  $('#cond').textContent=pulls.length?cond+(pulls[sel]&&isFinite(pulls[sel].rm)&&!D.gpsOnly?` · this pull is about ${pulls[sel].rm.toFixed(1)} rpm per mph`:''):'';
+  S.innerHTML=pulls.map((q,i)=>`<option value="${i}">Pull ${i+1}: ${q.lo.toLocaleString()}–${q.hi.toLocaleString()} ${AX.u}, ${q.dur.toFixed(1)} s</option>`).join('')||'<option>No pull selected</option>';
+  S.disabled=!pulls.length;hov=-1;if(fresh)shown={};
+  if(!pulls.length){cur=null;['s1','s2','s3'].forEach(i=>{roll(i,NaN);$('#'+i+' em').textContent=''});
+    if(D)$('#msg').innerHTML+=' <br><b>No full-throttle pulls found.</b> Log a clean pull with the pedal fully down, or lower the pedal threshold.';
+    $('#ro').textContent='';fresh=false;draw();return}
+  S.value=sel;cur=build(pulls[sel],P());
+  const pk=f=>cur.reduce((b,q)=>q[f]>b[f]||!isFinite(b[f])?q:b),h=pk('hp'),t=pk('tq'),w=pk('hw'),hasT=isFinite(t.tq);
+  const at=q=>AX.u=='mph'?Math.round(q.r)+' mph':(Math.round(q.r/10)*10).toLocaleString()+' rpm';
+  const dl=(x,ref,u)=>`${x>=ref?'+':'−'}${Math.abs(Math.round(x-ref))} ${u} vs factory ${ref}`;
+  roll('s1',h.hp);roll('s2',hasT?t.tq:NaN);roll('s3',w.hw);
+  $('#s1 em').textContent=`at ${at(h)} · ${dl(h.hp,292,'hp')}`;
+  $('#s2 em').textContent=hasT?`at ${at(t)} · ${dl(t.tq,280,'lb-ft')}`:'Enter RPM per mph (under Car & Conditions) to get torque';
+  $('#s3 em').textContent=`at ${at(w)} · after ${P().loss}% loss`;
+  $('#ro').textContent='hover or touch the graph for exact values';
+  if(fresh){fresh=false;replay()}else draw()}
+
+function draw(){
+  const c=$('#cv'),x=c.getContext('2d'),d=devicePixelRatio||1,W=c.clientWidth,H=c.clientHeight,F='"VT323","Courier New",monospace';
+  c.width=W*d;c.height=H*d;x.setTransform(d,0,0,d,0,0);
+  const cs=getComputedStyle(document.documentElement),C=n=>cs.getPropertyValue(n).trim(),RGB=C('--rgb');
+  x.fillStyle=C('--screen');x.fillRect(0,0,W,H);x.font='19px '+F;
+  if(!cur){x.fillStyle=C('--mut');x.textAlign='center';x.fillText('no data loaded.',W/2,H/2-6);x.fillText('drop a log or track to start.',W/2,H/2+16);return}
+  const l=50,r=46,t=30,b=30,rs=cur.map(q=>q.r),mn=Math.min(...rs),mxr=Math.max(...rs),x0=Math.floor(mn/AX.tick)*AX.tick,x1=Math.max(x0+AX.tick,Math.ceil(mxr/AX.tick)*AX.tick);
+  const ym=Math.max(...cur.map(q=>Math.max(q.hp,isFinite(q.tq)?q.tq:0))),st=ym>250?100:50,y1=Math.ceil(ym*1.05/st)*st;
+  const X=v=>l+(v-x0)/(x1-x0)*(W-l-r),Y=v=>t+(1-v/y1)*(H-t-b),xs=W<520?AX.tick*2:AX.tick;
+  mp={inv:px=>x0+(px-l)/(W-l-r)*(x1-x0)};
+  x.strokeStyle=`rgba(${RGB},.26)`;x.lineWidth=1;x.setLineDash([2,5]);x.beginPath();
+  for(let v=st;v<=y1;v+=st){x.moveTo(l,Math.round(Y(v))+.5);x.lineTo(W-r,Math.round(Y(v))+.5)}
+  for(let v=Math.ceil(x0/xs)*xs;v<=x1;v+=xs){x.moveTo(Math.round(X(v))+.5,t);x.lineTo(Math.round(X(v))+.5,H-b)}
+  x.stroke();x.setLineDash([]);
+  x.strokeStyle=C('--dim');x.beginPath();x.moveTo(l+.5,t);x.lineTo(l+.5,H-b+.5);x.lineTo(W-r,H-b+.5);x.stroke();
+  x.fillStyle=C('--mut');x.textAlign='right';
+  for(let v=0;v<=y1;v+=st)x.fillText(v,l-8,Y(v)+5);
+  x.textAlign='center';
+  for(let v=Math.ceil(x0/xs)*xs;v<=x1;v+=xs)x.fillText(AX.u=='rpm'?v/1000+'K':v,X(v),H-9);
+  x.textAlign='left';x.fillText('hp / lb-ft',4,18);x.textAlign='right';x.fillText(AX.u,W-4,H-9);
+  const xc=mn+grow*(mxr-mn),tip={},col={hp:C('--s1'),tq:C('--s2'),hw:C('--s3')};
+  const pts=k=>{const P=[];
+    for(let i=0;i<cur.length;i++){const q=cur[i];if(!isFinite(q[k]))continue;
+      if(q.r<=xc)P.push([X(q.r),Y(q[k])]);else{const o=cur[i-1];if(o&&isFinite(o[k])){const w=(xc-o.r)/(q.r-o.r);P.push([X(xc),Y(o[k]+(q[k]-o[k])*w)])}break}}
+    return P};
+  const trace=(k,dash)=>{const P=pts(k);if(!P.length)return;
+    x.save();x.shadowColor=col[k];x.shadowBlur=9;x.lineWidth=2.2;x.lineJoin='round';x.strokeStyle=col[k];x.setLineDash(dash||[]);
+    x.beginPath();P.forEach(([a,b2],i)=>i?x.lineTo(a,b2):x.moveTo(a,b2));x.stroke();x.restore();tip[k]=P[P.length-1]};
+  trace('hw',[9,6]);trace('tq');trace('hp');
+  const sq=(p,s,cl)=>{x.save();x.shadowColor=cl;x.shadowBlur=10;x.fillStyle=cl;x.fillRect(Math.round(p[0])-s/2,Math.round(p[1])-s/2,s,s);x.restore()};
+  if(hov>=0){const q=cur[hov],px=Math.round(X(q.r))+.5;x.save();x.globalAlpha=.55;x.strokeStyle=C('--hi');x.setLineDash([4,4]);x.beginPath();x.moveTo(px,t);x.lineTo(px,H-b);x.stroke();x.restore();
+    ['hp','tq'].forEach(k=>{if(isFinite(q[k]))sq([X(q.r),Y(q[k])],9,col[k])})}
+  if(grow<1){if(Math.floor(performance.now()/160)%2||reduce)['hp','tq'].forEach(k=>{if(tip[k])sq(tip[k],9,C('--hi'))})}
+  else{const L=[['hp','HP'],['tq','TQ'],['hw','WHP']].filter(a=>tip[a[0]]).sort((a,b)=>tip[a[0]][1]-tip[b[0]][1]);let py=-1e9;x.textAlign='left';
+    L.forEach(([k,s])=>{const y=Math.max(tip[k][1]+5,py+15);py=y;x.fillStyle=col[k];x.fillText(s,tip[k][0]+9,y)})}}
+
+function hover(e){
+  if(!cur)return;const rc=e.target.getBoundingClientRect(),rp=mp.inv(e.clientX-rc.left);
+  let bi=0;cur.forEach((q,i)=>{if(Math.abs(q.r-rp)<Math.abs(cur[bi].r-rp))bi=i});hov=bi;const q=cur[bi];
+  $('#ro').textContent=`${Math.round(q.r).toLocaleString()} ${AX.u} · ${Math.round(q.hp)} hp · ${isFinite(q.tq)?Math.round(q.tq)+' lb-ft · ':''}${Math.round(q.hw)} whp`;if(grow>=1)draw()}
+$('#cv').addEventListener('pointermove',hover);$('#cv').addEventListener('pointerdown',hover);
+$('#cv').addEventListener('pointerleave',()=>{hov=-1;if(cur){$('#ro').textContent='hover or touch the graph for exact values';draw()}});
+
+function calcDA(){
+  const p=P(),Tc=(p.temp-32)*5/9,T=Tc+273.15,pa=atm.baro>0?atm.baro*6894.76:atm.alt!=null?101325*Math.pow(1-2.25577e-5*atm.alt*.3048,5.25588):null;
+  if(pa==null)return null;
+  const pv=Math.min(p.humid,100)/100*610.78*Math.pow(10,7.5*Tc/(Tc+237.3)),rho=(pa-pv)/(287.058*T)+pv/(461.495*T);
+  return 44330.77*(1-Math.pow(rho/1.225,1/4.25588))/.3048}
+function syncDA(){if(!daAuto)return;const d=calcDA();if(d!=null)$('#da').value=Math.round(d)}
+
+function load(text,name){
+  const M=$('#msg');fresh=true;wxReq++;$('#wxmsg').textContent='';
+  try{D=parse(text);M.className='msg';M.textContent=`${name}: ${D.n.toLocaleString()} rows. ${D.info}`;if(D.amb!=null)$('#temp').value=D.amb;atm.baro=D.baro||0;daAuto=true;syncDA();if(atm.baro)M.textContent+=` Density altitude set to ${$('#da').value} ft from the log's pressure and temperature.`;analyze(true)}
+  catch(e){D=null;pulls=[];M.className='msg err';M.textContent=e.message;render();wxVis()}}
+
+function demo(){
+  const p=P(),TQ=[[2000,240],[2500,300],[3000,340],[3500,360],[4000,362],[4500,355],[5000,345],[5500,328],[6000,308],[6500,275],[6800,255]];
+  const tq=r=>{if(r<=2000)return 240;for(let i=1;i<TQ.length;i++)if(r<=TQ[i][0]){const[a,b]=TQ[i-1],[c,e]=TQ[i];return b+(e-b)*(r-a)/(c-a)}return 255};
+  const k=150,m=(p.curb+p.load)*LB+36+.2*Math.pow(k*Math.PI/30,2),rows=['Time (msec),Engine Speed (RPM),Vehicle Speed (MPH),Accel. Pedal Position (%),Ambient Air Temp (F)'];
+  let v=2400/k;
+  for(let time=0;k*v<6700;time+=80){
+    const r=k*v,Pc=tq(r)/LBFT*r*Math.PI/30,F=Pc*(1-p.loss/100)/v;
+    const a=(F-.5*1.2*p.cd*p.area*v*v-p.crr*(p.curb+p.load)*LB*G)/m;
+    rows.push(`${time},${Math.round(r+(Math.random()-.5)*40)},${Math.round(v/MPH)},100,${(p.temp+(Math.random()-.5)*2).toFixed(1)}`);v+=a*.08}
+  load(rows.join('\n'),'Simulated demo log (about 350 hp tune)')}
+
+const R2=Math.PI/180,dist=(p,q)=>6371000*Math.hypot((q.lon-p.lon)*R2*Math.cos((p.lat+q.lat)/2*R2),(q.lat-p.lat)*R2),
+ bear=(p,q)=>(Math.atan2((q.lon-p.lon)*Math.cos((p.lat+q.lat)/2*R2),q.lat-p.lat)/R2+360)%360;
+function parseGPS(text){
+  let P=[],auto=false;
+  if(/<trkpt|<rtept/i.test(text)){
+    for(const m of text.matchAll(/<(?:trkpt|rtept)([^>]*)>([\s\S]*?)<\/(?:trkpt|rtept)>/gi)){
+      const la=/lat="([^"]+)"/.exec(m[1]),lo=/lon="([^"]+)"/.exec(m[1]),el=/<ele>([^<]+)</.exec(m[2]),tm=/<time>([^<]+)</.exec(m[2]),sp=/<speed>([^<]+)</.exec(m[2]);
+      if(la&&lo&&tm)P.push({lat:+la[1],lon:+lo[1],ele:el?+el[1]:null,t:Date.parse(tm[1])/1e3,v:sp?+sp[1]:null})}
+  }else{
+    const L=text.replace(/\r/g,'').split('\n').filter(l=>l.trim()),hi=Math.max(0,L.findIndex(l=>/lat/i.test(l)&&/lon|lng/i.test(l))),H=L[hi].split(',').map(s=>s.trim().replace(/"/g,'')),f=re=>H.findIndex(h=>re.test(h));
+    const la=f(/^lat/i),lo=f(/^(lon|lng)/i),el=f(/ele|alt/i),tm=f(/time|date|stamp/i),sp=f(/^speed|velocity/i);
+    let su=sp<0?1:/mph/i.test(H[sp])?MPH:/km|kph/i.test(H[sp])?1/3.6:/m\/s/i.test(H[sp])?1:0;auto=su===0;if(auto)su=1;
+    if(la<0||lo<0||tm<0)throw Error('GPS file needs latitude, longitude and time. Use a RaceBox or Dragy .csv, a .gpx track, or a .csv with lat, lon and time columns.');
+    for(const l of L.slice(hi+1)){const c=l.split(',').map(s=>s.replace(/"/g,'').trim());let t=+c[tm];
+      if(isNaN(t)){const q=c[tm];t=Date.parse(/Z$|[+-]\d\d:?\d\d$/.test(q)?q:q.replace(' ','T')+'Z')/1e3}else if(t>1e11)t/=1e3;
+      if([t,+c[la],+c[lo]].some(isNaN))continue;P.push({lat:+c[la],lon:+c[lo],ele:el>=0&&c[el]!==''&&!isNaN(+c[el])?+c[el]:null,t,v:sp>=0&&c[sp]!==''&&!isNaN(+c[sp])?+c[sp]*su:null})}}
+  P=P.filter(p=>isFinite(p.t)&&isFinite(p.lat)).sort((a,b)=>a.t-b.t).filter((p,i,A)=>!i||p.t>A[i-1].t);
+  if(P.length<10)throw Error('Only '+P.length+' usable GPS points were found in that file.');
+  if(auto){let a=0,b=0,n=0;for(let i=1;i<P.length;i++){const q=P[i];if(q.v>3){a+=dist(P[i-1],q)/(q.t-P[i-1].t);b+=q.v;n++}}
+    const k=n?a/b:1,cc=[1,1/3.6,MPH].reduce((m,z)=>Math.abs(Math.log(z/k))<Math.abs(Math.log(m/k))?z:m);P.forEach(p=>{if(p.v!=null)p.v*=cc})}
+  P.forEach((p,i)=>{if(p.v==null){const a=P[Math.max(0,i-1)],b=P[Math.min(P.length-1,i+1)];p.v=dist(a,b)/(b.t-a.t)}});
+  P.hz=(P.length-1)/(P[P.length-1].t-P[0].t);return P}
+
+const gAt=(T,k)=>{const g=GPS;let lo=0,hi=g.length-1;if(T<=g[0].t)return g[0][k];if(T>=g[hi].t)return g[hi][k];while(hi-lo>1){const m=(lo+hi)>>1;g[m].t<=T?lo=m:hi=m}const w=(T-g[lo].t)/(g[hi].t-g[lo].t);return g[lo][k]*(1-w)+g[hi][k]*w};
+
+function matchGPS(a,b){
+  const{t,v}=D,g=GPS,L=t[b]-t[a],T0=g[0].t,T1=g[g.length-1].t;
+  if(T1-T0<L)return null;
+  const at=gAt;
+  const E=[];let nx=0;for(let i=a;i<=b;i++)if(t[i]-t[a]>=nx){E.push([t[i]-t[a],v[i]]);nx+=.5}
+  let best=1e9,bs=T0,sc=1;
+  if(D.gpsOnly){best=0;bs=T0+t[a]}else for(let S=T0;S<=T1-L;S+=.1){let gu=0,uu=0,gg=0;for(const[x,u]of E){const y=at(S+x,'v');gu+=y*u;uu+=u*u;gg+=y*y}
+    const k=gu/uu,e=Math.sqrt(Math.max(0,gg-k*gu)/E.length);if(e<best){best=e;bs=S;sc=k}}
+  const sg=sc,se=1;
+  const W=g.filter(p=>p.t>=bs&&p.t<=bs+L&&p.ele!=null);let grade=null,alt=null;
+  if(W.length){alt=W.reduce((s,p)=>s+p.ele,0)/W.length/.3048}
+  if(W.length>=4){const X=[0];for(let i=1;i<W.length;i++)X.push(X[i-1]+dist(W[i-1],W[i]));
+    const mx=X.reduce((s,x)=>s+x,0)/X.length,my=W.reduce((s,p)=>s+p.ele,0)/W.length;let sxy=0,sxx=0;W.forEach((p,i)=>{sxy+=(X[i]-mx)*(p.ele-my);sxx+=(X[i]-mx)**2});
+    if(sxx>0)grade=sxy/sxx*100}
+  const p0={lat:at(bs,'lat'),lon:at(bs,'lon')},p1={lat:at(bs+L,'lat'),lon:at(bs+L,'lon')};
+  return{off:bs-t[a],err:best,ratio:sg/se,head:bear(p0,p1),grade,alt,lat:p0.lat,lon:p0.lon,T:bs}}
+
+let wxUrl='',wxReq=0,headSet=false;
+function fromGPS(init){
+  gi=null;const q=pulls[sel],M=$('#gmsg');
+  if(GPS&&D&&q){gi=matchGPS(q.a,q.b);
+    if(gi){if(init&&!D.gpsOnly)$('#spd').value=GPS.hz>=5?'gps':'ecu';const day=x=>new Date(x*1e3).toISOString().slice(0,10),recent=Date.now()/1e3-gi.T<60*86400;
+      wxUrl=`https://${recent?'api.open-meteo.com/v1/forecast':'archive-api.open-meteo.com/v1/archive'}?latitude=${gi.lat.toFixed(2)}&longitude=${gi.lon.toFixed(2)}&start_date=${day(gi.T)}&end_date=${day(gi.T+86400)}&hourly=relative_humidity_2m,wind_speed_10m,wind_direction_10m&wind_speed_unit=mph&timezone=GMT`;$('#wxlink').href=wxUrl;$('#wxman').open=false;$('#wxget').disabled=false;
+      wxReq++;$('#wxin').value='';$('#wxmsg').textContent='';
+      const f=(id,x)=>$('#'+id).value=x;f('head',Math.round(gi.head));f('grade',gi.grade==null?0:gi.grade.toFixed(1));if(gi.alt!=null){atm.alt=gi.alt;syncDA()}
+      const dv=100/gi.ratio-100;M.className='msg'+(gi.err>3*MPH?' err':'');
+      M.textContent=`${D.gpsOnly?'Pull located':'GPS matched to this pull (speed error '+(gi.err/MPH).toFixed(1)+' mph)'} near ${gi.lat.toFixed(4)}, ${gi.lon.toFixed(4)} at ${new Date(gi.T*1e3).toLocaleString()}. Heading ${Math.round(gi.head)}°, grade ${gi.grade==null?'unknown (no elevation)':gi.grade.toFixed(1)+'%'}.${D.gpsOnly?'':` ECU speed reads ${dv>=0?'+':''}${dv.toFixed(1)}% vs GPS.`}`+(gi.err>3*MPH?' The match is poor, so check that this is the right track.':'')}
+    else{M.className='msg err';M.textContent='The GPS track is shorter than this pull, so it could not be matched.'}}
+  analyze(false)}
+function gpsOnly(){
+  const g=GPS,t0=g[0].t;D={t:g.map(p=>p.t-t0),v:g.map(p=>p.v),rpm:g.map(()=>NaN),ped:null,n:g.length,gpsOnly:true};
+  $('#msg').className='msg';$('#msg').textContent='GPS only: power is plotted against speed. Enter RPM per mph for your gear (under Car & Conditions) to get RPM and torque.';analyze(true)}
+const readGPS=f=>f&&f.text().then(tx=>{const M=$('#gmsg');
+  try{GPS=parseGPS(tx);fresh=true;M.className='msg';M.textContent=`${f.name}: ${GPS.length} GPS points at about ${Math.round(GPS.hz)} Hz.`;
+    if(!D||D.gpsOnly)gpsOnly();else if(pulls.length)fromGPS(1)}
+  catch(er){GPS=null;gi=null;M.className='msg err';M.textContent=er.message}});
+$('#gps').onchange=e=>{const f=e.target.files[0];e.target.value='';readGPS(f)};
+const gz=$('#gdrop');gz.ondragover=e=>{e.preventDefault();gz.classList.add('on')};gz.ondragleave=()=>gz.classList.remove('on');
+gz.ondrop=e=>{e.preventDefault();gz.classList.remove('on');readGPS(e.dataTransfer.files[0])};
+$('#replay').onclick=()=>{fresh=true;render()};
+if(document.fonts)document.fonts.ready.then(()=>draw());
+
+const getText=url=>{const ac=new AbortController(),to=setTimeout(()=>ac.abort(),10000);
+  return fetch(url,{signal:ac.signal}).then(r=>{if(!r.ok)throw Error('Open-Meteo answered with an error ('+r.status+').');return r.text()}).finally(()=>clearTimeout(to))};
+const wxErr=er=>er.name==='AbortError'?'Open-Meteo took too long to answer.':er instanceof TypeError?'Could not reach Open-Meteo from this page.':er.message;
+const wxLive=id=>id===wxReq;
+function wxVis(){const has=!!D;$('#wx').hidden=!has;$('#wxgps').hidden=!gi;$('#wxman').hidden=!gi;$('#wxpl').hidden=!has||!!gi}
+function applyWx(text,T,zone,useWind){const M=$('#wxmsg');
+  try{let j;try{j=JSON.parse(text)}catch{throw Error('That does not look like weather data.')}
+    const h=j&&j.hourly;
+    if(!h||!h.time||!h.wind_speed_10m||!h.relative_humidity_2m||!h.wind_direction_10m)throw Error('That does not look like weather data from Open-Meteo.');
+    const ts=h.time.map(x=>Date.parse(x+'Z')),i=ts.findIndex((x,k)=>x<=T&&(k+1<ts.length?ts[k+1]>T:T-x<36e5));
+    if(i<0)throw Error('The weather data does not cover the time of this pull.');
+    const k=Math.min(i+1,ts.length-1),w=ts[k]>ts[i]?(T-ts[i])/(ts[k]-ts[i]):0;
+    if([i,...(w>0?[k]:[])].some(n=>[h.wind_direction_10m[n],h.wind_speed_10m[n],h.relative_humidity_2m[n]].some(x=>typeof x!=='number'||!isFinite(x))))throw Error('The weather data has missing values for that hour.');
+    const vec=n=>{const a=h.wind_direction_10m[n]*R2,s=h.wind_speed_10m[n];return[-s*Math.sin(a),-s*Math.cos(a)]},a=vec(i),b=vec(k);
+    const u=a[0]*(1-w)+b[0]*w,vv=a[1]*(1-w)+b[1]*w,rh=h.relative_humidity_2m[i]*(1-w)+h.relative_humidity_2m[k]*w;
+    const sp=Math.hypot(u,vv),dr=(Math.atan2(-u,-vv)/R2+360)%360,wd=`${sp.toFixed(1)} mph from ${Math.round(dr)}°`;
+    $('#humid').value=Math.round(rh);syncDA();
+    if(useWind){$('#wind').value=sp.toFixed(1);$('#wdir').value=Math.round(dr)}
+    M.className='msg';
+    M.textContent=`Filled for ${new Date(T).toISOString().slice(11,16)} ${zone}: ${Math.round(rh)}% humidity`+(useWind?`, wind ${wd}. This is 10 m wind, so wind at the road is often lower.`:`. Wind was ${wd} at that hour but was not applied, because the car's heading is unknown. Enter it under Car & Conditions, then fetch again.`);
+    analyze(false);return true}
+  catch(er){M.className='msg err';M.textContent=er.message;return false}}
+$('#wxin').oninput=e=>{if(e.target.value.trim()&&gi)applyWx(e.target.value,gi.T*1e3,'UTC',true)};
+$('#wxget').onclick=()=>{
+  if(!gi||!wxUrl)return;
+  const id=++wxReq,T=gi.T*1e3,B=$('#wxget'),M=$('#wxmsg');
+  B.disabled=true;M.className='msg';M.textContent='Fetching weather from Open-Meteo...';
+  getText(wxUrl).then(tx=>{if(wxLive(id)&&!applyWx(tx,T,'UTC',true))$('#wxman').open=true})
+   .catch(er=>{if(!wxLive(id))return;M.className='msg err';M.textContent=wxErr(er)+' You can enter it by hand below.';$('#wxman').open=true})
+   .finally(()=>{B.disabled=false})};
+const LL=/^\s*(-?\d{1,3}(?:\.\d+)?)\s*[, ]\s*(-?\d{1,3}(?:\.\d+)?)\s*$/;
+$('#wxpget').onclick=async()=>{
+  const B=$('#wxpget'),M=$('#wxmsg'),q=$('#wxplace').value.trim(),dv=$('#wxdate').value,tv=$('#wxtime').value,bad=t=>{M.className='msg err';M.textContent=t},T=Date.parse(dv+'T'+tv+':00Z');
+  if(!q)return bad('Enter a place: a city, a ZIP code, or latitude and longitude.');
+  if(!dv||!tv||!isFinite(T))return bad('Enter the date and the local time of the pull.');
+  if(T>Date.now()+15*864e5)return bad('That date is too far ahead for a forecast.');
+  const id=++wxReq;B.disabled=true;M.className='msg';M.textContent='Fetching weather from Open-Meteo...';
+  try{
+    let lat,lon,name;const c=LL.exec(q);
+    if(c){lat=+c[1];lon=+c[2]}
+    else{M.textContent='Looking up the place...';
+      let g;try{g=JSON.parse(await getText('https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(q)+'&count=1&language=en&format=json'))}catch(er){if(er instanceof SyntaxError)throw Error('Open-Meteo sent an unexpected answer.');throw er}
+      if(!wxLive(id))return;
+      const r=g&&g.results&&g.results[0];
+      if(!r)throw Error('No place matching "'+q+'" was found. Try a larger nearby city, a ZIP code, or latitude and longitude.');
+      lat=r.latitude;lon=r.longitude;name=[r.name,r.admin1,r.country].filter(Boolean).join(', ')}
+    if(!(Math.abs(lat)<=90&&Math.abs(lon)<=180))throw Error('Latitude must be between -90 and 90, and longitude between -180 and 180.');
+    name=name||lat.toFixed(2)+', '+lon.toFixed(2);
+    const day=x=>new Date(x).toISOString().slice(0,10),recent=Date.now()-T<60*864e5;
+    M.textContent='Fetching weather for '+name+'...';
+    const tx=await getText(`https://${recent?'api.open-meteo.com/v1/forecast':'archive-api.open-meteo.com/v1/archive'}?latitude=${lat.toFixed(2)}&longitude=${lon.toFixed(2)}&start_date=${day(T)}&end_date=${day(T+864e5)}&hourly=relative_humidity_2m,wind_speed_10m,wind_direction_10m&wind_speed_unit=mph&timezone=auto`);
+    if(wxLive(id))applyWx(tx,T,'local time at '+name,headSet)}
+  catch(er){if(wxLive(id))bad(wxErr(er))}
+  finally{B.disabled=false}};
+$('#wxgeo').onclick=()=>{const M=$('#wxmsg'),bad=t=>{M.className='msg err';M.textContent=t};
+  if(!navigator.geolocation)return bad('This browser cannot share your location. Type a place instead.');
+  M.className='msg';M.textContent='Waiting for your browser to share your location...';
+  navigator.geolocation.getCurrentPosition(p=>{$('#wxplace').value=p.coords.latitude.toFixed(2)+', '+p.coords.longitude.toFixed(2);M.className='msg';M.textContent='Location filled in, rounded to about 1 km. Pick the date and time of the pull, then fetch.'},
+    e=>bad(e.code===1?'Location access was blocked. Type a place instead.':'Could not get your location. Type a place instead.'),{timeout:10000,maximumAge:6e5})};
+['#wxplace','#wxdate','#wxtime'].forEach(q=>$(q).onkeydown=e=>{if(e.key==='Enter')$('#wxpget').click()});
+$('#wxdate').min='1940-01-01';$('#wxdate').max=new Date(Date.now()+15*864e5).toISOString().slice(0,10);
+const fi=$('#file'),dz=$('#drop');
+const read=f=>f&&f.text().then(tx=>load(tx,f.name));
+fi.onchange=()=>{const f=fi.files[0];fi.value='';read(f)};
+dz.ondragover=e=>{e.preventDefault();dz.classList.add('on')};dz.ondragleave=()=>dz.classList.remove('on');
+dz.ondrop=e=>{e.preventDefault();dz.classList.remove('on');read(e.dataTransfer.files[0])};
+$('#demo').onclick=demo;$('#pull').onchange=e=>{sel=+e.target.value;fresh=true;GPS?fromGPS():render()};
+document.querySelectorAll('#fields input,#smooth,#sae,#spd').forEach(el=>el.addEventListener('input',()=>{if(el.id=='head')headSet=true;if(el.id=='da')daAuto=false;else if(el.id=='temp'||el.id=='humid')syncDA();analyze(false)}));
+addEventListener('resize',draw);
+const RB=(()=>{
+  const cv=document.getElementById('car');
+  const ctx=cv.getContext('2d'),CW=cv.width,X0=26,Y0=2,STEP=1000/12,Q=2*Math.PI/5,TURN=31*Math.PI/180,
+  ROWS=[
+'....................................................................',
+'....................................................................',
+'....................................................................',
+'....................................................................',
+'......DDDDDD...HHHHHHHHHHHHHH.......................................',
+'.....D..HHHHHBBBBBBBBBBBBBBBBBBHHHH.................................',
+'.......HBBBBBBBBGGGGGGGGGGGGDDDGGGGGH...............................',
+'......HBBBBBBBBGGGDDDDDDGGGGDDDGGDDDDDH.............................',
+'......HBBBBBBBBGGGGGGGGGGGGGDDDGGGGGGGGGH...........................',
+'.....HBBBBBBBBGGGGGGGGGGGGGGDDDGGGGGGGGGGGG.........................',
+'....HBBBBBBBBBGGGGGGGGGGGGGGDDDGGGGGGGGGGGGGG.......................',
+'...HBBBBBBBBBGGGGGGGGGGGGGGGDDDGGGGGGGGGGGGGGGSSS...................',
+'..BBBBBBBDDDDDODDDDDDDDDDDDDDODDDDDDDDDDDDDDDDDDD...................',
+'..HHBBBBBBBBBBOBBBBBBBBBBBBBBOBBBBBBBBBBBBBBBBOBBHH.................',
+'.HHHBHHHHHHHHHOBBBBBBBBBBBBBBOBBBBBBBBBBBBBBBBOBBBBHHHHH............',
+'.HHHBBBBBDDDDDOHHHHHHHHHHHHHHOHHHBBBBBBBBBBBBBOBBBBDDDDDHHHHHHH.....',
+'.BSSSSSSDOOOOOOODSSSSSSSBBBBBOBBBHHHHHHHHHHHHHOHHHHOOOOOOODBSHHHHHH.',
+'.BSSSSSDOOOOOOOOODSSSSSSSSSSSOSSSSSSSSSSSSSSSSBBBDOOOOOOOOOHHHHHHHH.',
+'.BSSSSDOOOOOOOOOOODSSSSSSSSSSOSSSSSSSSSSSSSSSSSSDOOOOOOOOOOODDDSSSS.',
+'.SSSSDOOOOOOOOOOOOODSSSSSSSSSOSSSSSSSSSSSSSSSSSDOOOOOOOOOOOOODSHHHHH',
+'.DDDDDOOOOOOOOOOOOODSSSSSSSSSOSSSSSSSSSSSSSSSSSDOOOOOOOOOOOOODSOOOOO',
+'.DDDDDOOOOOOOOOOOOODSSSSSSSSSOSSSSSSSSSSSSSSSSSDOOOOOOOOOOOOODODODOD',
+'.DDDDDOOOOOOOOOOOOOSSSSSSSSSSOSSSSSSSSSSSSSSSSSSOOOOOOOOOOOOOODODODO',
+'HHDDDDOOOOOOOOOOOOODDDDDDDDDDDDDDDDDDDDDDDDDDDDDOOOOOOOOOOOOODODODOD',
+'OODDDDOOOOOOOOOOOOODDDDDDDDDDDDDDDDDDDDDDDDDDDDDOOOOOOOOOOOOOODODODO',
+'..DDDDOOOOOOOOOOOOODDDDDDDDDDDDDDDDDDDDDDDDDDDDDOOOOOOOOOOOOODDDDDD.',
+'.......OOOOOOOOOOO...............................OOOOOOOOOOO........',
+'........OOOOOOOOO.................................OOOOOOOOO.........'
+  ],reduce=matchMedia('(prefers-reduced-motion: reduce)');
+  let pal={},ang=0,off=0,f=0,bob=0,puffs=[],burst=0,next=20,raf=0,last=0,acc=0,vis=true;
+  function px(x,y,t){ctx.fillStyle=pal[t];ctx.fillRect(x,y,1,1)}
+  function wheel(cx,cy){
+    for(let dy=-5;dy<=5;dy++)for(let dx=-5;dx<=5;dx++){
+      const r=Math.hypot(dx,dy);if(r>5.6)continue;let t;
+      if(r>4.5)t='D';else if(r>3.7)t='S';else if(r<=1.2)t='B';
+      else{const u=(((Math.atan2(dy,dx)-ang)%Q)+Q)%Q,d=Math.min(u,Q-u);t=r*Math.sin(d)<0.95?'H':'G';
+        if(t==='G'&&r>2&&r<3.8){const a=Math.atan2(dy,dx)*57.2958;if(a>-75&&a<-25)t='B'}}
+      px(cx+dx,cy+dy,t)}}
+  function paint(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    for(let x=0;x<CW;x++){const fade=x<10||x>CW-11?x%2===0:true;
+      if(fade)px(x,Y0+28,'G');if(fade&&Math.floor((x+off)/6)%2===0)px(x,Y0+30,'D')}
+    for(const p of puffs){const r=1+Math.floor(p.a/3),t=p.a<3?'S':p.a<6?'D':'G';
+      for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){
+        if(dx*dx+dy*dy>r*r+1)continue;const x=Math.round(p.x+dx),y=Math.round(p.y+dy);
+        if(p.a>=4&&(x+y)%2)continue;px(x,y,t)}}
+    for(let y=0;y<ROWS.length;y++){const row=ROWS[y];for(let x=0;x<row.length;x++){const t=row[x];if(t!=='.')px(X0+x,Y0+y+bob,t)}}
+    wheel(X0+12,Y0+22);wheel(X0+54,Y0+22)}
+  function step(){
+    f++;ang=(ang+TURN)%(2*Math.PI);off=(off+3)%12;bob=(f>>1)&1?-1:0;
+    if(f>=next&&!burst)burst=3;
+    if(burst>0&&f%2===0){puffs.push({x:X0-1,y:Y0+23,a:0});if(--burst===0)next=f+60+Math.floor(Math.random()*50)}
+    for(const p of puffs){p.a++;p.x-=2;p.y-=0.4}
+    puffs=puffs.filter(p=>p.a<10)}
+  function tick(t){
+    raf=requestAnimationFrame(tick);
+    if(!last){last=t;return}
+    acc+=t-last;last=t;if(acc>STEP*4)acc=STEP;
+    let n=0;while(acc>=STEP){acc-=STEP;step();n=1}
+    if(n)paint()}
+  function start(){if(raf||reduce.matches||document.hidden||!vis)return;last=0;acc=0;raf=requestAnimationFrame(tick)}
+  function stop(){cancelAnimationFrame(raf);raf=0}
+  function theme(){const cs=getComputedStyle(document.documentElement),g=n=>cs.getPropertyValue(n).trim();
+    pal={H:g('--hi'),B:g('--fg'),S:g('--mut'),D:g('--dim'),G:g('--faint'),O:g('--bg')};paint()}
+  document.addEventListener('visibilitychange',()=>document.hidden?stop():start());
+  if(reduce.addEventListener)reduce.addEventListener('change',()=>reduce.matches?(stop(),paint()):start());
+  if('IntersectionObserver' in window)new IntersectionObserver(es=>{vis=es[es.length-1].isIntersecting;vis?start():stop()}).observe(cv);
+  cv.parentNode.addEventListener('click',()=>{if(!burst&&!reduce.matches)burst=3});
+  theme();start();
+  return{theme}})();
+function setPhos(p,save){document.documentElement.dataset.phosphor=p;
+  document.querySelectorAll('#phos button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.p===p)));
+  if(save){try{localStorage.setItem('dyno-phosphor',p)}catch{/* storage unavailable */}}draw();RB.theme()}
+document.querySelectorAll('#phos button').forEach(b=>b.onclick=()=>setPhos(b.dataset.p,true));
+const P0=document.documentElement.dataset.phosphor;setPhos(['color'].includes(P0)?P0:'green',false);
+$('#condtg').onclick=function(){const o=this.getAttribute('aria-expanded')==='true';this.setAttribute('aria-expanded',String(!o));$('#condbody').hidden=o;this.closest('fieldset').classList.toggle('shut',o)};
+{const d=document.documentElement;if(d.classList.contains('bt')){const end=()=>{d.classList.remove('bt');removeEventListener('pointerdown',end);removeEventListener('keydown',end)};addEventListener('pointerdown',end);addEventListener('keydown',end);setTimeout(end,2300)}}
+render();
+</script></body></html>
