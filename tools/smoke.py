@@ -86,6 +86,11 @@ async def collapsible(browser):
         check(f"{name} opens", await st() == ["true", False])
         await pg.click(f"#{tg}")
         check(f"{name} closes again", await st() == ["false", True])
+    # How It Works text uses the whole width of its section (no narrow column with a gap beside it)
+    await pg.click("#howtg")
+    wd = await pg.evaluate("[document.querySelector('#howbody p').getBoundingClientRect().width,"
+                           "document.getElementById('howbody').getBoundingClientRect().width]")
+    check("How It Works text fills the section width", wd[0] >= wd[1] - 2, f"text {wd[0]:.0f}px of {wd[1]:.0f}px")
     await ctx.close()
 
 
