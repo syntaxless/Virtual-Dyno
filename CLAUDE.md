@@ -99,8 +99,8 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
   load and Replay press; `smoke.py`'s `realtime` check loads the demo log and times it (about 10 s of the run). On
   phones `#ro` reserves two lines, because the live readout wraps and the page would otherwise jump when it starts.
 - **Load Data**: its two upload boxes sit in `.drops`, an auto-fit grid (`minmax(260px,1fr)`), so they are side by
-  side when there is room (tablet and up) and stacked on phones. The weather form (`#wx`) is capped at 560px and the
-  hint/message lines at 90ch so they stay readable at full width.
+  side when there is room (tablet and up) and stacked on phones. The weather form (`#wx`) is capped at 560px (it is a form, not
+  text); the hint and message lines have no cap and run the full width of the section, by the owner's request.
 - **SAE option** is `label.chk`: a hidden checkbox plus a `[ ]`/`[X]` box drawn by CSS. It is `nowrap` on purpose,
   so the label must stay short enough to fit a 320px screen.
 - Text and punctuation in the file are plain ASCII (straight apostrophes), which VT323 renders reliably.

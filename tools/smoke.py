@@ -35,6 +35,8 @@ LAYOUT = """(()=>{
           stageB:Math.round(document.querySelector('.stage').getBoundingClientRect().bottom),
           loadW:Math.round(document.querySelector('.load').getBoundingClientRect().width),mainW:Math.round(document.querySelector('.main').getBoundingClientRect().width),
           loadAbove:Math.round(document.querySelector('.main').getBoundingClientRect().top-document.querySelector('.load').getBoundingClientRect().bottom),
+          hintW:Math.round(document.querySelector('.load .hint').getBoundingClientRect().width),
+          dropsW:Math.round(document.querySelector('.drops').getBoundingClientRect().width),
           dropRowDiff:Math.round(document.getElementById('gdrop').getBoundingClientRect().top-document.getElementById('drop').getBoundingClientRect().top),
           howGap:Math.round(document.querySelector('.how').getBoundingClientRect().top-document.querySelector('.cond').getBoundingClientRect().bottom),
           saeLines:lines, saeOver:Math.round(l.lastElementChild.getBoundingClientRect().right-l.parentNode.getBoundingClientRect().right)};
@@ -67,6 +69,8 @@ async def layout(browser):
                   m["artT"] >= m["stageB"] and m["stageR"] <= m["vw"], f"banner top {m['artT']}, car bottom {m['stageB']}, car right edge {m['stageR']}")
         check(f"{w}px: Load Data is full width, above the results", abs(m["loadW"] - m["mainW"]) <= 1 and m["loadAbove"] >= 0,
               f"load {m['loadW']}px vs results {m['mainW']}px, {m['loadAbove']}px above")
+        check(f"{w}px: Load Data hint lines use the full section width", m["hintW"] >= m["dropsW"] - 2,
+              f"hint {m['hintW']}px, upload row {m['dropsW']}px")
         if w >= 768:
             check(f"{w}px: the two upload boxes sit side by side", m["dropRowDiff"] == 0, f"top offset {m['dropRowDiff']}px")
         if w <= 480:
@@ -167,6 +171,20 @@ async def font(browser):
         await ctx.close()
 
 
+async def load_message(browser):
+    """The line shown after a file is loaded uses the whole Load Data width (it used to stop at 90ch)."""
+    for w in (375, 768, 1200):
+        ctx, pg, errs = await open_page(browser, width=w)
+        await pg.click("#demo")
+        await pg.wait_for_timeout(300)
+        m = await pg.evaluate("""({msg:Math.round(document.getElementById('msg').getBoundingClientRect().width),
+            drops:Math.round(document.querySelector('.drops').getBoundingClientRect().width),
+            chars:document.getElementById('msg').textContent.length})""")
+        check(f"{w}px: the message after loading a file uses the full Load Data width",
+              m["chars"] > 0 and m["msg"] >= m["drops"] - 2 and not errs, f"{m} {errs}")
+        await ctx.close()
+
+
 async def realtime(browser):
     """Replay plays in real time: it takes as long as the pull did, shows a live readout, and a click skips it."""
     ctx, pg, errs = await open_page(browser, reduced_motion=False)
@@ -208,7 +226,7 @@ async def realtime(browser):
 async def main():
     async with async_playwright() as pw:
         browser = await pw.chromium.launch()
-        for step in (layout, collapsible, sae_checkbox, themes, boot, font, realtime):
+        for step in (layout, collapsible, sae_checkbox, themes, boot, font, load_message, realtime):
             await step(browser)
         await browser.close()
     bad = results.count(False)
