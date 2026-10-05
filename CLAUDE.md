@@ -43,11 +43,13 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
   allow-list appears twice (the head script and the `setPhos` init). Update both when adding or removing a theme.
   A stored value that is no longer allowed falls back to green.
 - **ASCII title**: an `<h1 class="vh">` (visually hidden, for accessibility) followed by two banner variants, both
-  `aria-hidden`: `.art.stack` (VIRTUAL over DYNO, 19 rows by 69 columns) and `.art.row` (VIRTUAL DYNO on one row,
-  12 rows by 106 columns). Both are figlet "banner3" lettering with the spaces drawn as dots, inside a frame of
-  colons (two colon rows above and below, two colon columns at each side, and one blank row at the bottom). The row
-  is the owner's own art; the stack was made with `pyfiglet` font `banner3` for each word, framed the same way, with
-  DYNO centred under VIRTUAL. A container query on `.hgrp` (`@container hgrp (min-width:520px)`) shows the single
+  `aria-hidden`: `.art.stack` (VIRTUAL over DYNO, 19 rows by 68 columns) and `.art.row` (VIRTUAL DYNO on one row,
+  11 rows by 106 columns). Both are figlet "banner3" lettering (7 rows tall) with the spaces drawn as dots, inside a
+  frame of colons (two colon rows above and below, two colon columns at each side). The row is the owner's own art:
+  it is `pyfiglet` banner3 `VIRTUAL DYNO` with 3 spaces taken out of the word gap, spaces turned into dots, and each
+  row written as `::` + `.` + the row without its last character + a space + `::`. The stack was built with that
+  same recipe from banner3 `VIRTUAL` (63 wide) and `DYNO` (38 wide, centred under it, with one dotted row between
+  the words), so the two match; redo it the same way if the row art changes. A container query on `.hgrp` (`@container hgrp (min-width:520px)`) shows the single
   row when there is room and the stacked version on phones, because the row is too small to read below that. The art
   keeps `line-height:.8` (one cell is 0.4em wide and 0.8em tall, a 1:2 terminal cell). Each variant sets its font
   size as `min(28px, calc(100cqw/N))` with `N = ceil(columns * 0.4 + 1)`, because a VT323 character advances 0.4em:
@@ -77,7 +79,7 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
 - **Boot-in animation**: `html.bt` is set by a head script on the first visit per session (`sessionStorage`
   key `dyno-boot`); `#boot` in the URL replays it; reduced-motion visitors never get it; a click or key skips it;
   it removes itself after about 2.3 s. Each block's timing is set with `--s/--d/--t` variables in the `html.bt`
-  rules, and the banner's `--s` equals its row count (19 for the stack, 12 for the row; the sign's is 10). The last
+  rules, and the banner's `--s` equals its row count (19 for the stack, 11 for the row; the sign's is 10). The last
   blocks are timed to finish before the cleanup: sign 1.96 s, footer 2.1 s, prompt 2.16 s.
 - **Collapsible sections**: Car & Conditions (`#condtg` button, `#condbody` panel) and How It Works (`#howtg`,
   `#howbody`) both start collapsed and share one click handler that flips `aria-expanded`, the panel's `hidden`
@@ -90,7 +92,7 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
 - **TURBOLOSER sign** (`div.sign`, below How It Works, above the footer): the owner's 10-row by 74-column art, a
   dotted frame with the word in `#` letters, in a `<pre>`. The wrapper is `role="img" aria-label="TURBOLOSER"` and
   the `<pre>` is `aria-hidden`. The wrapper is its own container (`container-type:inline-size`) so `cqw` works, and
-  the font is `min(18px, calc(100cqw/31))`, with `31 = ceil(74 * 0.4 + 1)` (recompute it if the art changes, and
+  the font is `min(9px, calc(100cqw/31))` (9px is half of the 18px it had before the owner asked for it smaller; on phones the width limit (`100cqw/31`) wins, which is about 9px at 375px), with `31 = ceil(74 * 0.4 + 1)` (recompute it if the art changes, and
   keep the `100vw` fallback declaration). The `<pre>` is `width:max-content` with auto margins, so it is centred.
   Hidden by `html.nofont`. The art uses only `#`, `:`, spaces and the middle dot `·` (U+00B7, in the VT323 subset).
 - **Load Data**: its two upload boxes sit in `.drops`, an auto-fit grid (`minmax(260px,1fr)`), so they are side by
