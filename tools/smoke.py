@@ -30,6 +30,9 @@ LAYOUT = """(()=>{
           loadW:Math.round(document.querySelector('.load').getBoundingClientRect().width),mainW:Math.round(document.querySelector('.main').getBoundingClientRect().width),
           loadAbove:Math.round(document.querySelector('.main').getBoundingClientRect().top-document.querySelector('.load').getBoundingClientRect().bottom),
           dropRowDiff:Math.round(document.getElementById('gdrop').getBoundingClientRect().top-document.getElementById('drop').getBoundingClientRect().top),
+          estAbove:Math.round(document.querySelector('.est').getBoundingClientRect().top-document.querySelector('.main').getBoundingClientRect().bottom),
+          estBelow:Math.round(document.querySelector('.cond').getBoundingClientRect().top-document.querySelector('.est').getBoundingClientRect().bottom),
+          estH:Math.round(document.querySelector('.est').getBoundingClientRect().height),
           howGap:Math.round(document.querySelector('.how').getBoundingClientRect().top-document.querySelector('.cond').getBoundingClientRect().bottom),
           saeLines:lines, saeOver:Math.round(l.lastElementChild.getBoundingClientRect().right-l.parentNode.getBoundingClientRect().right)};
 })()"""
@@ -59,6 +62,9 @@ async def layout(browser):
             check(f"{w}px: the two upload boxes sit side by side", m["dropRowDiff"] == 0, f"top offset {m['dropRowDiff']}px")
         if w <= 480:
             check(f"{w}px: the two upload boxes stack on a phone", m["dropRowDiff"] > 20, f"top offset {m['dropRowDiff']}px")
+        check(f"{w}px: the estimates line is visible, between the results and Car & Conditions",
+              m["estH"] > 0 and m["estAbove"] >= 0 and m["estBelow"] >= 0,
+              f"height {m['estH']}px, {m['estAbove']}px below results, {m['estBelow']}px above Car & Conditions")
         check(f"{w}px: How It Works sits below Car & Conditions", m["howGap"] >= 0, f"{m['howGap']}px below")
         check(f"{w}px: SAE checkbox label on one line", m["saeLines"] == 1 and m["saeOver"] <= 0,
               f"{m['saeLines']} line(s), {m['saeOver']}px past column")
@@ -76,7 +82,7 @@ async def collapsible(browser):
         await pg.click(f"#{tg}")
         check(f"{name} closes again", await st() == ["false", True])
     check("the estimates-only line stays visible while How It Works is collapsed",
-          await pg.evaluate("document.querySelector('.notes .est').offsetParent!==null"))
+          await pg.evaluate("document.querySelector('.est').offsetParent!==null"))
     await ctx.close()
 
 

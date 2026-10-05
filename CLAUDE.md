@@ -74,11 +74,12 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
   rules, and the banner's `--s` equals its row count (19 for the stack, 12 for the row).
 - **Collapsible sections**: Car & Conditions (`#condtg` button, `#condbody` panel) and How It Works (`#howtg`,
   `#howbody`) both start collapsed and share one click handler that flips `aria-expanded`, the panel's `hidden`
-  attribute and the fieldset's `.shut` class. The "Estimates only" line is deliberately outside How It Works, in
-  the `.notes` wrapper, so the disclaimer is always visible. The page is one column at every width, in DOM order:
-  header, Load Data, results (`.main`), Car & Conditions, then How It Works (`.notes`). There is no desktop/tablet
-  split any more (the old two-column grid and its 900px breakpoint are gone). Keep How It Works below Car &
-  Conditions; `smoke.py` checks the order and Load Data's full width at every width.
+  attribute and the fieldset's `.shut` class. The "Estimates only" line (`p.est`) is deliberately outside both
+  collapsibles, so the disclaimer is always visible. The page is one column at every width, in DOM order:
+  header, Load Data, results (`.main`), the Estimates line (`.est`), Car & Conditions, then How It Works (`.notes`).
+  There is no desktop/tablet split any more (the old two-column grid and its 900px breakpoint are gone). Keep the
+  Estimates line directly above Car & Conditions and How It Works below it; `smoke.py` checks the order and Load
+  Data's full width at every width.
 - **Load Data**: its two upload boxes sit in `.drops`, an auto-fit grid (`minmax(260px,1fr)`), so they are side by
   side when there is room (tablet and up) and stacked on phones. The weather form (`#wx`) is capped at 560px and the
   hint/message lines at 90ch so they stay readable at full width.

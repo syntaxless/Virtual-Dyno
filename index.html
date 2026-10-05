@@ -45,7 +45,7 @@ body{margin:0;min-height:100vh;padding:max(16px,env(safe-area-inset-top)) 16px m
 html.bt .type{animation:typing .6s steps(14) .15s backwards}
 @keyframes typing{from{width:0}}
 @keyframes rv{from{clip-path:inset(0 -50px 100% -50px)}to{clip-path:inset(-50px)}}
-html.bt :is(.art,.hgrp p,.stage,.load,.stats,.run,.notes,.cond,.foot,.ps1){animation:rv var(--d) steps(var(--s)) var(--t) backwards}
+html.bt :is(.art,.hgrp p,.stage,.load,.stats,.run,.est,.notes,.cond,.foot,.ps1){animation:rv var(--d) steps(var(--s)) var(--t) backwards}
 html.bt .art{--s:19;--d:0.3s;--t:.95s}
 html.bt .art.row{--s:12;--d:.15s}
 html.bt .hgrp p{--s:3;--d:.12s;--t:1.2s}
@@ -53,6 +53,7 @@ html.bt .stage{--s:6;--d:.2s;--t:.75s}
 html.bt .load{--s:10;--d:.25s;--t:1.2s}
 html.bt .stats{--s:6;--d:.15s;--t:1.25s}
 html.bt .run{--s:12;--d:.3s;--t:1.45s}
+html.bt .est{--s:2;--d:.06s;--t:1.74s}
 html.bt .cond{--s:3;--d:.08s;--t:1.8s}
 html.bt .notes{--s:3;--d:.08s;--t:1.88s}
 html.bt .foot{--s:2;--d:.06s;--t:1.96s}
@@ -139,7 +140,7 @@ input[type=range]::-moz-range-thumb{width:12px;height:20px;background:var(--fg);
 #cond{margin-top:4px;color:var(--mut);font-size:19px;line-height:1.1}
 #cond:not(:empty)::before{content:"# ";color:var(--dim)}
 .notes p{margin:0;color:var(--mut);font-size:20px;line-height:1.12;max-width:84ch}
-.notes .est{margin-top:8px}
+.est{margin:0;color:var(--mut);font-size:20px;line-height:1.12;max-width:84ch}
 .foot{margin:0 20px;padding:10px 0 8px;border-top:1px dashed var(--faint);color:var(--mut);font-size:18px;text-align:center}
 .ps1{padding:2px 20px 16px;color:var(--mut)}
 .ps1 i{display:inline-block;width:.5em;height:.8em;margin-left:2px;vertical-align:-.05em;background:var(--fg);box-shadow:0 0 8px var(--fg);animation:blink2 1.06s steps(1) infinite}
@@ -229,6 +230,7 @@ input[type=range]::-moz-range-thumb{width:12px;height:20px;background:var(--fg);
    <div class="cvw"><canvas id="cv" role="img" aria-label="Dyno graph of horsepower and torque"></canvas></div><div id="ro">hover or touch the graph for exact values</div><div id="cond"></div>
   </fieldset>
  </section>
+  <p class="est">Estimates only: real dynos will differ.</p>
   <fieldset class="cond shut"><legend><button type="button" class="tg" id="condtg" aria-expanded="false" aria-controls="condbody">Car &amp; Conditions</button></legend>
    <div id="condbody" hidden>
    <div class="fields" id="fields"></div>
@@ -245,7 +247,6 @@ input[type=range]::-moz-range-thumb{width:12px;height:20px;background:var(--fg);
      <p>Speed is turned into acceleration, then force = mass × acceleration + aerodynamic drag + rolling resistance + hills. Wheel power is force × speed, and crank power adds drivetrain loss and the energy spent spinning up the engine. Density altitude is filled in from your log's pressure and temperature (or from GPS altitude) and sets the air density; you can overwrite it. With GPS only there is no RPM, so power is plotted against speed. Enter RPM per mph for the gear you used to get RPM and torque.</p>
     </div>
    </fieldset>
-   <p class="est">Estimates only: real dynos will differ.</p>
   </div>
 </div>
 <footer class="foot">This site was built with AI and AI makes mistakes because it's only human.</footer>
