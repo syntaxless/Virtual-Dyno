@@ -4,6 +4,7 @@
   python tools/shot.py --scroll bottom           # footer area
   python tools/shot.py --scroll .notes           # scroll a CSS selector into view
   python tools/shot.py --expand --widths 375     # with "Car & Conditions" open
+  python tools/shot.py --click '#howtg' --full   # with "How It Works" open
   python tools/shot.py --theme color --full      # color theme, whole page
   python tools/shot.py --gpx                     # with the synthetic GPS track loaded
   python tools/shot.py --log /path/to/log.csv    # with a real Accessport log
@@ -24,6 +25,8 @@ async def main():
     ap.add_argument("--height", type=int, default=800)
     ap.add_argument("--scroll", default="top", help="top | bottom | <css selector>")
     ap.add_argument("--expand", action="store_true", help="open Car & Conditions")
+    ap.add_argument("--click", action="append", default=[], metavar="SELECTOR",
+                    help="click an element before the screenshot, e.g. --click '#howtg' (repeatable)")
     ap.add_argument("--theme", choices=["green", "color"])
     ap.add_argument("--full", action="store_true", help="full-page screenshot")
     ap.add_argument("--gpx", action="store_true", help="load the synthetic GPS track")
@@ -37,6 +40,8 @@ async def main():
             ctx, pg, errs = await open_page(browser, width=w, height=a.height, expand=a.expand)
             if a.theme:
                 await pg.click(f'#phos button[data-p="{a.theme}"]')
+            for sel in a.click:
+                await pg.click(sel)
             if a.log:
                 await pg.set_input_files("#file", a.log)
             if a.gpx:

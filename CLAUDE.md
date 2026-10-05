@@ -34,16 +34,24 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
   sprite reads colors through `RB.theme()`. The saved choice lives in `localStorage` key `dyno-phosphor`; its
   allow-list appears twice (the head script and the `setPhos` init). Update both when adding or removing a theme.
   A stored value that is no longer allowed falls back to green.
-- **ASCII title**: an `<h1 class="vh">` (visually hidden, for accessibility) followed by `<div class="art">`.
-  The font size is `min(28px, calc(100cqw/N))`, where `N = ceil(columns * 0.4 + 1)` because a VT323 character
-  advances 0.4em; the art is 70 columns, so N is 29. Change the art, change N (in both declarations), and
-  `smoke.py` will confirm it still fits at every width. The two `<!-- htmlmin:ignore -->` comments around it are
-  leftovers from the old minifier and can be deleted.
+- **ASCII title**: an `<h1 class="vh">` (visually hidden, for accessibility) followed by two banner variants, both
+  `aria-hidden`: `.art.stack` (VIRTUAL over DYNO, 16 rows by 70 columns) and `.art.row` (VIRTUAL DYNO on one row,
+  8 rows by 115 columns). Both are figlet "banner3-D" output. A container query on `.hgrp`
+  (`@container (min-width:520px)`) shows the single row when there is room and the stacked version on phones,
+  because the row would be unreadably small below that. Each variant sets its font size as
+  `min(28px, calc(100cqw/N))` with `N = ceil(columns * 0.4 + 1)`, because a VT323 character advances 0.4em:
+  N is 29 for the stack and 47 for the row. If you change the art, recompute N (the stack's also has a `100vw`
+  fallback declaration) and run `smoke.py`, which checks that exactly one variant shows and that it fits at every width.
+  The sizing assumes VT323 loaded; if the Google Fonts request is blocked, the fallback font is wider and the
+  banner overflows its column (self-hosting the font would fix that).
 - **Boot-in animation**: `html.bt` is set by a head script on the first visit per session (`sessionStorage`
   key `dyno-boot`); `#boot` in the URL replays it; reduced-motion visitors never get it; a click or key skips it;
   it removes itself after about 2.3 s. Each block's timing is set with `--s/--d/--t` variables in the `html.bt`
-  rules, and the art's `--s` equals its row count.
-- **Car & Conditions** starts collapsed (`#condtg` button, `#condbody` panel, `aria-expanded`).
+  rules, and the banner's `--s` equals its row count (16 for the stack, 8 for the row).
+- **Collapsible sections**: Car & Conditions (`#condtg` button, `#condbody` panel) and How It Works (`#howtg`,
+  `#howbody`) both start collapsed and share one click handler that flips `aria-expanded`, the panel's `hidden`
+  attribute and the fieldset's `.shut` class. The "Estimates only" line is deliberately outside How It Works, in
+  the `.notes` wrapper, so the disclaimer is always visible.
 - **SAE option** is `label.chk`: a hidden checkbox plus a `[ ]`/`[X]` box drawn by CSS. It is `nowrap` on purpose,
   so the label must stay short enough to fit a 320px screen.
 - Text and punctuation in the file are plain ASCII (straight apostrophes), which VT323 renders reliably.

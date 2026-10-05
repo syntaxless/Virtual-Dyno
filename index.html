@@ -48,6 +48,7 @@ html.bt .type{animation:typing .6s steps(14) .15s backwards}
 @keyframes rv{from{clip-path:inset(0 -50px 100% -50px)}to{clip-path:inset(-50px)}}
 html.bt :is(.art,.hgrp p,.stage,.load,.stats,.run,.notes,.cond,.foot,.ps1){animation:rv var(--d) steps(var(--s)) var(--t) backwards}
 html.bt .art{--s:16;--d:0.3s;--t:.8s}
+html.bt .art.row{--s:8;--d:.15s}
 html.bt .hgrp p{--s:3;--d:.12s;--t:1.1s}
 html.bt .stage{--s:6;--d:.2s;--t:1.1s}
 html.bt .load{--s:10;--d:.25s;--t:1.2s}
@@ -57,13 +58,15 @@ html.bt .cond{--s:3;--d:.08s;--t:1.8s}
 html.bt .foot{--s:2;--d:.06s;--t:1.9s}
 html.bt .ps1{--s:1;--d:.04s;--t:2.0s}
 .art{display:block;margin:8px 0 6px;font:400 28px/.8 var(--mono);color:var(--hi);text-shadow:0 0 6px var(--fg),0 0 22px rgba(var(--rgb),.45);white-space:pre;font-size:min(28px,calc((100vw - 56px)/29));font-size:min(28px,calc(100cqw/29))}
-.head p{margin:2px 0 4px;color:var(--mut);max-width:62ch}
+.art.row{display:none;font-size:min(28px,calc(100cqw/47))}
+@container (min-width:520px){.art.row{display:block}.art.stack{display:none}}
+.head p{margin:2px 0 4px;color:var(--mut);max-width:62ch;text-wrap:balance}
 fieldset{margin:0;min-width:0;border:1px solid var(--dim);padding:10px 14px 14px}
 legend{padding:0 8px;color:var(--hi)}
 .tg{font:inherit;letter-spacing:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;text-shadow:inherit}
 .tg::before{content:"- ";color:var(--dim)}.tg[aria-expanded=false]::before{content:"+ "}
 .tg:hover{color:var(--fg)}.tg:focus-visible{outline:1px dashed var(--hi);outline-offset:3px}
-.cond.shut{padding-top:0;padding-bottom:0}
+.cond.shut,.how.shut{padding-top:0;padding-bottom:0}
 .main{display:flex;flex-direction:column;gap:16px;min-width:0}
 .hint{margin:0 0 10px;color:var(--mut);font-size:20px}
 .drop{display:block;margin-bottom:10px;padding:8px 12px;border:1px dashed var(--dim);cursor:pointer}
@@ -131,7 +134,7 @@ input[type=range]::-moz-range-thumb{width:12px;height:20px;background:var(--fg);
 #cond{margin-top:4px;color:var(--mut);font-size:19px;line-height:1.1}
 #cond:not(:empty)::before{content:"# ";color:var(--dim)}
 .notes p{margin:0;color:var(--mut);font-size:20px;line-height:1.12;max-width:84ch}
-.notes p+p{margin-top:8px}
+.notes .est{margin-top:8px}
 .foot{margin:0 20px;padding:10px 0 8px;border-top:1px dashed var(--faint);color:var(--mut);font-size:18px;text-align:center}
 .ps1{padding:2px 20px 16px;color:var(--mut)}
 .ps1 i{display:inline-block;width:.5em;height:.8em;margin-left:2px;vertical-align:-.05em;background:var(--fg);box-shadow:0 0 8px var(--fg);animation:blink2 1.06s steps(1) infinite}
@@ -148,7 +151,16 @@ input[type=range]::-moz-range-thumb{width:12px;height:20px;background:var(--fg);
  <header class="head">
   <div class="hgrp">
    <div class="boot" aria-hidden="true">vrtl@dyno:~$ <span class="type">./virtual-dyno</span></div>
-   <h1 class="vh">Virtual Dyno</h1><!-- htmlmin:ignore --><div class="art" aria-hidden="true">'##::::'##:'####:'########::'########:'##::::'##::::'###::::'##:::::::
+   <h1 class="vh">Virtual Dyno</h1>
+   <div class="art row" aria-hidden="true">'##::::'##:'####:'########::'########:'##::::'##::::'###::::'##::::::::::'########::'##:::'##:'##::: ##::'#######::
+ ##:::: ##:. ##:: ##.... ##:... ##..:: ##:::: ##:::'## ##::: ##:::::::::: ##.... ##:. ##:'##:: ###:: ##:'##.... ##:
+ ##:::: ##:: ##:: ##:::: ##:::: ##:::: ##:::: ##::'##:. ##:: ##:::::::::: ##:::: ##::. ####::: ####: ##: ##:::: ##:
+ ##:::: ##:: ##:: ########::::: ##:::: ##:::: ##:'##:::. ##: ##:::::::::: ##:::: ##:::. ##:::: ## ## ##: ##:::: ##:
+. ##:: ##::: ##:: ##.. ##:::::: ##:::: ##:::: ##: #########: ##:::::::::: ##:::: ##:::: ##:::: ##. ####: ##:::: ##:
+:. ## ##:::: ##:: ##::. ##::::: ##:::: ##:::: ##: ##.... ##: ##:::::::::: ##:::: ##:::: ##:::: ##:. ###: ##:::: ##:
+::. ###::::'####: ##:::. ##:::: ##::::. #######:: ##:::: ##: ########:::: ########::::: ##:::: ##::. ##:. #######::
+:::...:::::....::..:::::..:::::..::::::.......:::..:::::..::........:::::........::::::..:::::..::::..:::.......:::</div>
+   <div class="art stack" aria-hidden="true">'##::::'##:'####:'########::'########:'##::::'##::::'###::::'##:::::::
  ##:::: ##:. ##:: ##.... ##:... ##..:: ##:::: ##:::'## ##::: ##:::::::
  ##:::: ##:: ##:: ##:::: ##:::: ##:::: ##:::: ##::'##:. ##:: ##:::::::
  ##:::: ##:: ##:: ########::::: ##:::: ##:::: ##:'##:::. ##: ##:::::::
@@ -163,7 +175,7 @@ input[type=range]::-moz-range-thumb{width:12px;height:20px;background:var(--fg);
  ##:::: ##:::: ##:::: ##. ####: ##:::: ##:
  ##:::: ##:::: ##:::: ##:. ###: ##:::: ##:
  ########::::: ##:::: ##::. ##:. #######::
-........::::::..:::::..::::..:::.......:::</div><!-- htmlmin:ignore -->
+........::::::..:::::..::::..:::.......:::</div>
    <p>Estimate horsepower and torque from a log file, gps data, or both.</p>
   </div>
   <div class="stage" role="img" aria-label="Animated pixel-art VW Golf (Mk7) driving along a road"><span class="cap" aria-hidden="true">mk7_golf.spr</span><canvas id="car" width="108" height="34" aria-hidden="true"></canvas></div>
@@ -214,10 +226,14 @@ input[type=range]::-moz-range-thumb{width:12px;height:20px;background:var(--fg);
    </div>
    </div>
   </fieldset>
-  <fieldset class="notes"><legend>Notes</legend>
-   <p>How it works: speed is turned into acceleration, then force = mass × acceleration + aerodynamic drag + rolling resistance + hills. Wheel power is force × speed, and crank power adds drivetrain loss and the energy spent spinning up the engine. Density altitude is filled in from your log's pressure and temperature (or from GPS altitude) and sets the air density; you can overwrite it. With GPS only there is no RPM, so power is plotted against speed. Enter RPM per mph for the gear you used to get RPM and torque.</p>
-   <p>Estimates only: real dynos will differ.</p>
-  </fieldset>
+  <div class="notes">
+   <fieldset class="how shut"><legend><button type="button" class="tg" id="howtg" aria-expanded="false" aria-controls="howbody">How It Works</button></legend>
+    <div id="howbody" hidden>
+     <p>Speed is turned into acceleration, then force = mass × acceleration + aerodynamic drag + rolling resistance + hills. Wheel power is force × speed, and crank power adds drivetrain loss and the energy spent spinning up the engine. Density altitude is filled in from your log's pressure and temperature (or from GPS altitude) and sets the air density; you can overwrite it. With GPS only there is no RPM, so power is plotted against speed. Enter RPM per mph for the gear you used to get RPM and torque.</p>
+    </div>
+   </fieldset>
+   <p class="est">Estimates only: real dynos will differ.</p>
+  </div>
 </div>
 <footer class="foot">This site was built with AI and AI makes mistakes because it's only human.</footer>
 <div class="ps1" aria-hidden="true">vrtl@dyno:~$ <i></i></div>
@@ -616,7 +632,7 @@ function setPhos(p,save){document.documentElement.dataset.phosphor=p;
   if(save){try{localStorage.setItem('dyno-phosphor',p)}catch{/* storage unavailable */}}draw();RB.theme()}
 document.querySelectorAll('#phos button').forEach(b=>b.onclick=()=>setPhos(b.dataset.p,true));
 const P0=document.documentElement.dataset.phosphor;setPhos(['color'].includes(P0)?P0:'green',false);
-$('#condtg').onclick=function(){const o=this.getAttribute('aria-expanded')==='true';this.setAttribute('aria-expanded',String(!o));$('#condbody').hidden=o;this.closest('fieldset').classList.toggle('shut',o)};
+for(const [b,p] of [['condtg','condbody'],['howtg','howbody']])$('#'+b).onclick=function(){const o=this.getAttribute('aria-expanded')==='true';this.setAttribute('aria-expanded',String(!o));$('#'+p).hidden=o;this.closest('fieldset').classList.toggle('shut',o)};
 {const d=document.documentElement;if(d.classList.contains('bt')){const end=()=>{d.classList.remove('bt');removeEventListener('pointerdown',end);removeEventListener('keydown',end)};addEventListener('pointerdown',end);addEventListener('keydown',end);setTimeout(end,2300)}}
 render();
 </script></body></html>

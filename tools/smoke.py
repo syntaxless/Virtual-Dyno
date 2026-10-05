@@ -2,8 +2,9 @@
 
   python tools/smoke.py
 
-Checks layout at phone/tablet/desktop widths, the collapsible Car & Conditions section,
-the one-line SAE checkbox, theme switching/persistence, and the boot-in animation gate.
+Checks layout at phone/tablet/desktop widths (including which banner variant shows), the collapsible
+Car & Conditions and How It Works sections, the one-line SAE checkbox, theme switching/persistence,
+and the boot-in animation gate.
 """
 import asyncio
 import sys
@@ -12,15 +13,17 @@ from playwright.async_api import async_playwright
 
 from common import open_page
 
-WIDTHS = (320, 375, 768, 1200)
+WIDTHS = (320, 375, 480, 600, 768, 1200)
+BANNER = {320: "stack", 375: "stack", 480: "stack", 600: "row", 768: "row", 1200: "row"}   # phones: stacked; wide: one row
 
-# Layout facts measured in the page: horizontal overflow, ASCII art fit, SAE label on one line.
+# Layout facts measured in the page: horizontal overflow, banner variant and fit, SAE label on one line.
 LAYOUT = """(()=>{
-  const art=document.querySelector('.art'), l=document.querySelector('label.chk');
+  const shown=[...document.querySelectorAll('.art')].filter(a=>a.offsetParent!==null), art=shown[0];
+  const l=document.querySelector('label.chk');
   const lh=parseFloat(getComputedStyle(l).lineHeight);
   const lines=Math.round(l.getBoundingClientRect().height/lh);   // label height / line height (ignores the hidden 1px input)
   return {sw:document.documentElement.scrollWidth, vw:innerWidth,
-          artOver:art.scrollWidth-art.clientWidth,
+          shown:shown.length, artMode:art&&art.classList.contains('row')?'row':'stack', artOver:art?art.scrollWidth-art.clientWidth:999,
           saeLines:lines, saeOver:Math.round(l.lastElementChild.getBoundingClientRect().right-l.parentNode.getBoundingClientRect().right)};
 })()"""
 
@@ -38,6 +41,8 @@ async def layout(browser):
         m = await pg.evaluate(LAYOUT)
         check(f"{w}px: no page errors", not errs, "; ".join(errs))
         check(f"{w}px: no horizontal scroll", m["sw"] <= m["vw"], f"scrollWidth {m['sw']} vs {m['vw']}")
+        check(f"{w}px: exactly one banner shown, the {BANNER[w]} one", m["shown"] == 1 and m["artMode"] == BANNER[w],
+              f"{m['shown']} shown, mode {m['artMode']}")
         check(f"{w}px: ASCII art fits", m["artOver"] <= 1, f"overflow {m['artOver']}px")
         check(f"{w}px: SAE checkbox label on one line", m["saeLines"] == 1 and m["saeOver"] <= 0,
               f"{m['saeLines']} line(s), {m['saeOver']}px past column")
@@ -46,13 +51,16 @@ async def layout(browser):
 
 async def collapsible(browser):
     ctx, pg, errs = await open_page(browser)           # not pre-expanded
-    st = lambda: pg.evaluate("[document.getElementById('condtg').getAttribute('aria-expanded'),"
-                             "document.getElementById('condbody').hidden]")
-    check("Car & Conditions starts collapsed", await st() == ["false", True])
-    await pg.click("#condtg")
-    check("Car & Conditions opens", await st() == ["true", False])
-    await pg.click("#condtg")
-    check("Car & Conditions closes again", await st() == ["false", True])
+    for name, tg, body in (("Car & Conditions", "condtg", "condbody"), ("How It Works", "howtg", "howbody")):
+        st = lambda: pg.evaluate(f"[document.getElementById('{tg}').getAttribute('aria-expanded'),"
+                                 f"document.getElementById('{body}').hidden]")
+        check(f"{name} starts collapsed", await st() == ["false", True])
+        await pg.click(f"#{tg}")
+        check(f"{name} opens", await st() == ["true", False])
+        await pg.click(f"#{tg}")
+        check(f"{name} closes again", await st() == ["false", True])
+    check("the estimates-only line stays visible while How It Works is collapsed",
+          await pg.evaluate("document.querySelector('.notes .est').offsetParent!==null"))
     await ctx.close()
 
 
