@@ -103,8 +103,8 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
 - **Load Data**: its two upload boxes sit in `.drops`, an auto-fit grid (`minmax(260px,1fr)`), so they are side by
   side when there is room (tablet and up) and stacked on phones. The weather form (`#wx`) is capped at 560px (it is a form, not
   text); the hint and message lines have no cap and run the full width of the section, by the owner's request.
-- **SAE option** is `label.chk`: a hidden checkbox plus a `[ ]`/`[X]` box drawn by CSS. It is `nowrap` on purpose,
-  so the label must stay short enough to fit a 320px screen.
+- **SAE option** is `label.chk`: a hidden checkbox plus a `[ ]`/`[X]` box drawn by CSS. It starts ticked (on by
+  default, the owner's choice). It is `nowrap` on purpose, so the label must stay short enough to fit a 320px screen.
 - Text and punctuation in the file are plain ASCII (straight apostrophes), which VT323 renders reliably.
 - The `<meta>` and `og:` descriptions still mention the Accessport, RaceBox/Dragy and the Golf R; the visible intro
   line was generalized to "a log file, gps data, or both" and the meta text was not.
@@ -117,6 +117,9 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
   `shot.py --nofont` fail the `.woff2` request to show the fallback look.
 - Do not assert on wording in `smoke.py`; copy changes are normal. `weather.py` is a snapshot, so a legitimate
   message change means reviewing the diff and running it with `--update`.
-- Reference result for the owner's log (`GolfR_NewEngine_4thGearPull_10_01_2026.csv`): 396 hp, 363 lb-ft,
-  312 whp at 4138 ft density altitude; 430 hp with SAE correction. On the bundled synthetic GPS track with
-  67 RPM per mph, torque is 330. If the physics changes on purpose, update `tools/functional.py`.
+- The SAE J1349 correction is ON by default (the checkbox is `checked` in the markup), so the numbers the page
+  shows at load are the corrected ones. Reference result for the owner's log
+  (`GolfR_NewEngine_4thGearPull_10_01_2026.csv`): 430 hp, 394 lb-ft, 339 whp at 4138 ft density altitude with the
+  correction; 396 hp, 363 lb-ft, 312 whp with it unticked. On the bundled synthetic GPS track with 67 RPM per mph,
+  torque is 351 (330 with SAE off). If the physics or a default changes on purpose, update `tools/functional.py`,
+  and review and `--update` the `weather.py` snapshot (it prints the displayed numbers).

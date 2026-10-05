@@ -105,15 +105,19 @@ async def collapsible(browser):
 
 async def sae_checkbox(browser):
     ctx, pg, errs = await open_page(browser, expand=True)
+    on_default = await pg.is_checked("#sae")                 # the SAE correction is on by default
+    box_drawn = await pg.evaluate("getComputedStyle(document.querySelector('label.chk .bx'),'::before').content")
     await pg.click("label.chk span:last-child")
-    on_text = await pg.is_checked("#sae")
+    off_text = not await pg.is_checked("#sae")
     await pg.click("label.chk .bx")
-    off_box = not await pg.is_checked("#sae")
+    on_box = await pg.is_checked("#sae")
     await pg.focus("#sae")
     await pg.keyboard.press("Space")
-    on_kbd = await pg.is_checked("#sae")
-    check("SAE checkbox toggles by label text, [X] box and Space key", on_text and off_box and on_kbd,
-          f"text:{on_text} box-off:{off_box} space:{on_kbd}")
+    off_kbd = not await pg.is_checked("#sae")
+    check("SAE correction is on by default, and the box is drawn ticked", on_default and "X" in box_drawn,
+          f"checked at load: {on_default}, box shows {box_drawn}")
+    check("SAE checkbox toggles by label text, [X] box and Space key", off_text and on_box and off_kbd,
+          f"text-off:{off_text} box-on:{on_box} space-off:{off_kbd}")
     await ctx.close()
 
 
