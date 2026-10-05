@@ -35,12 +35,6 @@ LAYOUT = """(()=>{
           loadW:Math.round(document.querySelector('.load').getBoundingClientRect().width),mainW:Math.round(document.querySelector('.main').getBoundingClientRect().width),
           loadAbove:Math.round(document.querySelector('.main').getBoundingClientRect().top-document.querySelector('.load').getBoundingClientRect().bottom),
           dropRowDiff:Math.round(document.getElementById('gdrop').getBoundingClientRect().top-document.getElementById('drop').getBoundingClientRect().top),
-          signAbove:Math.round(document.querySelector('.sign').getBoundingClientRect().top-document.querySelector('.notes').getBoundingClientRect().bottom),
-          signBelow:Math.round(document.querySelector('.foot').getBoundingClientRect().top-document.querySelector('.sign').getBoundingClientRect().bottom),
-          signOver:document.querySelector('.sign pre').scrollWidth-document.querySelector('.sign pre').clientWidth,
-          signL:Math.round(document.querySelector('.sign pre').getBoundingClientRect().left), signR:Math.round(document.querySelector('.sign pre').getBoundingClientRect().right),
-          signPx:parseFloat(getComputedStyle(document.querySelector('.sign pre')).fontSize),
-          signLabel:document.querySelector('.sign').getAttribute('aria-label'),
           howGap:Math.round(document.querySelector('.how').getBoundingClientRect().top-document.querySelector('.cond').getBoundingClientRect().bottom),
           saeLines:lines, saeOver:Math.round(l.lastElementChild.getBoundingClientRect().right-l.parentNode.getBoundingClientRect().right)};
 })()"""
@@ -76,10 +70,6 @@ async def layout(browser):
             check(f"{w}px: the two upload boxes sit side by side", m["dropRowDiff"] == 0, f"top offset {m['dropRowDiff']}px")
         if w <= 480:
             check(f"{w}px: the two upload boxes stack on a phone", m["dropRowDiff"] > 20, f"top offset {m['dropRowDiff']}px")
-        check(f"{w}px: the TURBOLOSER sign sits below How It Works, above the footer, fits and is centred",
-              m["signAbove"] >= 0 and m["signBelow"] >= 0 and m["signOver"] <= 1 and m["signL"] >= 0 and m["signR"] <= m["vw"]
-              and abs((m["signL"] + m["signR"]) / 2 - m["vw"] / 2) <= 4 and m["signPx"] >= 8 and m["signLabel"] == "TURBOLOSER",
-              f"{m['signAbove']}px below How It Works, {m['signBelow']}px above footer, overflow {m['signOver']}px, x {m['signL']}..{m['signR']}, {m['signPx']:.1f}px font")
         check(f"{w}px: How It Works sits below Car & Conditions", m["howGap"] >= 0, f"{m['howGap']}px below")
         check(f"{w}px: SAE checkbox label on one line", m["saeLines"] == 1 and m["saeOver"] <= 0,
               f"{m['saeLines']} line(s), {m['saeOver']}px past column")
@@ -157,15 +147,15 @@ async def font(browser):
     check("no third-party requests on load", not outside, "; ".join(outside))
     await ctx.close()
 
-    # Font file blocked: the ASCII banners and the sign (which need VT323's width) give way to a plain heading.
+    # Font file blocked: the ASCII banners (which need VT323's width) give way to a plain heading.
     for w in (375, 1200):
         ctx, pg, errs = await open_page(browser, width=w, block_font=True)
         m = await pg.evaluate("""(()=>{const h=document.querySelector('h1.vh').getBoundingClientRect();
           return {nofont:document.documentElement.classList.contains('nofont'),
-                  art:[...document.querySelectorAll('.art,.sign')].filter(a=>a.offsetParent!==null).length,
+                  art:[...document.querySelectorAll('.art')].filter(a=>a.offsetParent!==null).length,
                   h:Math.round(h.height), hr:Math.round(h.right),
                   sw:document.documentElement.scrollWidth, vw:innerWidth}})()""")
-        check(f"{w}px, font blocked: banners and sign give way to a visible heading, no overflow",
+        check(f"{w}px, font blocked: banners give way to a visible heading, no overflow",
               m["nofont"] and m["art"] == 0 and m["h"] > 10 and m["sw"] <= m["vw"] and m["hr"] <= m["vw"] and not errs,
               f"{m} errors: {errs}")
         await ctx.close()
