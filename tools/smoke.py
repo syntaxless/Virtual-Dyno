@@ -24,6 +24,8 @@ LAYOUT = """(()=>{
   const lines=Math.round(l.getBoundingClientRect().height/lh);   // label height / line height (ignores the hidden 1px input)
   return {sw:document.documentElement.scrollWidth, vw:innerWidth,
           shown:shown.length, artMode:art&&art.classList.contains('row')?'row':'stack', artOver:art?art.scrollWidth-art.clientWidth:999,
+          stageGap:art?Math.round(art.getBoundingClientRect().top-document.querySelector('.stage').getBoundingClientRect().bottom):-999,
+          stageRight:Math.round(document.querySelector('.stage').getBoundingClientRect().right),
           saeLines:lines, saeOver:Math.round(l.lastElementChild.getBoundingClientRect().right-l.parentNode.getBoundingClientRect().right)};
 })()"""
 
@@ -44,6 +46,8 @@ async def layout(browser):
         check(f"{w}px: exactly one banner shown, the {BANNER[w]} one", m["shown"] == 1 and m["artMode"] == BANNER[w],
               f"{m['shown']} shown, mode {m['artMode']}")
         check(f"{w}px: ASCII art fits", m["artOver"] <= 1, f"overflow {m['artOver']}px")
+        check(f"{w}px: car animation sits above the banner and inside the screen",
+              m["stageGap"] >= 0 and m["stageRight"] <= m["vw"], f"gap {m['stageGap']}px, right edge {m['stageRight']}")
         check(f"{w}px: SAE checkbox label on one line", m["saeLines"] == 1 and m["saeOver"] <= 0,
               f"{m['saeLines']} line(s), {m['saeOver']}px past column")
         await ctx.close()

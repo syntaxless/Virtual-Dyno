@@ -47,8 +47,15 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
   `min(28px, calc(100cqw/N))` with `N = ceil(columns * 0.4 + 1)`, because a VT323 character advances 0.4em:
   N is 29 for the stack and 47 for the row. If you change the art, recompute N (the stack's also has a `100vw`
   fallback declaration) and run `smoke.py`, which checks that exactly one variant shows and that it fits at every width.
-  The sizing assumes VT323 loaded; if the Google Fonts request is blocked, the fallback font is wider and the
-  banner overflows its column (self-hosting the font would fix that).
+  The sizing assumes VT323 loaded. If the Google Fonts request is blocked, the fallback font is wider (measured:
+  VT323 0.40em per character, DejaVu Sans Mono 0.60, Liberation Mono 0.60) and the banner overflows its column;
+  self-hosting VT323 and/or a small JS fit would fix that.
+- **Header order**: boot prompt line, then the car (`.stage` with the `#car` canvas: 324px wide, 216px at 430px and
+  below), then the banner, then the intro. The car lives inside `.hgrp`, the same container the banner's container
+  query measures.
+- **Fonts**: one stack, `--mono` on `:root`, drives both the CSS and the graph canvas (the canvas reads the variable).
+  VT323 is the look; the rest is the fallback: `ui-monospace`, SF Mono, Cascadia Mono, Menlo, Consolas, DejaVu Sans
+  Mono, Liberation Mono, then `monospace`. Courier New is deliberately not in it (thin and light next to VT323).
 - **Boot-in animation**: `html.bt` is set by a head script on the first visit per session (`sessionStorage`
   key `dyno-boot`); `#boot` in the URL replays it; reduced-motion visitors never get it; a click or key skips it;
   it removes itself after about 2.3 s. Each block's timing is set with `--s/--d/--t` variables in the `html.bt`
