@@ -2,7 +2,7 @@
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark">
-<script>try{const p=localStorage.getItem("dyno-phosphor");if(["color"].includes(p))document.documentElement.dataset.phosphor=p}catch{/* storage unavailable */}
+<script>try{let p;try{p=localStorage.getItem("dyno-phosphor")}catch{/* storage unavailable */}document.documentElement.dataset.phosphor=["green","color"].includes(p)?p:"color"}catch{/* no theme */}
 try{let s;try{s=sessionStorage.getItem("dyno-boot");sessionStorage.setItem("dyno-boot","1")}catch{/* storage unavailable */}if(!matchMedia("(prefers-reduced-motion:reduce)").matches&&(!s||location.hash=="#boot"))document.documentElement.classList.add("bt")}catch{/* no boot animation */}</script>
 <title>Online Virtual Dyno</title>
 <meta name="description" content="Estimate horsepower and torque from a Cobb Accessport log or a RaceBox or Dragy GPS track, with weather and altitude corrections. Tuned for the 2016 VW Golf R.">
@@ -152,7 +152,7 @@ input[type=range]::-moz-range-thumb{width:12px;height:20px;background:var(--fg);
 @media (prefers-reduced-motion:reduce){.type,.ps1 i{animation:none}}
 </style></head><body>
 <main class="win" aria-label="Virtual Dyno">
-<div class="bar"><span>trbo@losr: ~/logs</span><div class="ph" id="phos" role="group" aria-label="Phosphor color"><span class="pl" aria-hidden="true">phosphor</span><button type="button" data-p="green" aria-pressed="true">green</button><button type="button" data-p="color" aria-pressed="false">color</button></div></div>
+<div class="bar"><span>trbo@losr: ~/logs</span><div class="ph" id="phos" role="group" aria-label="Phosphor color"><span class="pl" aria-hidden="true">phosphor</span><button type="button" data-p="green" aria-pressed="false">green</button><button type="button" data-p="color" aria-pressed="true">color</button></div></div>
 <div class="app">
  <header class="head">
   <div class="hgrp">
@@ -671,7 +671,7 @@ function setPhos(p,save){document.documentElement.dataset.phosphor=p;
   document.querySelectorAll('#phos button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.p===p)));
   if(save){try{localStorage.setItem('dyno-phosphor',p)}catch{/* storage unavailable */}}draw();RB.theme()}
 document.querySelectorAll('#phos button').forEach(b=>b.onclick=()=>setPhos(b.dataset.p,true));
-const P0=document.documentElement.dataset.phosphor;setPhos(['color'].includes(P0)?P0:'green',false);
+const P0=document.documentElement.dataset.phosphor;setPhos(['green','color'].includes(P0)?P0:'color',false);
 for(const [b,p] of [['condtg','condbody'],['howtg','howbody']])$('#'+b).onclick=function(){const o=this.getAttribute('aria-expanded')==='true';this.setAttribute('aria-expanded',String(!o));$('#'+p).hidden=o;this.closest('fieldset').classList.toggle('shut',o)};
 {const d=document.documentElement;if(d.classList.contains('bt')){const end=()=>{d.classList.remove('bt');removeEventListener('pointerdown',end);removeEventListener('keydown',end)};addEventListener('pointerdown',end);addEventListener('keydown',end);setTimeout(end,2300)}}
 render();

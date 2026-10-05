@@ -36,12 +36,16 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
 
 ## How the page is built (things that are easy to break)
 
-- **Themes** are CSS custom properties on `:root[data-phosphor="..."]`. The default green is the base; `color`
-  is a Solarized palette. Tokens: `--desk --bg --screen --fg --hi --mut --dim --faint --s1 --s2 --s3 --err
+- **Themes** are CSS custom properties on `:root[data-phosphor="..."]`. The CSS base is green and `color` (a
+  Solarized palette) overrides it, but **color is the default**: the head script always sets `data-phosphor` to
+  the saved choice (`green` or `color`) or, with nothing valid saved, to `color`. The owner asked for that, and a
+  visitor who picked green keeps it, because the choice is saved as `green`. Tokens: `--desk --bg --screen --fg --hi --mut --dim --faint --s1 --s2 --s3 --err
   --ink --rgb --halo --bezel`. The graph canvas reads `--screen --mut --hi --dim --s1..--s3 --rgb`, and the car
   sprite reads colors through `RB.theme()`. The saved choice lives in `localStorage` key `dyno-phosphor`; its
   allow-list appears twice (the head script and the `setPhos` init). Update both when adding or removing a theme.
-  A stored value that is no longer allowed falls back to green.
+  A stored value that is no longer allowed, or storage that throws, falls back to color. The buttons' static
+  `aria-pressed` in the markup matches the default (color); `setPhos` keeps it right after that. `shot.py` shows the
+  color theme unless you pass `--theme green`.
 - **ASCII title**: an `<h1 class="vh">` (visually hidden, for accessibility) followed by two banner variants, both
   `aria-hidden`: `.art.stack` (VIRTUAL over DYNO, 19 rows by 68 columns) and `.art.row` (VIRTUAL DYNO on one row,
   11 rows by 106 columns). Both are figlet "banner3" lettering (7 rows tall) with the spaces drawn as dots, inside a

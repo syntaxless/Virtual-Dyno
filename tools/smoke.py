@@ -124,15 +124,23 @@ async def sae_checkbox(browser):
 async def themes(browser):
     ctx, pg, errs = await open_page(browser)
     ph = lambda: pg.evaluate("document.documentElement.dataset.phosphor||''")
-    await pg.click('#phos button[data-p="color"]')
-    check("color theme applies", await ph() == "color")
-    await pg.reload(); await pg.wait_for_timeout(300)
-    check("color theme persists across reload", await ph() == "color")
+    pressed = lambda: pg.evaluate("[...document.querySelectorAll('#phos button')].filter(b=>b.getAttribute('aria-pressed')=='true').map(b=>b.dataset.p)")
+    check("the color theme is the default", await ph() == "color" and await pressed() == ["color"], f"{await ph()} {await pressed()}")
     await pg.click('#phos button[data-p="green"]')
-    check("green theme restores", await ph() != "color")
+    check("green theme applies", await ph() == "green" and await pressed() == ["green"])
+    await pg.reload(); await pg.wait_for_timeout(300)
+    check("a chosen green theme persists across reload", await ph() == "green" and await pressed() == ["green"])
+    await pg.click('#phos button[data-p="color"]')
+    check("color theme restores", await ph() == "color" and await pressed() == ["color"])
     await pg.evaluate("localStorage.setItem('dyno-phosphor','red')")   # a theme that no longer exists
     await pg.reload(); await pg.wait_for_timeout(300)
-    check("removed theme in storage falls back to green without errors", await ph() != "red" and not errs, "; ".join(errs))
+    check("removed theme in storage falls back to color without errors", await ph() == "color" and not errs, "; ".join(errs))
+    await ctx.close()
+    # storage blocked (private modes, some embeds): still the color default, no errors
+    ctx, pg, errs = await open_page(browser)
+    await ctx.add_init_script("Object.defineProperty(window,'localStorage',{get(){throw new Error('blocked')}})")
+    await pg.reload(); await pg.wait_for_timeout(300)
+    check("with storage blocked the page still starts in color, without errors", await ph() == "color" and not errs, f"{await ph()} {errs}")
     await ctx.close()
 
 

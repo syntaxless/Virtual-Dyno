@@ -5,7 +5,7 @@
   python tools/shot.py --scroll .notes           # scroll a CSS selector into view
   python tools/shot.py --expand --widths 375     # with "Car & Conditions" open
   python tools/shot.py --click '#howtg' --full   # with "How It Works" open
-  python tools/shot.py --theme color --full      # color theme, whole page
+  python tools/shot.py --theme green --full      # green theme, whole page (the default is color)
   python tools/shot.py --gpx                     # with the synthetic GPS track loaded
   python tools/shot.py --log /path/to/log.csv    # with a real Accessport log
   python tools/shot.py --nofont --full           # as it looks if the VT323 file fails to load
