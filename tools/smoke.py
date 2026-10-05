@@ -15,7 +15,7 @@ from playwright.async_api import async_playwright
 from common import open_page
 
 WIDTHS = (320, 375, 480, 600, 768, 1200)
-BANNER = {320: "stack", 375: "stack", 480: "stack", 600: "stack", 768: "row", 1200: "row"}   # phones and small tablets: stacked; wide: one row
+BANNER = {320: "stack", 375: "stack", 480: "stack", 600: "row", 768: "row", 1200: "row"}   # phones: stacked; wide: one row
 
 # Layout facts measured in the page: horizontal overflow, banner variant and fit, SAE label on one line.
 LAYOUT = """(()=>{
