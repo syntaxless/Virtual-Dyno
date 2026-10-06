@@ -259,7 +259,7 @@ input[type=range]::-moz-range-thumb{width:12px;height:20px;background:var(--fg);
 <script>
 
 const $=s=>document.querySelector(s),G=9.80665,LB=.45359237,MPH=.44704,HP=745.69987,LBFT=.737562;
-const FIELDS=[['curb','Curb Weight (lb)',3300,10],['load','Driver + Fuel + Cargo (lb)',200,10],['cd','Drag Coefficient',.32,.01],['area','Frontal Area (m²)',2.2,.05],['crr','Rolling Resistance',.012,.001],['loss','Drivetrain Loss (%)',20,.5],['temp','Air Temp (°F)',70,1],['da','Density Altitude (ft)',0,100],['humid','Humidity (%)',25,5],['ped','Full-Throttle Pedal >= (%)',90,1],['wind','Wind Speed (mph)',0,1],['wdir','Wind From (° Compass)',0,10],['head','Car Heading (°)',0,1],['grade','Road Grade (%)',0,.1],['rpmpm','RPM per mph (GPS Only)',0,.1]];
+const FIELDS=[['fhp','Factory Horsepower (hp)',292,1],['ftq','Factory Torque (lb-ft)',280,1],['curb','Curb Weight (lb)',3300,10],['load','Driver + Fuel + Cargo (lb)',200,10],['cd','Drag Coefficient',.32,.01],['area','Frontal Area (m²)',2.2,.05],['crr','Rolling Resistance',.012,.001],['loss','Drivetrain Loss (%)',20,.5],['temp','Air Temp (°F)',70,1],['da','Density Altitude (ft)',0,100],['humid','Humidity (%)',25,5],['ped','Full-Throttle Pedal >= (%)',90,1],['wind','Wind Speed (mph)',0,1],['wdir','Wind From (° Compass)',0,10],['head','Car Heading (°)',0,1],['grade','Road Grade (%)',0,.1],['rpmpm','RPM per mph (GPS Only)',0,.1]];
 $('#fields').innerHTML=FIELDS.map(([id,l,v,st])=>`<label class="f">${l}<input type="number" id="${id}" value="${v}" step="${st}"></label>`).join('');
 const P=()=>{const o={smooth:+$('#smooth').value};FIELDS.forEach(([id])=>o[id]=+$('#'+id).value);o.sae=$('#sae').checked;o.spd=$('#spd').value;return o};
 let D=null,pulls=[],sel=0,cur=null,hov=-1,mp={},GPS=null,gi=null,cond='',atm={baro:0,alt:null},daAuto=true,fresh=false,shown={},grow=1,gAF=0,AX={u:'rpm',bin:100,tick:500,span:1000};
@@ -375,14 +375,14 @@ function render(){
   if(!pulls.length){cur=null;['s1','s2','s3'].forEach(i=>{roll(i,NaN);$('#'+i+' em').textContent=''});
     if(D)$('#msg').innerHTML+=' <br><b>No full-throttle pulls found.</b> Log a clean pull with the pedal fully down, or lower the pedal threshold.';
     $('#ro').textContent='';fresh=false;draw();return}
-  S.value=sel;cur=build(pulls[sel],P());
+  S.value=sel;const pp=P();cur=build(pulls[sel],pp);
   const pk=f=>cur.reduce((b,q)=>q[f]>b[f]||!isFinite(b[f])?q:b),h=pk('hp'),t=pk('tq'),w=pk('hw'),hasT=isFinite(t.tq);
   const at=q=>AX.u=='mph'?Math.round(q.r)+' mph':(Math.round(q.r/10)*10).toLocaleString()+' rpm';
-  const dl=(x,ref,u)=>`${x>=ref?'+':'−'}${Math.abs(Math.round(x-ref))} ${u} vs factory ${ref}`;
+  const dl=(x,ref,u)=>ref>0?` · ${x>=ref?'+':'−'}${Math.abs(Math.round(x-ref))} ${u} vs factory ${ref}`:'';
   roll('s1',h.hp);roll('s2',hasT?t.tq:NaN);roll('s3',w.hw);
-  $('#s1 em').textContent=`at ${at(h)} · ${dl(h.hp,292,'hp')}`;
-  $('#s2 em').textContent=hasT?`at ${at(t)} · ${dl(t.tq,280,'lb-ft')}`:'Enter RPM per mph (under Car & Conditions) to get torque';
-  $('#s3 em').textContent=`at ${at(w)} · after ${P().loss}% loss`;
+  $('#s1 em').textContent=`at ${at(h)}${dl(h.hp,pp.fhp,'hp')}`;
+  $('#s2 em').textContent=hasT?`at ${at(t)}${dl(t.tq,pp.ftq,'lb-ft')}`:'Enter RPM per mph (under Car & Conditions) to get torque';
+  $('#s3 em').textContent=`at ${at(w)} · after ${pp.loss}% loss`;
   $('#ro').textContent=HINT;
   if(fresh){fresh=false;replay()}else draw()}
 

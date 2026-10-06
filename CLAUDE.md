@@ -107,6 +107,11 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
 - **Load Data**: its two upload boxes sit in `.drops`, an auto-fit grid (`minmax(260px,1fr)`), so they are side by
   side when there is room (tablet and up) and stacked on phones. The weather form (`#wx`) is capped at 560px (it is a form, not
   text); the hint and message lines have no cap and run the full width of the section, by the owner's request.
+- **Factory numbers** are the first two Car & Conditions fields, `fhp` (Factory Horsepower, 292) and `ftq` (Factory
+  Torque, 280): the 2016 Golf R's US figures. They are the only reference for the "+N hp vs factory X" captions under
+  the Peak Crank Power and Torque tiles, and they change nothing but those captions. A blank or zero value drops the
+  comparison (the caption keeps just the "at N rpm" part). They sit in `FIELDS` like the other fields, so they need no
+  extra wiring. `functional.py` checks the order, defaults, captions and the blank case.
 - **SAE option** is `label.chk`: a hidden checkbox plus a `[ ]`/`[X]` box drawn by CSS. It starts ticked (on by
   default, the owner's choice). It is `nowrap` on purpose, so the label must stay short enough to fit a 320px screen.
 - Text and punctuation in the file are plain ASCII (straight apostrophes), which VT323 renders reliably.

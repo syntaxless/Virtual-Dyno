@@ -109,10 +109,56 @@ async def with_log(browser):
     await ctx.close()
 
 
+async def factory_fields(browser):
+    """Factory Horsepower / Torque are the first two Car & Conditions fields and the only reference for the vs-factory captions."""
+    import re
+    ctx, pg, errs = await open_page(browser, expand=True)
+    ids = await pg.eval_on_selector_all("#fields input", "els => els.slice(0, 3).map(e => e.id)")
+    labels = await pg.eval_on_selector_all("#fields label", "els => els.slice(0, 2).map(e => e.firstChild.textContent.trim())")
+    vals = [await pg.input_value("#fhp"), await pg.input_value("#ftq")]
+    print(f"     first fields: {ids} {labels} defaults {vals}")
+    check("Factory Horsepower and Factory Torque are the first two fields, defaulting to the Golf R's 292 / 280",
+          ids[:2] == ["fhp", "ftq"] and vals == ["292", "280"] and all(labels), f"{ids} {labels} {vals}")
+
+    await pg.set_input_files("#gps", GPX)
+    await pg.fill("#rpmpm", "67")
+    await pg.wait_for_timeout(COUNTUP_MS)
+    hp, tq = [float((await pg.inner_text(f"#s{i} .n")).strip()) for i in (1, 2)]
+    cap = lambda i: pg.inner_text(f"#s{i} em")
+
+    async def delta(i, shown):
+        m = re.search(r"([+\u2212])(\d+) \S+ vs factory (\d+)", await cap(i))
+        return (m and (int(m.group(2)) * (1 if m.group(1) == "+" else -1), int(m.group(3)))) or None
+
+    d1, d2 = await delta(1, hp), await delta(2, tq)
+    check("captions compare to the default factory numbers", bool(d1 and d2 and d1[1] == 292 and d2[1] == 280), f"{d1} {d2}")
+    check("the caption difference is the shown number minus factory (within rounding)",
+          bool(d1 and d2 and abs(d1[0] - (hp - 292)) <= 1 and abs(d2[0] - (tq - 280)) <= 1), f"{d1} vs {hp - 292}; {d2} vs {tq - 280}")
+
+    await pg.fill("#fhp", "400")
+    await pg.fill("#ftq", "500")
+    await pg.wait_for_timeout(COUNTUP_MS)
+    d1, d2 = await delta(1, hp), await delta(2, tq)
+    shown = [float((await pg.inner_text(f"#s{i} .n")).strip()) for i in (1, 2)]
+    check("editing the factory fields changes only the captions, to the new reference",
+          bool(d1 and d2 and d1[1] == 400 and d2[1] == 500 and abs(d1[0] - (hp - 400)) <= 1 and abs(d2[0] - (tq - 500)) <= 1)
+          and shown == [hp, tq], f"{d1} {d2} shown {shown}")
+
+    await pg.fill("#fhp", "")
+    await pg.fill("#ftq", "0")
+    await pg.wait_for_timeout(COUNTUP_MS)
+    c1, c2 = await cap(1), await cap(2)
+    check("a blank or zero factory value drops the comparison instead of printing one against 0",
+          "factory" not in c1 and "factory" not in c2 and bool(c1.strip()) and bool(c2.strip()), f"{c1!r} {c2!r}")
+    check("no page errors", not errs, "; ".join(errs))
+    await ctx.close()
+
+
 async def main():
     async with async_playwright() as pw:
         browser = await pw.chromium.launch()
         await gps_only(browser)
+        await factory_fields(browser)
         if LOG:
             await with_log(browser)
         else:

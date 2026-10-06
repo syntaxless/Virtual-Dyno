@@ -16,7 +16,7 @@ Run from anywhere, e.g. `python tools/smoke.py`.
 |---|---|---|
 | `shot.py` | Screenshot at chosen widths/scroll/theme into `tools/out/` (`--click '#howtg'` opens a section first, `--nofont` shows the look when the font cannot load). The quick look after a text or color edit. | nothing |
 | `smoke.py` | Layout at eight widths (no JS errors, no horizontal scroll, banner variant and fit, SAE label on one line), both collapsible sections, themes, boot-in gate, self-hosted font (loads from the site, no third-party requests, fallback heading when blocked). Exit 1 on failure. | nothing |
-| `functional.py` | GPS-only calculation, error handling, and (with a log) the reference numbers, SAE, density-altitude override, GPS attach, weather paste. | log optional |
+| `functional.py` | GPS-only calculation, error handling, the factory-number fields and captions, and (with a log) the reference numbers, SAE, density-altitude override, GPS attach, weather paste. | log optional |
 | `weather.py` | About 20 weather-lookup scenarios against a mocked Open-Meteo, diffed against `data/weather_expected.txt`. `--update` re-saves it. | `DYNO_LOG` |
 
 Environment variables:
