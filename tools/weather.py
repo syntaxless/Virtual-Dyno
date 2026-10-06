@@ -24,12 +24,12 @@ def print(*a, **k):                      # capture everything printed so it can 
     builtins.print(s, flush=True)
 CORS={'access-control-allow-origin':'*','content-type':'application/json'}
 def fc(day='2026-10-01'):
-    y,mo,d=map(int,day.split('-'));t=[];rh=[];ws=[];wd=[]
+    y,mo,d=map(int,day.split('-'));t=[];rh=[];ws=[];wd=[];tf=[];pm=[]
     for dd in (d,d+1):
         for h in range(24):
-            t.append(f'{y}-{mo:02d}-{dd:02d}T{h:02d}:00');rh.append(40);ws.append(3);wd.append(180)
+            t.append(f'{y}-{mo:02d}-{dd:02d}T{h:02d}:00');rh.append(40);ws.append(3);wd.append(180);tf.append(50+h);pm.append(1018)
     rh[11]=31;ws[11]=6;wd[11]=270;rh[12]=33;ws[12]=8;wd[12]=300
-    return json.dumps({'latitude':39.74,'longitude':-104.98,'elevation':1600,'utc_offset_seconds':-21600,'hourly':{'time':t,'relative_humidity_2m':rh,'wind_speed_10m':ws,'wind_direction_10m':wd}})
+    return json.dumps({'latitude':39.74,'longitude':-104.98,'elevation':1600,'utc_offset_seconds':-21600,'hourly':{'time':t,'relative_humidity_2m':rh,'wind_speed_10m':ws,'wind_direction_10m':wd,'temperature_2m':tf,'pressure_msl':pm}})
 DEN=json.dumps({'results':[{'id':5419384,'name':'Denver','latitude':39.7392,'longitude':-104.9847,'elevation':1600,'timezone':'America/Denver','country':'United States','admin1':'Colorado'}]})
 async def main():
     async with async_playwright() as pw:
@@ -114,6 +114,12 @@ async def main():
         c3=await b.new_context(viewport={'width':1200,'height':900});p3=await c3.new_page();await p3.add_init_script(INIT);await p3.goto(URL)
         await p3.set_input_files('#gps',GPX);await p3.wait_for_timeout(2300)
         print('GPS ONLY: place form',not await p3.evaluate("document.getElementById('wxpl').hidden"),'| gps block',not await p3.evaluate("document.getElementById('wxgps').hidden"))
+        # GPS only: no log, so the fetch supplies air temperature and pressure as well (the track is at about 2,060 ft)
+        await p3.route('**/*open-meteo.com/**',h)
+        v3=lambda i:p3.evaluate(f"document.getElementById('{i}').value")
+        t0,d0=await v3('temp'),await v3('da')
+        await p3.click('#wxget');await p3.wait_for_timeout(800)
+        print('   gps-only fetch -> air temp',t0,'->',await v3('temp'),'| density altitude',d0,'->',await v3('da'),'|',await p3.inner_text('#wxmsg'))
         # bad file after good -> hide
         await pg.reload();await pg.wait_for_timeout(300);await pg.set_input_files('#file',LOG);await pg.wait_for_timeout(1500)
         await pg.set_input_files('#file',{'name':'x.csv','mimeType':'text/csv','buffer':b'a,b\n1,2\n'});await pg.wait_for_timeout(400)

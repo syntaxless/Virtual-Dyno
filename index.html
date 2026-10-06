@@ -77,7 +77,8 @@ legend{padding:0 8px;color:var(--hi)}
 .drops{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;margin-bottom:10px}
 .drop{display:block;margin-bottom:10px;padding:8px 12px;border:1px dashed var(--dim);cursor:pointer}
 .drops .drop{margin-bottom:0}
-#wx{max-width:560px}
+#wx .wl,#wx .wr{max-width:560px}
+#wx textarea{display:block;max-width:560px}
 .drop b{display:block;font-weight:400;color:var(--hi)}
 .drop b::before{content:"> ";color:var(--fg)}
 .drop span{color:var(--mut);font-size:20px}
@@ -207,19 +208,19 @@ input[type=range]::-moz-range-thumb{width:12px;height:20px;background:var(--fg);
    <div id="wx" hidden>
     <div id="wxgps" hidden>
      <button class="btn" id="wxget" type="button" style="margin-top:12px">Fetch weather</button>
-     <p class="hint" style="margin:6px 0 0">Fills humidity and wind for this pull from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (CC BY 4.0). Only the approximate location (about 1 km) and the date are sent.</p>
+     <p class="hint" style="margin:6px 0 0">Fills humidity and wind for this pull, and air temperature and pressure if your log lacks them, from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (CC BY 4.0). Only the approximate location (about 1 km) and the date are sent.</p>
     </div>
     <div id="wxpl" hidden>
      <p class="hint" style="margin:12px 0 0">No GPS track? Look up the weather by place and date instead.</p>
      <label class="wl">Place<input type="text" id="wxplace" placeholder="City, ZIP code or lat, lon" autocomplete="off" spellcheck="false"></label>
      <div class="wr"><label class="wl">Date<input type="date" id="wxdate"></label><label class="wl">Local Time<input type="time" id="wxtime" value="12:00"></label></div>
      <button class="btn" id="wxpget" type="button">Fetch weather</button> <button class="btn" id="wxgeo" type="button">Use my location</button>
-     <p class="hint" style="margin:6px 0 0">Humidity and wind come from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (CC BY 4.0), which receives the place you type (or its coordinates) and the date. Wind needs the car's heading to count.</p>
+     <p class="hint" style="margin:6px 0 0">Humidity and wind, and air temperature and pressure if your log lacks them, come from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (CC BY 4.0), which receives the place you type (or its coordinates) and the date. Wind needs the car's heading to count.</p>
     </div>
     <div class="msg" id="wxmsg"></div>
     <details id="wxman" hidden><summary>Enter Weather by Hand</summary>
      <a id="wxlink" class="btn" target="_blank" rel="noopener" style="margin-top:8px">Open the weather data</a>
-     <textarea id="wxin" rows="3" placeholder="Open the link, copy the page's text, and paste it here to fill humidity and wind"></textarea>
+     <textarea id="wxin" rows="3" placeholder="Open the link, copy the page's text, and paste it here to fill in the weather"></textarea>
     </details></div>
   </fieldset>
  <section class="main">
@@ -247,7 +248,7 @@ input[type=range]::-moz-range-thumb{width:12px;height:20px;background:var(--fg);
   <div class="notes">
    <fieldset class="how shut"><legend><button type="button" class="tg" id="howtg" aria-expanded="false" aria-controls="howbody">How It Works</button></legend>
     <div id="howbody" hidden>
-     <p>Speed is turned into acceleration, then force = mass × acceleration + aerodynamic drag + rolling resistance + hills. Wheel power is force × speed, and crank power adds drivetrain loss and the energy spent spinning up the engine. Density altitude is filled in from your log's pressure and temperature (or from GPS altitude) and sets the air density; you can overwrite it. With GPS only there is no RPM, so power is plotted against speed. Enter RPM per mph for the gear you used to get RPM and torque.</p>
+     <p>Speed is turned into acceleration, then force = mass × acceleration + aerodynamic drag + rolling resistance + hills. Wheel power is force × speed, and crank power adds drivetrain loss and the energy spent spinning up the engine. Density altitude is filled in from your log's pressure and temperature. With no pressure in the log it uses GPS altitude, and fetching the weather adds that hour's sea-level pressure. It sets the air density, and you can overwrite it. With GPS only there is no RPM, so power is plotted against speed. Enter RPM per mph for the gear you used to get RPM and torque.</p>
     </div>
    </fieldset>
   </div>
@@ -262,7 +263,7 @@ const $=s=>document.querySelector(s),G=9.80665,LB=.45359237,MPH=.44704,HP=745.69
 const FIELDS=[['fhp','Factory Horsepower (hp)',292,1],['ftq','Factory Torque (lb-ft)',280,1],['curb','Curb Weight (lb)',3300,10],['load','Driver + Fuel + Cargo (lb)',200,10],['cd','Drag Coefficient',.32,.01],['area','Frontal Area (m²)',2.2,.05],['crr','Rolling Resistance',.012,.001],['loss','Drivetrain Loss (%)',20,.5],['temp','Air Temp (°F)',70,1],['da','Density Altitude (ft)',0,100],['humid','Humidity (%)',25,5],['ped','Full-Throttle Pedal >= (%)',90,1],['wind','Wind Speed (mph)',0,1],['wdir','Wind From (° Compass)',0,10],['head','Car Heading (°)',0,1],['grade','Road Grade (%)',0,.1],['rpmpm','RPM per mph (GPS Only)',0,.1]];
 $('#fields').innerHTML=FIELDS.map(([id,l,v,st])=>`<label class="f">${l}<input type="number" id="${id}" value="${v}" step="${st}"></label>`).join('');
 const P=()=>{const o={smooth:+$('#smooth').value};FIELDS.forEach(([id])=>o[id]=+$('#'+id).value);o.sae=$('#sae').checked;o.spd=$('#spd').value;return o};
-let D=null,pulls=[],sel=0,cur=null,hov=-1,mp={},GPS=null,gi=null,cond='',atm={baro:0,alt:null},daAuto=true,fresh=false,shown={},grow=1,gAF=0,AX={u:'rpm',bin:100,tick:500,span:1000};
+let D=null,pulls=[],sel=0,cur=null,hov=-1,mp={},GPS=null,gi=null,cond='',atm={baro:0,wp:0,alt:null},daAuto=true,fresh=false,shown={},grow=1,gAF=0,AX={u:'rpm',bin:100,tick:500,span:1000};
 const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function parse(text){
@@ -432,7 +433,7 @@ $('#cv').addEventListener('pointermove',hover);$('#cv').addEventListener('pointe
 $('#cv').addEventListener('pointerleave',()=>{hov=-1;if(cur){if(grow>=1)$('#ro').textContent=HINT;draw()}});
 
 function calcDA(){
-  const p=P(),Tc=(p.temp-32)*5/9,T=Tc+273.15,pa=atm.baro>0?atm.baro*6894.76:atm.alt!=null?101325*Math.pow(1-2.25577e-5*atm.alt*.3048,5.25588):null;
+  const p=P(),Tc=(p.temp-32)*5/9,T=Tc+273.15,pa=atm.baro>0?atm.baro*6894.76:atm.wp>0?atm.wp:atm.alt!=null?101325*Math.pow(1-2.25577e-5*atm.alt*.3048,5.25588):null;
   if(pa==null)return null;
   const pv=Math.min(p.humid,100)/100*610.78*Math.pow(10,7.5*Tc/(Tc+237.3)),rho=(pa-pv)/(287.058*T)+pv/(461.495*T);
   return 44330.77*(1-Math.pow(rho/1.225,1/4.25588))/.3048}
@@ -440,7 +441,7 @@ function syncDA(){if(!daAuto)return;const d=calcDA();if(d!=null)$('#da').value=M
 
 function load(text,name){
   const M=$('#msg');fresh=true;wxReq++;$('#wxmsg').textContent='';
-  try{D=parse(text);M.className='msg';M.textContent=`${name}: ${D.n.toLocaleString()} rows. ${D.info}`;if(D.amb!=null)$('#temp').value=D.amb;atm.baro=D.baro||0;daAuto=true;syncDA();if(atm.baro)M.textContent+=` Density altitude set to ${$('#da').value} ft from the log's pressure and temperature.`;analyze(true)}
+  try{D=parse(text);M.className='msg';M.textContent=`${name}: ${D.n.toLocaleString()} rows. ${D.info}`;if(D.amb!=null)$('#temp').value=D.amb;atm.baro=D.baro||0;atm.wp=0;daAuto=true;syncDA();if(atm.baro)M.textContent+=` Density altitude set to ${$('#da').value} ft from the log's pressure and temperature.`;analyze(true)}
   catch(e){D=null;pulls=[];M.className='msg err';M.textContent=e.message;render();wxVis()}}
 
 function demo(){
@@ -501,15 +502,15 @@ function fromGPS(init){
   gi=null;const q=pulls[sel],M=$('#gmsg');
   if(GPS&&D&&q){gi=matchGPS(q.a,q.b);
     if(gi){if(init&&!D.gpsOnly)$('#spd').value=GPS.hz>=5?'gps':'ecu';const day=x=>new Date(x*1e3).toISOString().slice(0,10),recent=Date.now()/1e3-gi.T<60*86400;
-      wxUrl=`https://${recent?'api.open-meteo.com/v1/forecast':'archive-api.open-meteo.com/v1/archive'}?latitude=${gi.lat.toFixed(2)}&longitude=${gi.lon.toFixed(2)}&start_date=${day(gi.T)}&end_date=${day(gi.T+86400)}&hourly=relative_humidity_2m,wind_speed_10m,wind_direction_10m&wind_speed_unit=mph&timezone=GMT`;$('#wxlink').href=wxUrl;$('#wxman').open=false;$('#wxget').disabled=false;
-      wxReq++;$('#wxin').value='';$('#wxmsg').textContent='';
+      wxUrl=`https://${recent?'api.open-meteo.com/v1/forecast':'archive-api.open-meteo.com/v1/archive'}?latitude=${gi.lat.toFixed(2)}&longitude=${gi.lon.toFixed(2)}&start_date=${day(gi.T)}&end_date=${day(gi.T+86400)}&hourly=relative_humidity_2m,wind_speed_10m,wind_direction_10m,temperature_2m,pressure_msl&wind_speed_unit=mph&temperature_unit=fahrenheit&timezone=GMT`;$('#wxlink').href=wxUrl;$('#wxman').open=false;$('#wxget').disabled=false;
+      wxReq++;atm.wp=0;$('#wxin').value='';$('#wxmsg').textContent='';
       const f=(id,x)=>$('#'+id).value=x;f('head',Math.round(gi.head));f('grade',gi.grade==null?0:gi.grade.toFixed(1));if(gi.alt!=null){atm.alt=gi.alt;syncDA()}
       const dv=100/gi.ratio-100;M.className='msg'+(gi.err>3*MPH?' err':'');
       M.textContent=`${D.gpsOnly?'Pull located':'GPS matched to this pull (speed error '+(gi.err/MPH).toFixed(1)+' mph)'} near ${gi.lat.toFixed(4)}, ${gi.lon.toFixed(4)} at ${new Date(gi.T*1e3).toLocaleString()}. Heading ${Math.round(gi.head)}°, grade ${gi.grade==null?'unknown (no elevation)':gi.grade.toFixed(1)+'%'}.${D.gpsOnly?'':` ECU speed reads ${dv>=0?'+':''}${dv.toFixed(1)}% vs GPS.`}`+(gi.err>3*MPH?' The match is poor, so check that this is the right track.':'')}
     else{M.className='msg err';M.textContent='The GPS track is shorter than this pull, so it could not be matched.'}}
   analyze(false)}
 function gpsOnly(){
-  const g=GPS,t0=g[0].t;D={t:g.map(p=>p.t-t0),v:g.map(p=>p.v),rpm:g.map(()=>NaN),ped:null,n:g.length,gpsOnly:true};
+  atm.baro=0;atm.wp=0;const g=GPS,t0=g[0].t;D={t:g.map(p=>p.t-t0),v:g.map(p=>p.v),rpm:g.map(()=>NaN),ped:null,n:g.length,gpsOnly:true};
   $('#msg').className='msg';$('#msg').textContent='GPS only: power is plotted against speed. Enter RPM per mph for your gear (under Car & Conditions) to get RPM and torque.';analyze(true)}
 const readGPS=f=>f&&f.text().then(tx=>{const M=$('#gmsg');
   try{GPS=parseGPS(tx);fresh=true;M.className='msg';M.textContent=`${f.name}: ${GPS.length} GPS points at about ${Math.round(GPS.hz)} Hz.`;
@@ -540,10 +541,25 @@ function applyWx(text,T,zone,useWind){const M=$('#wxmsg');
     const vec=n=>{const a=h.wind_direction_10m[n]*R2,s=h.wind_speed_10m[n];return[-s*Math.sin(a),-s*Math.cos(a)]},a=vec(i),b=vec(k);
     const u=a[0]*(1-w)+b[0]*w,vv=a[1]*(1-w)+b[1]*w,rh=h.relative_humidity_2m[i]*(1-w)+h.relative_humidity_2m[k]*w;
     const sp=Math.hypot(u,vv),dr=(Math.atan2(-u,-vv)/R2+360)%360,wd=`${sp.toFixed(1)} mph from ${Math.round(dr)}°`;
+    // Optional extras. Air temperature fills the field only when the log has none (a log's own sensor is kept, with a note if
+    // the two disagree). Sea-level pressure is reduced to the altitude of the pull for density altitude, but only used when
+    // the log has no pressure of its own.
+    const num=(a,n)=>Array.isArray(a)&&typeof a[n]==='number'&&isFinite(a[n])?a[n]:null,
+      mix=a=>{const x=num(a,i),y=w>0?num(a,k):x;return x==null||y==null?null:x*(1-w)+y*w},
+      tF=mix(h.temperature_2m),pm=mix(h.pressure_msl),
+      zm=gi&&gi.alt!=null?gi.alt*.3048:typeof j.elevation==='number'&&isFinite(j.elevation)?j.elevation:null;
+    let tt='',tn='',pt='';atm.wp=0;
+    if(tF!=null&&tF>-40&&tF<150){
+      if(D.amb==null){$('#temp').value=Math.round(tF*10)/10;tt=`, ${Math.round(tF)} °F`}
+      else if(Math.abs(tF-D.amb)>=5)tn=` Open-Meteo has ${Math.round(tF)} °F for that hour. The log's ambient sensor read ${Math.round(D.amb)} °F, and that was kept.`}
+    if(pm!=null&&pm>870&&pm<1090&&zm!=null&&zm>-500&&zm<6000){
+      const Tk=(tF!=null?(tF-32)*5/9:15-.0065*zm)+273.15;
+      atm.wp=pm*100*Math.exp(-9.80665*zm/(287.058*(Tk+.0065*zm/2)))}
     $('#humid').value=Math.round(rh);syncDA();
+    if(atm.wp>0&&!(atm.baro>0)&&daAuto)pt=` Density altitude set to ${$('#da').value} ft from that hour's sea-level pressure (${Math.round(pm)} hPa) at ${Math.round(zm*3.28084)} ft.`;
     if(useWind){$('#wind').value=sp.toFixed(1);$('#wdir').value=Math.round(dr)}
     M.className='msg';
-    M.textContent=`Filled for ${new Date(T).toISOString().slice(11,16)} ${zone}: ${Math.round(rh)}% humidity`+(useWind?`, wind ${wd}. This is 10 m wind, so wind at the road is often lower.`:`. Wind was ${wd} at that hour but was not applied, because the car's heading is unknown. Enter it under Car & Conditions, then fetch again.`);
+    M.textContent=`Filled for ${new Date(T).toISOString().slice(11,16)} ${zone}: ${Math.round(rh)}% humidity${tt}`+(useWind?`, wind ${wd}. This is 10 m wind, so wind at the road is often lower.`:`. Wind was ${wd} at that hour but was not applied, because the car's heading is unknown. Enter it under Car & Conditions, then fetch again.`)+pt+tn;
     analyze(false);return true}
   catch(er){M.className='msg err';M.textContent=er.message;return false}}
 $('#wxin').oninput=e=>{if(e.target.value.trim()&&gi)applyWx(e.target.value,gi.T*1e3,'UTC',true)};
@@ -574,7 +590,7 @@ $('#wxpget').onclick=async()=>{
     name=name||lat.toFixed(2)+', '+lon.toFixed(2);
     const day=x=>new Date(x).toISOString().slice(0,10),recent=Date.now()-T<60*864e5;
     M.textContent='Fetching weather for '+name+'...';
-    const tx=await getText(`https://${recent?'api.open-meteo.com/v1/forecast':'archive-api.open-meteo.com/v1/archive'}?latitude=${lat.toFixed(2)}&longitude=${lon.toFixed(2)}&start_date=${day(T)}&end_date=${day(T+864e5)}&hourly=relative_humidity_2m,wind_speed_10m,wind_direction_10m&wind_speed_unit=mph&timezone=auto`);
+    const tx=await getText(`https://${recent?'api.open-meteo.com/v1/forecast':'archive-api.open-meteo.com/v1/archive'}?latitude=${lat.toFixed(2)}&longitude=${lon.toFixed(2)}&start_date=${day(T)}&end_date=${day(T+864e5)}&hourly=relative_humidity_2m,wind_speed_10m,wind_direction_10m,temperature_2m,pressure_msl&wind_speed_unit=mph&temperature_unit=fahrenheit&timezone=auto`);
     if(wxLive(id))applyWx(tx,T,'local time at '+name,headSet)}
   catch(er){if(wxLive(id))bad(wxErr(er))}
   finally{B.disabled=false}};

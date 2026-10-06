@@ -10,6 +10,7 @@ If the physics is changed on purpose, update the numbers below. Other logs are o
 """
 import asyncio
 import json
+import math
 import os
 import sys
 
@@ -154,11 +155,135 @@ async def factory_fields(browser):
     await ctx.close()
 
 
+def expected_da(msl_hpa, temp_f, rh, alt_ft):
+    """Density altitude (ft) the page should show: sea-level pressure reduced to the altitude with the hour's temperature
+    (hypsometric), then moist-air density, then the standard-atmosphere altitude with that density.
+    msl_hpa=None means no pressure was supplied, so a standard day's pressure at that altitude is used."""
+    z = alt_ft * 0.3048
+    tc = (temp_f - 32) * 5 / 9
+    tk = tc + 273.15
+    if msl_hpa is None:
+        ps = 101325 * (1 - 2.25577e-5 * z) ** 5.25588
+    else:
+        ps = msl_hpa * 100 * math.exp(-9.80665 * z / (287.058 * (tk + 0.0065 * z / 2)))
+    pv = min(rh, 100) / 100 * 610.78 * 10 ** (7.5 * tc / (tc + 237.3))
+    rho = (ps - pv) / (287.058 * tk) + pv / (461.495 * tk)
+    return 44330.77 * (1 - (rho / 1.225) ** (1 / 4.25588)) / 0.3048
+
+
+def wx_json(temp_f=None, msl=None, elevation=None, rh=40):
+    """An Open-Meteo-shaped answer for 17:00-19:00 UTC on 2026-10-01 (the synthetic track starts at 18:00).
+    temp_f / msl / elevation are left out when None, like an answer from before those variables were requested."""
+    h = {"time": ["2026-10-01T17:00", "2026-10-01T18:00", "2026-10-01T19:00"],
+         "relative_humidity_2m": [rh] * 3, "wind_speed_10m": [5] * 3, "wind_direction_10m": [270] * 3}
+    if temp_f is not None:
+        h["temperature_2m"] = [temp_f] * 3
+    if msl is not None:
+        h["pressure_msl"] = [msl] * 3
+    out = {"hourly": h}
+    if elevation is not None:
+        out["elevation"] = elevation
+    return json.dumps(out)
+
+
+async def paste_wx(pg, text):
+    await pg.evaluate("document.getElementById('wxman').open=true")
+    await pg.fill("#wxin", "")
+    await pg.fill("#wxin", text)
+    await pg.wait_for_timeout(500)
+    return (await pg.inner_text("#wxmsg")).strip()
+
+
+async def weather_pressure_temp(browser):
+    """Temperature and pressure from the weather answer: used when the log has none, and the log's own sensors win."""
+    # GPS only: no log, so the track's altitude and the hour's pressure and temperature set the density altitude
+    ctx, pg, errs = await open_page(browser, expand=True)
+    await pg.set_input_files("#gps", GPX)
+    await pg.wait_for_timeout(1500)
+    da0 = await pg.input_value("#da")
+    alt = await pg.evaluate("gi.alt")
+    await paste_wx(pg, wx_json(temp_f=68, msl=1033))
+    da_hi, temp = int(await pg.input_value("#da")), await pg.input_value("#temp")
+    await paste_wx(pg, wx_json(temp_f=68, msl=993))
+    da_lo = int(await pg.input_value("#da"))
+    print(f"     GPS only: density altitude {da0} (standard day) -> {da_hi} (1033 hPa) / {da_lo} (993 hPa), temp {temp}, altitude {alt:.0f} ft")
+    check("GPS only: the weather temperature fills the air temp field", float(temp) == 68.0, temp)
+    check("GPS only: density altitude follows the hour's sea-level pressure (40 hPa is roughly 1,300 ft)", 1100 < da_lo - da_hi < 1600, f"{da_hi} / {da_lo}")
+    check("GPS only: density altitude matches the pressure, temperature and humidity worked out independently (+-4 ft)",
+          abs(da_lo - expected_da(993, 68, 40, alt)) <= 4 and abs(da_hi - expected_da(1033, 68, 40, alt)) <= 4,
+          f"{da_hi}/{da_lo} vs {expected_da(1033, 68, 40, alt):.0f}/{expected_da(993, 68, 40, alt):.0f}")
+    await paste_wx(pg, wx_json())
+    da_std = int(await pg.input_value("#da"))
+    check("an answer without pressure (the older shape) falls back to a standard day's pressure at the track's altitude, and still fills humidity",
+          abs(da_std - expected_da(None, 68, 40, alt)) <= 4 and await pg.input_value("#humid") == "40",
+          f"{da_std} vs {expected_da(None, 68, 40, alt):.0f}")
+    await pg.fill("#da", "1000")
+    await paste_wx(pg, wx_json(temp_f=68, msl=1033))
+    check("a hand-entered density altitude is not overwritten by the weather pressure", await pg.input_value("#da") == "1000", await pg.input_value("#da"))
+    check("no page errors", not errs, "; ".join(errs))
+    await ctx.close()
+
+    if not LOG:
+        return
+    raw = open(LOG, "rb").read().decode("utf-8", "ignore")
+
+    # log with its own temperature and pressure + GPS: the log's sensors win; a big disagreement is reported, not applied
+    ctx, pg, errs = await open_page(browser, expand=True)
+    await pg.set_input_files("#file", LOG)
+    await pg.set_input_files("#gps", GPX)
+    await pg.wait_for_timeout(2500)
+    t0, d0, rh0 = await pg.input_value("#temp"), await pg.input_value("#da"), int(await pg.input_value("#humid"))
+    msg = await paste_wx(pg, wx_json(temp_f=55, msl=1033, rh=rh0))     # same humidity, so only temperature and pressure could move it
+    t1, d1 = await pg.input_value("#temp"), await pg.input_value("#da")
+    print(f"     log + weather: temp {t0} -> {t1}, density altitude {d0} -> {d1} | {msg[-130:]!r}")
+    check("log with its own temperature and pressure: both are kept", t0 == t1 and d0 == d1, f"{t0}->{t1} {d0}->{d1}")
+    check("a weather temperature far from the log's sensor is reported", "55" in msg and t0.split(".")[0] in msg, msg[-120:])
+    await paste_wx(pg, wx_json(temp_f=int(float(t0)), msl=1033, rh=rh0))
+    check("a weather temperature close to the log's sensor adds no remark", "Open-Meteo has" not in (await pg.inner_text("#wxmsg")))
+    check("no page errors", not errs, "; ".join(errs))
+    await ctx.close()
+
+    # log without temperature or pressure columns + GPS: the weather supplies both
+    bare = raw.replace("Ambient Air Temp.", "Zzz Sensor").replace("Ambient Pressure", "Yyy Sensor")
+    ctx, pg, errs = await open_page(browser, expand=True)
+    await pg.set_input_files("#file", {"name": "bare.csv", "mimeType": "text/csv", "buffer": bare.encode()})
+    await pg.set_input_files("#gps", GPX)
+    await pg.wait_for_timeout(2500)
+    alt = await pg.evaluate("gi.alt")
+    await paste_wx(pg, wx_json(temp_f=68, msl=1013.25))
+    t1, d1 = await pg.input_value("#temp"), int(await pg.input_value("#da"))
+    print(f"     log without temp/pressure + weather: temp {t1}, density altitude {d1}, altitude {alt:.0f} ft")
+    check("log without temperature or pressure: the weather fills both", float(t1) == 68.0 and abs(d1 - expected_da(1013.25, 68, 40, alt)) <= 4,
+          f"{t1} {d1} vs {expected_da(1013.25, 68, 40, alt):.0f}")
+    check("no page errors", not errs, "; ".join(errs))
+    await ctx.close()
+
+    # same log, no GPS track: the answer's own ground elevation is used (Open-Meteo returns one with every answer)
+    ctx, pg, errs = await open_page(browser, expand=True)
+    await pg.route("**/*open-meteo.com/**", lambda r: r.fulfill(
+        status=200, headers={"access-control-allow-origin": "*", "content-type": "application/json"},
+        body=wx_json(temp_f=68, msl=1013.25, elevation=1600)))
+    await pg.set_input_files("#file", {"name": "bare.csv", "mimeType": "text/csv", "buffer": bare.encode()})
+    await pg.wait_for_timeout(1500)
+    await pg.fill("#wxplace", "39.74, -104.98")
+    await pg.fill("#wxdate", "2026-10-01")
+    await pg.fill("#wxtime", "18:00")
+    await pg.click("#wxpget")
+    await pg.wait_for_timeout(900)
+    d1 = int(await pg.input_value("#da"))
+    print(f"     log without temp/pressure, no GPS: density altitude {d1} (ground elevation 1600 m from the answer)")
+    check("with no GPS altitude, the elevation in the weather answer is used", abs(d1 - expected_da(1013.25, 68, 40, 1600 / 0.3048)) <= 4,
+          f"{d1} vs {expected_da(1013.25, 68, 40, 1600 / 0.3048):.0f}")
+    check("no page errors", not errs, "; ".join(errs))
+    await ctx.close()
+
+
 async def main():
     async with async_playwright() as pw:
         browser = await pw.chromium.launch()
         await gps_only(browser)
         await factory_fields(browser)
+        await weather_pressure_temp(browser)
         if LOG:
             await with_log(browser)
         else:

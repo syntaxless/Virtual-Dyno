@@ -1,13 +1,13 @@
 no data: weather block visible = False
 LOG ONLY: wx True | place form True | gps block False | manual paste False | requests 0
 baseline ['430', '394', '339']
-1 NAME  -> Filled for 11:00 local time at Denver, Colorado, United States: 31% humidity. Wind was 6.0 mph from 270° at that hour but was not applied, because the car's heading is unknown. Enter it under Car & Conditions, then fetch again.
+1 NAME  -> Filled for 11:00 local time at Denver, Colorado, United States: 31% humidity. Wind was 6.0 mph from 270° at that hour but was not applied, because the car's heading is unknown. Enter it under Car & Conditions, then fetch again. Open-Meteo has 61 °F for that hour. The log's ambient sensor read 77 °F, and that was kept.
    humid 31 wind 0 wdir 0
-   requests: ['geocoding-api.open-meteo.com/v1/search?name=Denver&count=1&language=en&format=json', 'api.open-meteo.com/v1/forecast?latitude=39.74&longitude=-104.98&start_date=2026-10-01&end_date=2026-10-02&wind_speed_unit=mph&timezone=auto']
-2 HEADING SET -> Filled for 11:00 local time at Denver, Colorado, United States: 31% humidity, wind 6.0 mph from 270°. This is 10 m wind, so wind at the road is often lower.
+   requests: ['geocoding-api.open-meteo.com/v1/search?name=Denver&count=1&language=en&format=json', 'api.open-meteo.com/v1/forecast?latitude=39.74&longitude=-104.98&start_date=2026-10-01&end_date=2026-10-02&wind_speed_unit=mph&temperature_unit=fahrenh']
+2 HEADING SET -> Filled for 11:00 local time at Denver, Colorado, United States: 31% humidity, wind 6.0 mph from 270°. This is 10 m wind, so wind at the road is often lower. Open-Meteo has 61 °F for that hour. The log's ambient sensor read 77 °F, and that was kept.
    humid 31 wind 6.0 wdir 270 | nums ['422', '390', '333']
 3 11:30 -> Filled for 11:30 local time at Denver, Colorado, United States: 32% humidity, wind 6.8 mph from 287°. This is 10 m wind,
-4 COORDS -> Filled for 11:00 local time at 40.01, -105.27: 31% humidity, wind 6.0 mph from 270°. This is 10 m wi | geocode calls: 0 | forecast url: api.open-meteo.com/v1/forecast?latitude=40.01&longitude=-105.27&start_date=2026-10-01&end_date=2026-10-02&wind_speed_unit=mph&timezone=auto
+4 COORDS -> Filled for 11:00 local time at 40.01, -105.27: 31% humidity, wind 6.0 mph from 270°. This is 10 m wi | geocode calls: 0 | forecast url: api.open-meteo.com/v1/forecast?latitude=40.01&longitude=-105.27&start_date=2026-10-01&end_date=2026-10-02&wind_speed_unit=mph&temperature_un
 5 OLD DATE -> endpoint: archive-api.open-meteo.com/v1/archive | Filled for 11:00 local time at Denver, Colorado, United States: 31% humidity, wi
 6 NO RESULT -> No place matching "Nowhereville xyz" was found. Try a larger nearby city, a ZIP code, or latitude and longitude.
 7 GEO 500   -> Open-Meteo answered with an error (500).
@@ -28,5 +28,6 @@ GPS ATTACHED: place form False | gps block True | manual paste True
    gps fetch -> Filled for 18:00 UTC: 40% humidity, wind 3.0 mph from 180°. This is 10 m wind, so wind at the road is often lo
 21 GEOLOCATION DENIED -> Location access was blocked. Type a place instead.
 GPS ONLY: place form False | gps block True
+   gps-only fetch -> air temp 70 -> 68 | density altitude 3330 -> 3011 | Filled for 18:00 UTC: 40% humidity, 68 °F, wind 3.0 mph from 180°. This is 10 m wind, so wind at the road is often lower. Density altitude set to 3011 ft from that hour's sea-level pressure (1018 hPa) at 2062 ft.
 BAD FILE after good: weather block visible = False
 JS errors: []

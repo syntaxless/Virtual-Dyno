@@ -198,6 +198,16 @@ async def load_message(browser):
             chars:document.getElementById('msg').textContent.length})""")
         check(f"{w}px: the message after loading a file uses the full Load Data width",
               m["chars"] > 0 and m["msg"] >= m["drops"] - 2 and not errs, f"{m} {errs}")
+        # the weather block under it: its hint and its message run the full width too, but the form controls stay form-sized
+        await pg.click("#wxpget")           # no place typed yet, so a short message appears
+        await pg.wait_for_timeout(200)
+        wx = await pg.evaluate("""({hints:[...document.querySelectorAll('#wxpl .hint')].map(e=>Math.round(e.getBoundingClientRect().width)),
+            msg:Math.round(document.getElementById('wxmsg').getBoundingClientRect().width),chars:document.getElementById('wxmsg').textContent.length,
+            place:Math.round(document.getElementById('wxplace').getBoundingClientRect().width),
+            row:Math.round(document.querySelector('#wxpl .wr').getBoundingClientRect().width)})""")
+        check(f"{w}px: the weather hints and message use the full Load Data width",
+              wx["chars"] > 0 and wx["hints"] and all(x >= m["drops"] - 2 for x in wx["hints"]) and wx["msg"] >= m["drops"] - 2, f"{wx}, section {m['drops']}px")
+        check(f"{w}px: the weather form fields stay form-sized (560px at most)", wx["place"] <= 561 and wx["row"] <= 561, f"{wx}")
         await ctx.close()
 
 

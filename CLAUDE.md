@@ -105,13 +105,28 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
   load and Replay press; `smoke.py`'s `realtime` check loads the demo log and times it (about 10 s of the run). On
   phones `#ro` reserves two lines, because the live readout wraps and the page would otherwise jump when it starts.
 - **Load Data**: its two upload boxes sit in `.drops`, an auto-fit grid (`minmax(260px,1fr)`), so they are side by
-  side when there is room (tablet and up) and stacked on phones. The weather form (`#wx`) is capped at 560px (it is a form, not
-  text); the hint and message lines have no cap and run the full width of the section, by the owner's request.
+  side when there is room (tablet and up) and stacked on phones. The weather form's controls (`#wx .wl`, `.wr` and the paste
+  `textarea`, which is a block so it stacks under its link) are capped at 560px (a form, not text); the hint and message
+  lines, including the weather hint and `#wxmsg`, have no cap and run the full width of the section, by the owner's
+  request. The `#wx` block itself must not have a `max-width`: it used to, which capped those lines too, and the old
+  check only measured the first hint. `smoke.py`'s `load_message` step measures the weather ones.
 - **Factory numbers** are the first two Car & Conditions fields, `fhp` (Factory Horsepower, 292) and `ftq` (Factory
   Torque, 280): the 2016 Golf R's US figures. They are the only reference for the "+N hp vs stock X" captions under
   the Peak Crank Power and Torque tiles, and they change nothing but those captions. A blank or zero value drops the
   comparison (the caption keeps just the "at N rpm" part). They sit in `FIELDS` like the other fields, so they need no
   extra wiring. `functional.py` checks the order, defaults, captions and the blank case.
+- **Density altitude inputs.** The air density comes from the `da`, `temp` and `humid` fields (DA is filled in
+  automatically until the user types in it). Its pressure comes from, in order: the log's "Ambient Pressure" column
+  (`atm.baro`, a measurement, so it always wins), then the weather answer's sea-level pressure (`pressure_msl`)
+  reduced to the pull's altitude (`atm.wp`), then a standard day's pressure at the GPS altitude. The reduction uses
+  the hour's temperature (hypsometric); the altitude is the GPS altitude (`gi.alt`) or, with no track, the `elevation`
+  in the answer. `surface_pressure` is deliberately not used: Open-Meteo's docs do not say clearly whether it is
+  adjusted to the requested elevation, and the API cannot be fetched from the sandbox to find out. The weather fetch
+  asks for `temperature_2m` (Fahrenheit) and `pressure_msl` as well as humidity and wind. Air temperature fills the
+  field only when the log has none, otherwise the log's sensor is kept and the message says so if the two differ by 5
+  F or more. An answer without the new variables (an older pasted one) still works and leaves the pressure alone.
+  `atm.wp` is cleared whenever a log or track is loaded (`load`, `gpsOnly`, `fromGPS`). `functional.py` checks all of
+  this against an independent calculation.
 - **SAE option** is `label.chk`: a hidden checkbox plus a `[ ]`/`[X]` box drawn by CSS. It starts ticked (on by
   default, the owner's choice). It is `nowrap` on purpose, so the label must stay short enough to fit a 320px screen.
 - Text and punctuation in the file are plain ASCII (straight apostrophes), which VT323 renders reliably.
