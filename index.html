@@ -378,7 +378,7 @@ function render(){
   S.value=sel;const pp=P();cur=build(pulls[sel],pp);
   const pk=f=>cur.reduce((b,q)=>q[f]>b[f]||!isFinite(b[f])?q:b),h=pk('hp'),t=pk('tq'),w=pk('hw'),hasT=isFinite(t.tq);
   const at=q=>AX.u=='mph'?Math.round(q.r)+' mph':(Math.round(q.r/10)*10).toLocaleString()+' rpm';
-  const dl=(x,ref,u)=>ref>0?` · ${x>=ref?'+':'−'}${Math.abs(Math.round(x-ref))} ${u} vs factory ${ref}`:'';
+  const dl=(x,ref,u)=>ref>0?` · ${x>=ref?'+':'−'}${Math.abs(Math.round(x-ref))} ${u} vs stock ${ref}`:'';
   roll('s1',h.hp);roll('s2',hasT?t.tq:NaN);roll('s3',w.hw);
   $('#s1 em').textContent=`at ${at(h)}${dl(h.hp,pp.fhp,'hp')}`;
   $('#s2 em').textContent=hasT?`at ${at(t)}${dl(t.tq,pp.ftq,'lb-ft')}`:'Enter RPM per mph (under Car & Conditions) to get torque';

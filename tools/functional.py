@@ -127,7 +127,7 @@ async def factory_fields(browser):
     cap = lambda i: pg.inner_text(f"#s{i} em")
 
     async def delta(i, shown):
-        m = re.search(r"([+\u2212])(\d+) \S+ vs factory (\d+)", await cap(i))
+        m = re.search(r"([+\u2212])(\d+) \S+ \D*?(\d+)\s*$", await cap(i))
         return (m and (int(m.group(2)) * (1 if m.group(1) == "+" else -1), int(m.group(3)))) or None
 
     d1, d2 = await delta(1, hp), await delta(2, tq)
@@ -149,7 +149,7 @@ async def factory_fields(browser):
     await pg.wait_for_timeout(COUNTUP_MS)
     c1, c2 = await cap(1), await cap(2)
     check("a blank or zero factory value drops the comparison instead of printing one against 0",
-          "factory" not in c1 and "factory" not in c2 and bool(c1.strip()) and bool(c2.strip()), f"{c1!r} {c2!r}")
+          not re.search(r"[+\u2212]\d", c1 + c2) and bool(c1.strip()) and bool(c2.strip()), f"{c1!r} {c2!r}")
     check("no page errors", not errs, "; ".join(errs))
     await ctx.close()
 

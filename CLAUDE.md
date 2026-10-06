@@ -108,7 +108,7 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
   side when there is room (tablet and up) and stacked on phones. The weather form (`#wx`) is capped at 560px (it is a form, not
   text); the hint and message lines have no cap and run the full width of the section, by the owner's request.
 - **Factory numbers** are the first two Car & Conditions fields, `fhp` (Factory Horsepower, 292) and `ftq` (Factory
-  Torque, 280): the 2016 Golf R's US figures. They are the only reference for the "+N hp vs factory X" captions under
+  Torque, 280): the 2016 Golf R's US figures. They are the only reference for the "+N hp vs stock X" captions under
   the Peak Crank Power and Torque tiles, and they change nothing but those captions. A blank or zero value drops the
   comparison (the caption keeps just the "at N rpm" part). They sit in `FIELDS` like the other fields, so they need no
   extra wiring. `functional.py` checks the order, defaults, captions and the blank case.
