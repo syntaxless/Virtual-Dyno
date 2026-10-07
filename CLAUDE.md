@@ -130,8 +130,9 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
 - **SAE option** is `label.chk`: a hidden checkbox plus a `[ ]`/`[X]` box drawn by CSS. It starts ticked (on by
   default, the owner's choice). It is `nowrap` on purpose, so the label must stay short enough to fit a 320px screen.
 - Text and punctuation in the file are plain ASCII (straight apostrophes), which VT323 renders reliably.
-- The `<meta>` and `og:` descriptions still mention the Accessport, RaceBox/Dragy and the Golf R; the visible intro
-  line was generalized to "a log file, gps data, or both" and the meta text was not.
+- The `<meta>` and `og:` descriptions still mention the Accessport and RaceBox/Dragy and end with "Calibrated with a
+  real-world dyno." (the owner's wording, replacing "Tuned for the 2016 VW Golf R."); the visible intro line was
+  generalized to "a log file, gps data, or both" and the meta text was not.
 
 ## Testing gotchas
 
