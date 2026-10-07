@@ -104,7 +104,7 @@ summary::-webkit-details-marker{display:none}
 summary::before{content:"+ ";color:var(--dim)}details[open]>summary::before{content:"- "}
 summary:hover,details[open]>summary{color:var(--fg)}
 summary:focus-visible{outline:1px dashed var(--hi);outline-offset:3px}
-.btn:focus-visible,.chk input:focus-visible+.bx,input[type=range]:focus-visible{outline:1px dashed var(--hi);outline-offset:3px}
+.btn:focus-visible,input[type=range]:focus-visible{outline:1px dashed var(--hi);outline-offset:3px}
 .msg{margin-top:8px;color:var(--mut);font-size:20px;word-break:break-word}
 .msg:empty{display:none}
 .msg::before{content:"> ";color:var(--dim)}
@@ -112,7 +112,7 @@ summary:focus-visible{outline:1px dashed var(--hi);outline-offset:3px}
 .msg.err::before{content:"! "}
 .fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:10px 16px}
 .opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px 22px;margin-top:14px;align-items:end}
-.opts .sl,.opts .chk{margin-top:0}
+.opts .sl{margin-top:0}
 label.f,.sl{display:flex;flex-direction:column;justify-content:space-between;gap:2px;color:var(--mut);font-size:20px;line-height:1.05}
 input[type=number],input[type=text],input[type=date],input[type=time],select,textarea{width:100%;margin:0;font:inherit;font-size:22px;color:var(--hi);background:#000;border:1px solid var(--dim);border-radius:0;padding:1px 6px;caret-color:var(--fg);text-shadow:none}
 input[type=number]:focus,input[type=text]:focus,input[type=date]:focus,input[type=time]:focus,select:focus,textarea:focus{outline:0;border-color:var(--fg);box-shadow:0 0 9px rgba(var(--rgb),.5)}
@@ -123,9 +123,6 @@ option{background:#000;color:var(--hi)}
 textarea{margin-top:8px;font-size:19px;resize:vertical}
 ::placeholder{color:var(--mut);opacity:1}
 .sl{margin-top:12px}
-.chk{display:flex;gap:8px;align-items:center;margin-top:12px;color:var(--mut);font-size:20px;line-height:1.05;cursor:pointer;white-space:nowrap}
-.bx{flex:none;color:var(--fg)}
-.bx::before{content:"[ ]"}.chk input:checked+.bx{color:var(--hi);text-shadow:0 0 6px var(--fg)}.chk input:checked+.bx::before{content:"[X]"}
 input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:24px;margin:2px 0 0;background:transparent;cursor:pointer}
 input[type=range]::-webkit-slider-runnable-track{height:2px;background:repeating-linear-gradient(90deg,var(--dim) 0 6px,transparent 6px 10px)}
 input[type=range]::-moz-range-track{height:2px;background:repeating-linear-gradient(90deg,var(--dim) 0 6px,transparent 6px 10px)}
@@ -247,7 +244,7 @@ input[type=range]::-moz-range-thumb{width:12px;height:20px;background:var(--fg);
    <div class="fields" id="fields"></div>
    <div class="opts">
    <label class="sl">Speed Source (Log or GPS)<select id="spd"><option value="ecu">Cobb speed as logged</option><option value="cal">Cobb speed scaled to GPS</option><option value="gps">GPS speed (RaceBox or Dragy)</option></select></label>
-   <label class="chk"><input type="checkbox" id="sae" class="vh"><span class="bx" aria-hidden="true"></span><span>Correct to SAE J1349</span></label>
+   <label class="sl">Power Correction<select id="corr"><option value="none" selected>Uncorrected</option><option value="j1349">SAE J1349</option><option value="j607">SAE J607 (STD/STP)</option><option value="din">DIN 70020</option><option value="iso">ISO 1585</option></select></label>
    <label class="sl">Smoothing<input type="range" id="smooth" min="1" max="10" value="7"></label>
    </div>
    </div>
@@ -269,7 +266,15 @@ input[type=range]::-moz-range-thumb{width:12px;height:20px;background:var(--fg);
 const $=s=>document.querySelector(s),G=9.80665,LB=.45359237,MPH=.44704,HP=745.69987,LBFT=.737562;
 const FIELDS=[['fhp','Factory Horsepower (hp)',292,1],['ftq','Factory Torque (lb-ft)',280,1],['curb','Curb Weight (lb)',3300,10],['load','Driver + Fuel + Cargo (lb)',200,10],['cd','Drag Coefficient',.32,.01],['area','Frontal Area (m²)',2.2,.05],['crr','Rolling Resistance',.012,.001],['loss','Drivetrain Loss (%)',20,.5],['temp','Air Temp (°F)',70,1],['da','Density Altitude (ft)',0,100],['humid','Humidity (%)',25,5],['ped','Full-Throttle Pedal >= (%)',90,1],['wind','Wind Speed (mph)',0,1],['wdir','Wind From (° Compass)',0,10],['head','Car Heading (°)',0,1],['grade','Road Grade (%)',0,.1],['rpmpm','RPM per mph (GPS Only)',0,.1]];
 $('#fields').innerHTML=FIELDS.map(([id,l,v,st])=>`<label class="f">${l}<input type="number" id="${id}" value="${v}" step="${st}"></label>`).join('');
-const P=()=>{const o={smooth:+$('#smooth').value};FIELDS.forEach(([id])=>o[id]=+$('#'+id).value);o.sae=$('#sae').checked;o.spd=$('#spd').value;return o};
+/* Power correction factor to a standard day. T: air temp (K), pd: dry-air pressure (Pa), pt: total pressure (Pa).
+   J1349 and ISO 1585 reference 25 C and 99 kPa dry air; J607 (STD) 60 F, 101.325 kPa dry air; DIN 70020 20 C, 1013 mbar total. */
+function corrFactor(std,T,pd,pt){
+  if(std=='j1349')return 1.18*(99000/pd)*Math.sqrt(T/298)-.18;
+  if(std=='j607')return(101325/pd)*Math.sqrt(T/288.71);
+  if(std=='din')return(101300/pt)*Math.sqrt(T/293.15);
+  if(std=='iso')return Math.pow(99000/pd,1.2)*Math.pow(T/298.15,.6);
+  return 1}
+const P=()=>{const o={smooth:+$('#smooth').value};FIELDS.forEach(([id])=>o[id]=+$('#'+id).value);o.corr=$('#corr').value;o.spd=$('#spd').value;return o};
 let D=null,pulls=[],sel=0,cur=null,hov=-1,mp={},GPS=null,gi=null,cond='',atm={baro:0,wp:0,alt:null},daAuto=true,fresh=false,shown={},grow=1,gAF=0,AX={u:'rpm',bin:100,tick:500,span:1000};
 const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -320,9 +325,9 @@ function analyze(reset){
   const Tc=(p.temp-32)*5/9,T=Tc+273.15,rho=1.225*Math.pow(1-2.25577e-5*p.da*.3048,4.25588);
   const pv=Math.min(p.humid,100)/100*610.78*Math.pow(10,7.5*Tc/(Tc+237.3)),pd=Math.max(5e4,(rho-pv/(461.495*T))*287.058*T);
   const hwd=p.wind*MPH*Math.cos((p.wdir-p.head)*Math.PI/180),gr=Math.atan(p.grade/100);
-  const cf=1.18*(99000/pd)*Math.sqrt(T/298)-.18,kc=p.sae?cf:1;
+  const kc=corrFactor(p.corr,T,pd,pd+pv),cn=$('#corr').selectedOptions[0].textContent;
   const srcTxt=D.gpsOnly?'GPS only':p.spd=='gps'&&gi?'Cobb log + GPS speed':p.spd=='cal'&&gi?`Cobb log scaled ×${gi.ratio.toFixed(3)} to GPS`:'Cobb log';
-  cond=`${srcTxt} · Air ${rho.toFixed(3)} kg/m³ (density altitude ${Math.round(p.da).toLocaleString()} ft, ${Math.round(p.temp)} °F, ${p.humid}% humidity) · ${hwd>=0?'headwind':'tailwind'} ${Math.abs(hwd/MPH).toFixed(1)} mph · grade ${p.grade}% · SAE J1349 factor ${cf.toFixed(3)} ${p.sae?'applied':'not applied'}`;
+  cond=`${srcTxt} · Air ${rho.toFixed(3)} kg/m³ (density altitude ${Math.round(p.da).toLocaleString()} ft, ${Math.round(p.temp)} °F, ${p.humid}% humidity) · ${hwd>=0?'headwind':'tailwind'} ${Math.abs(hwd/MPH).toFixed(1)} mph · grade ${p.grade}% · ${p.corr=='none'?'uncorrected':`${cn} factor ${kc.toFixed(3)} applied`}`;
   const m=(p.curb+p.load)*LB,mw=36,Ie=.2,lf=p.loss/100;
   pulls=raw.map(([a,b])=>{const pts=[];
     const tr=Math.round(hw/3);
@@ -614,7 +619,7 @@ fi.onchange=()=>{const f=fi.files[0];fi.value='';read(f)};
 dz.ondragover=e=>{e.preventDefault();dz.classList.add('on')};dz.ondragleave=()=>dz.classList.remove('on');
 dz.ondrop=e=>{e.preventDefault();dz.classList.remove('on');read(e.dataTransfer.files[0])};
 $('#demo').onclick=demo;$('#pull').onchange=e=>{sel=+e.target.value;fresh=true;GPS?fromGPS():render()};
-document.querySelectorAll('#fields input,#smooth,#sae,#spd').forEach(el=>el.addEventListener('input',()=>{if(el.id=='head')headSet=true;if(el.id=='da')daAuto=false;else if(el.id=='temp'||el.id=='humid')syncDA();analyze(false)}));
+document.querySelectorAll('#fields input,#smooth,#corr,#spd').forEach(el=>el.addEventListener('input',()=>{if(el.id=='head')headSet=true;if(el.id=='da')daAuto=false;else if(el.id=='temp'||el.id=='humid')syncDA();analyze(false)}));
 addEventListener('resize',draw);
 const RB=(()=>{
   const cv=document.getElementById('car');

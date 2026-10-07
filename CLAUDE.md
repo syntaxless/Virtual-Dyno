@@ -130,8 +130,23 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
   F or more. An answer without the new variables (an older pasted one) still works and leaves the pressure alone.
   `atm.wp` is cleared whenever a log or track is loaded (`load`, `gpsOnly`, `fromGPS`). `functional.py` checks all of
   this against an independent calculation.
-- **SAE option** is `label.chk`: a hidden checkbox plus a `[ ]`/`[X]` box drawn by CSS. It starts unticked
-  (off by default, the owner's choice; it used to be on, so the markup has no `checked`). It is `nowrap` on purpose, so the label must stay short enough to fit a 320px screen.
+- **Power Correction** is the `#corr` select in Car & Conditions (a `label.sl` between Speed Source and Smoothing):
+  Uncorrected (default, `none`), SAE J1349 (`j1349`), SAE J607 (STD/STP) (`j607`), DIN 70020 (`din`), ISO 1585 (`iso`).
+  It replaced a checkbox (`label.chk`, `#sae`, the `[ ]`/`[X]` CSS), which is gone. The factor comes from the global
+  pure function `corrFactor(std, T, pd, pt)` (T in K, `pd` dry-air pressure and `pt` total pressure in Pa, both worked
+  out in `analyze()` from the density-altitude, temperature and humidity fields); `analyze()` multiplies hp, torque and
+  whp by it and the conditions line under the graph names the standard and its factor, or says "uncorrected".
+  The formulas, with their reference conditions:
+  - J1349: `1.18*(99000/pd)*sqrt(T/298)-.18` (25 C, 99 kPa dry). Do not touch it: the owner's reference numbers depend on it.
+  - ISO 1585 (spark-ignition form): `(99000/pd)^1.2*(T/298.15)^0.6` (same reference as J1349).
+  - J607 (STD): `(101325/pd)*sqrt(T/288.71)` (60 F, 29.92 inHg, 0% humidity). Dry-air pressure is used because the
+    reference is dry air; published sources disagree on that point, and on whether "STP" means this same reference, so
+    this is a judgement call, not a verified reading of the withdrawn standard.
+  - DIN 70020: `(101300/pt)*sqrt(T/293.15)` (20 C, 1013 mbar, total pressure, no humidity term). The owner wrote
+    "DIN 70200"; the standard is DIN 70020, so that is the label.
+  No validity range is enforced (ISO 1585 only allows factors of about 0.93 to 1.07); a very thin or hot day just gets a
+  bigger factor. The option labels are the only place the standards' names live: `analyze()` reads the selected
+  option's text for the conditions line, and `functional.py` has the same names in `STANDARDS`.
 - **Link preview** (what chat apps and social sites show when the URL is pasted): `og.png` is the stacked VIRTUAL DYNO
   banner on the page's own screen look, in the default (color) theme, at 1200x630. `og:image` and `twitter:image` are
   absolute URLs on the CNAME domain, `twitter:card` is `summary_large_image` (the old `summary` is the small square
@@ -154,9 +169,11 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
   `shot.py --nofont` fail the `.woff2` request to show the fallback look.
 - Do not assert on wording in `smoke.py`; copy changes are normal. `weather.py` is a snapshot, so a legitimate
   message change means reviewing the diff and running it with `--update`.
-- The SAE J1349 correction is OFF by default (the checkbox has no `checked` in the markup), so the numbers the page
-  shows at load are the uncorrected ones. Reference result for the owner's log
+- Power Correction is Uncorrected by default (the `#corr` select has `none` selected in the markup), so the numbers the
+  page shows at load are the uncorrected ones. Reference result for the owner's log
   (`GolfR_NewEngine_4thGearPull_10_01_2026.csv`): 396 hp, 363 lb-ft, 312 whp at 4138 ft density altitude as loaded;
-  430 hp, 394 lb-ft, 339 whp with the correction ticked. On the bundled synthetic GPS track with 67 RPM per mph,
-  torque is 330 as loaded (351 with SAE ticked). If the physics or a default changes on purpose, update `tools/functional.py`,
+  430 hp, 394 lb-ft, 339 whp with SAE J1349 chosen. On the bundled synthetic GPS track with 67 RPM per mph,
+  torque is 330 as loaded (351 with SAE J1349). `functional.py` checks every other standard against a factor it works
+  out itself from the published formula (`expected_cf`), and `correction_formulas` checks `corrFactor` directly (1.000 at
+  each reference condition). If the physics or a default changes on purpose, update `tools/functional.py`,
   and review and `--update` the `weather.py` snapshot (it prints the displayed numbers).

@@ -3,7 +3,7 @@
   python tools/smoke.py
 
 Checks layout at phone/tablet/desktop widths (including which banner variant shows, Load Data full width with its two upload boxes side by side or stacked), the collapsible
-Car & Conditions and How It Works sections, the one-line SAE checkbox, theme switching/persistence,
+Car & Conditions and How It Works sections, the Power Correction dropdown, theme switching/persistence,
 the boot-in animation gate, and the self-hosted font (loads from the site, nothing third-party is
 requested, and the page degrades to a plain heading when the font file cannot load), and real-time Replay
 (takes as long as the pull did, live readout, click to skip).
@@ -19,12 +19,11 @@ WIDTHS = (320, 375, 480, 600, 768, 1024, 1100, 1200)
 BANNER = {320: "stack", 375: "stack", 480: "stack", 600: "row", 768: "row", 1024: "row", 1100: "row", 1200: "row"}   # phones: stacked; wider: one row
 BESIDE = (1100, 1200)   # from a 1000px-wide header (about a 1084px window) the banner sits to the right of the car; below that it sits under it
 
-# Layout facts measured in the page: horizontal overflow, banner variant and fit, SAE label on one line.
+# Layout facts measured in the page: horizontal overflow, banner variant and fit, Power Correction dropdown inside its column.
 LAYOUT = """(()=>{
   const shown=[...document.querySelectorAll('.art')].filter(a=>a.offsetParent!==null), art=shown[0];
-  const l=document.querySelector('label.chk');
-  const lh=parseFloat(getComputedStyle(l).lineHeight);
-  const lines=Math.round(l.getBoundingClientRect().height/lh);   // label height / line height (ignores the hidden 1px input)
+  const cs=document.getElementById('corr').getBoundingClientRect(), ss=document.getElementById('spd').getBoundingClientRect();
+  const col=document.getElementById('corr').closest('.opts').getBoundingClientRect();
   return {sw:document.documentElement.scrollWidth, vw:innerWidth,
           shown:shown.length, artMode:art&&art.classList.contains('row')?'row':'stack', artOver:art?art.scrollWidth-art.clientWidth:999,
           artL:art?Math.round(art.getBoundingClientRect().left):-999, artT:art?Math.round(art.getBoundingClientRect().top):-999,
@@ -40,7 +39,7 @@ LAYOUT = """(()=>{
           dropsW:Math.round(document.querySelector('.drops').getBoundingClientRect().width),
           dropRowDiff:Math.round(document.getElementById('gdrop').getBoundingClientRect().top-document.getElementById('drop').getBoundingClientRect().top),
           howGap:Math.round(document.querySelector('.how').getBoundingClientRect().top-document.querySelector('.cond').getBoundingClientRect().bottom),
-          saeLines:lines, saeOver:Math.round(l.lastElementChild.getBoundingClientRect().right-l.parentNode.getBoundingClientRect().right)};
+          corrOver:Math.round(cs.right-col.right), corrW:Math.round(cs.width), spdW:Math.round(ss.width)};
 })()"""
 
 results = []
@@ -80,15 +79,16 @@ async def layout(browser):
         if w <= 480:
             check(f"{w}px: the two upload boxes stack on a phone", m["dropRowDiff"] > 20, f"top offset {m['dropRowDiff']}px")
         check(f"{w}px: How It Works sits below Car & Conditions", m["howGap"] >= 0, f"{m['howGap']}px below")
-        check(f"{w}px: SAE checkbox label on one line", m["saeLines"] == 1 and m["saeOver"] <= 0,
-              f"{m['saeLines']} line(s), {m['saeOver']}px past column")
+        check(f"{w}px: Power Correction dropdown stays inside its column and matches the Speed Source dropdown",
+              m["corrOver"] <= 0 and abs(m["corrW"] - m["spdW"]) <= 1,
+              f"{m['corrOver']}px past the column, {m['corrW']}px wide vs {m['spdW']}px")
         await ctx.close()
 
 
 async def collapsible(browser):
     ctx, pg, errs = await open_page(browser)           # the page as a visitor first sees it
     # Car & Conditions starts open (its fields are there at load); How It Works starts collapsed
-    shown = await pg.evaluate("['#fhp', '#curb', 'label.chk'].map(q => document.querySelector(q).getClientRects().length > 0)")
+    shown = await pg.evaluate("['#fhp', '#curb', '#corr'].map(q => document.querySelector(q).getClientRects().length > 0)")
     check("Car & Conditions fields are visible at load, with no click", all(shown), str(shown))
     for name, tg, body, open0 in (("Car & Conditions", "condtg", "condbody", True), ("How It Works", "howtg", "howbody", False)):
         st = lambda: pg.evaluate(f"[document.getElementById('{tg}').getAttribute('aria-expanded'),"
@@ -107,23 +107,23 @@ async def collapsible(browser):
     await ctx.close()
 
 
-async def sae_checkbox(browser):
+async def correction_select(browser):
     ctx, pg, errs = await open_page(browser, expand=True)
-    off_default = not await pg.is_checked("#sae")            # the SAE correction is off by default
-    drawn = lambda: pg.evaluate("getComputedStyle(document.querySelector('label.chk .bx'),'::before').content")
-    box_drawn = await drawn()
-    await pg.click("label.chk span:last-child")
-    on_text = await pg.is_checked("#sae")
-    box_on = await drawn()
-    await pg.click("label.chk .bx")
-    off_box = not await pg.is_checked("#sae")
-    await pg.focus("#sae")
-    await pg.keyboard.press("Space")
-    on_kbd = await pg.is_checked("#sae")
-    check("SAE correction is off by default, and the box is drawn empty", off_default and "X" not in box_drawn,
-          f"unchecked at load: {off_default}, box shows {box_drawn}")
-    check("SAE checkbox toggles by label text, box and Space key, and draws [X] when ticked",
-          on_text and off_box and on_kbd and "X" in box_on, f"text-on:{on_text} box-off:{off_box} space-on:{on_kbd}, ticked box shows {box_on}")
+    opts = await pg.evaluate("[...document.querySelectorAll('#corr option')].map(o => [o.value, o.textContent])")
+    check("Power Correction offers Uncorrected, SAE J1349, SAE J607, DIN 70020 and ISO 1585, in that order",
+          [o[0] for o in opts] == ["none", "j1349", "j607", "din", "iso"] and [o[1] for o in opts][0] == "Uncorrected", str(opts))
+    check("Power Correction defaults to Uncorrected", await pg.input_value("#corr") == "none")
+    # a native select: reachable by keyboard and by value, and each choice sticks
+    got = []
+    for v in ("j1349", "j607", "din", "iso", "none"):
+        await pg.select_option("#corr", v)
+        got.append(await pg.input_value("#corr"))
+    check("Power Correction takes each of the five choices", got == ["j1349", "j607", "din", "iso", "none"], str(got))
+    await pg.focus("#corr")
+    await pg.keyboard.press("ArrowDown")
+    check("Power Correction can be changed from the keyboard", await pg.input_value("#corr") != "none")
+    check("the old SAE checkbox is gone", await pg.evaluate("!document.getElementById('sae') && !document.querySelector('label.chk')"))
+    check("no page errors while changing the correction", not errs, "; ".join(errs))
     await ctx.close()
 
 
@@ -281,7 +281,7 @@ async def realtime(browser):
 async def main():
     async with async_playwright() as pw:
         browser = await pw.chromium.launch()
-        for step in (layout, collapsible, sae_checkbox, themes, boot, font, load_message, link_preview, realtime):
+        for step in (layout, collapsible, correction_select, themes, boot, font, load_message, link_preview, realtime):
             await step(browser)
         await browser.close()
     bad = results.count(False)

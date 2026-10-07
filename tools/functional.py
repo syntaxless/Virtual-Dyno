@@ -4,8 +4,9 @@
   DYNO_LOG=/path/to/accessport.csv python tools/functional.py   # also exercises a real Accessport log
 
 The reference numbers asserted for the owner's log (GolfR_NewEngine_4thGearPull_10_01_2026.csv, not stored
-in this repo) are: 396 hp / 363 lb-ft / 312 whp at 4138 ft density altitude with the SAE J1349 correction off, which
-is the default, and 430 hp / 394 lb-ft / 339 whp with the correction ticked.
+in this repo) are: 396 hp / 363 lb-ft / 312 whp at 4138 ft density altitude with Power Correction on Uncorrected, which
+is the default, and 430 hp / 394 lb-ft / 339 whp with SAE J1349 chosen. The other standards are checked against factors
+worked out here from each standard's published formula.
 If the physics is changed on purpose, update the numbers below. Other logs are only printed, not asserted.
 """
 import asyncio
@@ -31,6 +32,84 @@ async def nums(pg):
     return [(await pg.inner_text(f"#s{i} .n")).strip() for i in (1, 2, 3)]
 
 
+# (value, label) of the Power Correction choices that change the numbers
+STANDARDS = [("j1349", "SAE J1349"), ("j607", "SAE J607 (STD/STP)"), ("din", "DIN 70020"), ("iso", "ISO 1585")]
+
+
+def expected_cf(std, temp_f, rh, da_ft):
+    """Correction factor the page should apply, from each standard's published formula and the air the fields describe.
+    T is the air temperature (K), pd the dry-air pressure and pt the total pressure (Pa). Reference conditions:
+    J1349 25 C / 99 kPa dry (the 1990 form of the formula, 298 K), ISO 1585 the same with the power-law form,
+    J607 (STD) 60 F / 101.325 kPa dry, DIN 70020 20 C / 1013 mbar total pressure."""
+    tc = (temp_f - 32) * 5 / 9
+    tk = tc + 273.15
+    rho = 1.225 * (1 - 2.25577e-5 * da_ft * 0.3048) ** 4.25588
+    pv = min(rh, 100) / 100 * 610.78 * 10 ** (7.5 * tc / (tc + 237.3))
+    pd = max(5e4, (rho - pv / (461.495 * tk)) * 287.058 * tk)
+    pt = pd + pv
+    if std == "j1349":
+        return 1.18 * (99000 / pd) * math.sqrt(tk / 298) - 0.18
+    if std == "j607":
+        return (101325 / pd) * math.sqrt(tk / 288.71)
+    if std == "din":
+        return (101300 / pt) * math.sqrt(tk / 293.15)
+    if std == "iso":
+        return (99000 / pd) ** 1.2 * (tk / 298.15) ** 0.6
+    return 1.0
+
+
+async def standards_match(pg, where):
+    """With Power Correction on Uncorrected, read the numbers; then choose each standard and check the numbers moved by that
+    standard's factor for the air in the fields (to within the rounding of the shown integers); then go back."""
+    await pg.select_option("#corr", "none")
+    await pg.wait_for_timeout(COUNTUP_MS)
+    base = [float(x) for x in await nums(pg)]
+    temp, rh, da = [float((await pg.input_value(i)).replace(",", "")) for i in ("#temp", "#humid", "#da")]
+    for std, label in STANDARDS:
+        await pg.select_option("#corr", std)
+        await pg.wait_for_timeout(COUNTUP_MS)
+        got = [float(x) for x in await nums(pg)]
+        cf = expected_cf(std, temp, rh, da)
+        want = [b * cf for b in base]
+        cond = await pg.inner_text("#cond")
+        others = [l for v, l in STANDARDS if v != std]
+        check(f"{where}: {label} scales hp / torque / whp by its own factor ({cf:.3f}) for {temp:.0f} F, {rh:.0f}% humidity, {da:.0f} ft",
+              all(abs(g - w) <= 1.1 for g, w in zip(got, want)), f"{got} vs {[round(w, 1) for w in want]}")
+        check(f"{where}: the conditions line names {label} and no other standard", label in cond and not any(o in cond for o in others), cond[-70:])
+    await pg.select_option("#corr", "none")
+    await pg.wait_for_timeout(COUNTUP_MS)
+    check(f"{where}: going back to Uncorrected restores the uncorrected numbers", [float(x) for x in await nums(pg)] == base)
+    cond = await pg.inner_text("#cond")
+    check(f"{where}: the conditions line names no standard when Uncorrected", not any(l in cond for _, l in STANDARDS), cond[-70:])
+
+
+async def correction_formulas(browser):
+    """The page's corrFactor() itself: 1.000 at each standard's own reference conditions, and equal to the published
+    formulas worked out independently elsewhere on the map."""
+    ctx, pg, errs = await open_page(browser)
+    ref = {"j1349": (298, 99000, 99000), "j607": (288.71, 101325, 101325), "din": (293.15, 98000, 101300), "iso": (298.15, 99000, 99000)}
+    got = {k: await pg.evaluate("a => corrFactor(...a)", [k, *v]) for k, v in ref.items()}
+    check("each standard's factor is 1.000 at its own reference conditions",
+          all(abs(g - 1) < 1e-9 for g in got.values()), str(got))
+    check("Uncorrected is always 1", await pg.evaluate("[corrFactor('none',250,50000,50500),corrFactor('none',320,105000,106000)]") == [1, 1])
+    worst = 0.0
+    for tk, pd, pt in ((305.15, 85000, 86200), (278.15, 101000, 101600), (313.15, 70000, 71500), (288.15, 95000, 95900)):
+        for std, _ in STANDARDS:
+            js = await pg.evaluate("a => corrFactor(...a)", [std, tk, pd, pt])
+            py = {"j1349": lambda: 1.18 * (99000 / pd) * math.sqrt(tk / 298) - 0.18,
+                  "j607": lambda: (101325 / pd) * math.sqrt(tk / 288.71),
+                  "din": lambda: (101300 / pt) * math.sqrt(tk / 293.15),
+                  "iso": lambda: (99000 / pd) ** 1.2 * (tk / 298.15) ** 0.6}[std]()
+            worst = max(worst, abs(js - py))
+    check("corrFactor matches the published formulas at four sets of air conditions", worst < 1e-9, f"worst difference {worst:.2e}")
+    hot_high = [await pg.evaluate("a => corrFactor(...a)", [k, 313.15, 80000, 81500]) for k, _ in STANDARDS]
+    cold_dense = [await pg.evaluate("a => corrFactor(...a)", [k, 273.15, 102000, 102300]) for k, _ in STANDARDS]
+    check("hot thin air raises every standard's factor above 1 and cold dense air lowers it below 1",
+          all(f > 1 for f in hot_high) and all(f < 1 for f in cold_dense), f"{hot_high} / {cold_dense}")
+    check("no page errors", not errs, "; ".join(errs))
+    await ctx.close()
+
+
 async def gps_only(browser):
     ctx, pg, errs = await open_page(browser, expand=True)
     await pg.set_input_files("#gps", GPX)
@@ -42,11 +121,13 @@ async def gps_only(browser):
     await pg.fill("#rpmpm", "67")
     await pg.wait_for_timeout(COUNTUP_MS)
     tq = (await pg.inner_text("#s2 .n")).strip()
-    check("GPS only: torque appears once RPM per mph is entered (67 -> 330 lb-ft on the synthetic track, SAE off, the default; 351 with it on)",
+    check("GPS only: torque appears once RPM per mph is entered (67 -> 330 lb-ft on the synthetic track, Uncorrected, the default; 351 with SAE J1349)",
           tq == "330", tq)
-    await pg.click("label.chk")
+    check("Power Correction is Uncorrected by default", await pg.input_value("#corr") == "none")
+    await pg.select_option("#corr", "j1349")
     await pg.wait_for_timeout(COUNTUP_MS)
-    check("GPS only: ticking SAE raises the torque to 351", (await pg.inner_text("#s2 .n")).strip() == "351")
+    check("GPS only: choosing SAE J1349 raises the torque to 351", (await pg.inner_text("#s2 .n")).strip() == "351")
+    await standards_match(pg, "GPS only")
     await pg.set_input_files("#file", {"name": "x.csv", "mimeType": "text/csv", "buffer": b"a,b\n1,2\n"})
     await pg.wait_for_timeout(300)
     msg = (await pg.inner_text("#msg")).strip()
@@ -60,26 +141,27 @@ async def with_log(browser):
     ctx, pg, errs = await open_page(browser, expand=True)
     await pg.set_input_files("#file", LOG)
     await pg.wait_for_timeout(COUNTUP_MS)
-    plain = await nums(pg)              # the SAE J1349 correction is off by default
+    plain = await nums(pg)              # Power Correction is Uncorrected by default
     da_auto = await pg.input_value("#da")
     print(f"     log: hp/tq/whp {plain} | density altitude {da_auto} ft | temp {await pg.input_value('#temp')} F"
           f" | loss {await pg.input_value('#loss')}")
     check("log loads and produces numbers", all(n.isdigit() for n in plain), str(plain))
-    check("SAE correction is off by default", not await pg.is_checked("#sae"))
+    check("Power Correction is Uncorrected by default", await pg.input_value("#corr") == "none")
     if os.path.basename(LOG) == OWNER_LOG:
-        check("owner's log: 396 hp / 363 lb-ft / 312 whp with SAE correction off (the default)", plain == ["396", "363", "312"], str(plain))
+        check("owner's log: 396 hp / 363 lb-ft / 312 whp Uncorrected (the default)", plain == ["396", "363", "312"], str(plain))
         check("owner's log: density altitude 4138 ft", da_auto.replace(",", "") == "4138", da_auto)
 
-    # SAE correction is off; ticking raises the numbers to the corrected ones, unticking restores them
-    await pg.click("label.chk")
+    # Uncorrected to start; choosing SAE J1349 raises the numbers to the corrected ones, and Uncorrected restores them
+    await pg.select_option("#corr", "j1349")
     await pg.wait_for_timeout(COUNTUP_MS)
     corrected = await nums(pg)
-    check("ticking SAE raises horsepower", int(corrected[0]) > int(plain[0]), f"{plain[0]} -> {corrected[0]}")
+    check("choosing SAE J1349 raises horsepower", int(corrected[0]) > int(plain[0]), f"{plain[0]} -> {corrected[0]}")
     if os.path.basename(LOG) == OWNER_LOG:
-        check("owner's log: 430 hp / 394 lb-ft / 339 whp with SAE correction ticked", corrected == ["430", "394", "339"], str(corrected))
-    await pg.click("label.chk")
+        check("owner's log: 430 hp / 394 lb-ft / 339 whp with SAE J1349", corrected == ["430", "394", "339"], str(corrected))
+    await pg.select_option("#corr", "none")
     await pg.wait_for_timeout(COUNTUP_MS)
-    check("unticking SAE again restores the uncorrected numbers", await nums(pg) == plain)
+    check("choosing Uncorrected again restores the uncorrected numbers", await nums(pg) == plain)
+    await standards_match(pg, "log")
 
     # density altitude override sticks until a new log is loaded
     await pg.fill("#da", "1000")
@@ -284,6 +366,7 @@ async def weather_pressure_temp(browser):
 async def main():
     async with async_playwright() as pw:
         browser = await pw.chromium.launch()
+        await correction_formulas(browser)
         await gps_only(browser)
         await factory_fields(browser)
         await weather_pressure_temp(browser)
