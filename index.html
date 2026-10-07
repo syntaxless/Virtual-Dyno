@@ -239,7 +239,7 @@ input[type=range]::-moz-range-thumb{width:12px;height:20px;background:var(--fg);
   <fieldset class="run"><legend>Dyno Run</legend>
    <div class="top"><select id="pull" aria-label="Select pull"></select><button class="btn" id="replay" type="button">Replay</button>
     <div class="lg"><span style="--c:var(--fg)">Crank HP</span><span style="--c:var(--s2)">Crank Torque (lb-ft)</span><span class="d" style="--c:var(--s3)">Wheel HP</span></div></div>
-   <div class="cvw"><canvas id="cv" role="img" aria-label="Dyno graph of horsepower and torque"></canvas></div><div id="ro">hover or touch the graph for exact values</div><div id="cond"></div>
+   <div class="cvw"><canvas id="cv" role="img" aria-label="Dyno graph of horsepower and torque"></canvas></div><div id="ro">Hover or touch the graph for exact values</div><div id="cond"></div>
   </fieldset>
  </section>
   <fieldset class="cond"><legend><button type="button" class="tg" id="condtg" aria-expanded="true" aria-controls="condbody">Car &amp; Conditions</button></legend>
@@ -361,7 +361,7 @@ function roll(id,to){
   const t0=performance.now(),dur=from?600:1500;
   const step=now=>{const k=Math.min(1,(now-t0)/dur),v=from+(to-from)*(1-Math.pow(1-k,3));el.textContent=Math.round(v);shown[id]=v;if(k<1)el._r=requestAnimationFrame(step);else shown[id]=to};
   el._r=requestAnimationFrame(step)}
-const HINT='hover or touch the graph for exact values';
+const HINT='Hover or touch the graph for exact values';
 // Where the playback is when it is `g` (0..1) of the way through the plotted part of the pull, by log time, not by rpm:
 // x is the rpm (or mph) reached, s the seconds elapsed, q the nearest point of the curve.
 function playAt(g){
