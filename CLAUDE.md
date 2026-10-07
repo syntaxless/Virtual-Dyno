@@ -89,8 +89,10 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
   rules, and the banner's `--s` equals its row count (19 for the stack, 11 for the row). The last blocks
   are timed to finish before the cleanup: footer 1.96 s, prompt 2.0 s.
 - **Collapsible sections**: Car & Conditions (`#condtg` button, `#condbody` panel) and How It Works (`#howtg`,
-  `#howbody`) both start collapsed and share one click handler that flips `aria-expanded`, the panel's `hidden`
-  attribute and the fieldset's `.shut` class. There is no "Estimates only" disclaimer line any more (the owner
+  `#howbody`) share one click handler that flips `aria-expanded`, the panel's `hidden` attribute and the fieldset's
+  `.shut` class. **Car & Conditions starts open** (the owner's choice: its markup has `aria-expanded="true"`, no
+  `hidden` and no `.shut`) and **How It Works starts collapsed**; `smoke.py`'s `collapsible` step checks both start
+  states and that the fields are visible with no click. There is no "Estimates only" disclaimer line any more (the owner
   removed it: the intro already says it estimates). The page is one column at every width, in DOM order: header,
   Load Data, results (`.main`), Car & Conditions, How It Works (`.notes`), then the footer
   and the prompt line. There is no desktop/tablet split any more (the old two-column grid and its 900px
@@ -128,8 +130,8 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
   F or more. An answer without the new variables (an older pasted one) still works and leaves the pressure alone.
   `atm.wp` is cleared whenever a log or track is loaded (`load`, `gpsOnly`, `fromGPS`). `functional.py` checks all of
   this against an independent calculation.
-- **SAE option** is `label.chk`: a hidden checkbox plus a `[ ]`/`[X]` box drawn by CSS. It starts ticked (on by
-  default, the owner's choice). It is `nowrap` on purpose, so the label must stay short enough to fit a 320px screen.
+- **SAE option** is `label.chk`: a hidden checkbox plus a `[ ]`/`[X]` box drawn by CSS. It starts unticked
+  (off by default, the owner's choice; it used to be on, so the markup has no `checked`). It is `nowrap` on purpose, so the label must stay short enough to fit a 320px screen.
 - **Link preview** (what chat apps and social sites show when the URL is pasted): `og.png` is the stacked VIRTUAL DYNO
   banner on the page's own screen look, in the default (color) theme, at 1200x630. `og:image` and `twitter:image` are
   absolute URLs on the CNAME domain, `twitter:card` is `summary_large_image` (the old `summary` is the small square
@@ -146,14 +148,15 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
 ## Testing gotchas
 
 - The big numbers count up for ~1.5 s: wait 2.6 s before reading them (`COUNTUP_MS` in `tools/common.py`).
-- Tests seed `sessionStorage` to skip the boot-in and click `#condtg` to expand Car & Conditions. The font needs
+- Tests seed `sessionStorage` to skip the boot-in. `open_page(expand=True)` only makes sure Car & Conditions is open:
+  it is open at load, so the helper clicks `#condtg` only when it is closed (a plain click would close it). The font needs
   no setup: the page loads `fonts/` from the repo like the live site does. `open_page(block_font=True)` and
   `shot.py --nofont` fail the `.woff2` request to show the fallback look.
 - Do not assert on wording in `smoke.py`; copy changes are normal. `weather.py` is a snapshot, so a legitimate
   message change means reviewing the diff and running it with `--update`.
-- The SAE J1349 correction is ON by default (the checkbox is `checked` in the markup), so the numbers the page
-  shows at load are the corrected ones. Reference result for the owner's log
-  (`GolfR_NewEngine_4thGearPull_10_01_2026.csv`): 430 hp, 394 lb-ft, 339 whp at 4138 ft density altitude with the
-  correction; 396 hp, 363 lb-ft, 312 whp with it unticked. On the bundled synthetic GPS track with 67 RPM per mph,
-  torque is 351 (330 with SAE off). If the physics or a default changes on purpose, update `tools/functional.py`,
+- The SAE J1349 correction is OFF by default (the checkbox has no `checked` in the markup), so the numbers the page
+  shows at load are the uncorrected ones. Reference result for the owner's log
+  (`GolfR_NewEngine_4thGearPull_10_01_2026.csv`): 396 hp, 363 lb-ft, 312 whp at 4138 ft density altitude as loaded;
+  430 hp, 394 lb-ft, 339 whp with the correction ticked. On the bundled synthetic GPS track with 67 RPM per mph,
+  torque is 330 as loaded (351 with SAE ticked). If the physics or a default changes on purpose, update `tools/functional.py`,
   and review and `--update` the `weather.py` snapshot (it prints the displayed numbers).

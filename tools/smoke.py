@@ -86,15 +86,19 @@ async def layout(browser):
 
 
 async def collapsible(browser):
-    ctx, pg, errs = await open_page(browser)           # not pre-expanded
-    for name, tg, body in (("Car & Conditions", "condtg", "condbody"), ("How It Works", "howtg", "howbody")):
+    ctx, pg, errs = await open_page(browser)           # the page as a visitor first sees it
+    # Car & Conditions starts open (its fields are there at load); How It Works starts collapsed
+    shown = await pg.evaluate("['#fhp', '#curb', 'label.chk'].map(q => document.querySelector(q).getClientRects().length > 0)")
+    check("Car & Conditions fields are visible at load, with no click", all(shown), str(shown))
+    for name, tg, body, open0 in (("Car & Conditions", "condtg", "condbody", True), ("How It Works", "howtg", "howbody", False)):
         st = lambda: pg.evaluate(f"[document.getElementById('{tg}').getAttribute('aria-expanded'),"
                                  f"document.getElementById('{body}').hidden]")
-        check(f"{name} starts collapsed", await st() == ["false", True])
+        a, b = (["true", False], ["false", True]) if open0 else (["false", True], ["true", False])
+        check(f"{name} starts {'open' if open0 else 'collapsed'}", await st() == a)
         await pg.click(f"#{tg}")
-        check(f"{name} opens", await st() == ["true", False])
+        check(f"{name} {'closes' if open0 else 'opens'}", await st() == b)
         await pg.click(f"#{tg}")
-        check(f"{name} closes again", await st() == ["false", True])
+        check(f"{name} goes back", await st() == a)
     # How It Works text uses the whole width of its section (no narrow column with a gap beside it)
     await pg.click("#howtg")
     wd = await pg.evaluate("[document.querySelector('#howbody p').getBoundingClientRect().width,"
@@ -105,19 +109,21 @@ async def collapsible(browser):
 
 async def sae_checkbox(browser):
     ctx, pg, errs = await open_page(browser, expand=True)
-    on_default = await pg.is_checked("#sae")                 # the SAE correction is on by default
-    box_drawn = await pg.evaluate("getComputedStyle(document.querySelector('label.chk .bx'),'::before').content")
+    off_default = not await pg.is_checked("#sae")            # the SAE correction is off by default
+    drawn = lambda: pg.evaluate("getComputedStyle(document.querySelector('label.chk .bx'),'::before').content")
+    box_drawn = await drawn()
     await pg.click("label.chk span:last-child")
-    off_text = not await pg.is_checked("#sae")
+    on_text = await pg.is_checked("#sae")
+    box_on = await drawn()
     await pg.click("label.chk .bx")
-    on_box = await pg.is_checked("#sae")
+    off_box = not await pg.is_checked("#sae")
     await pg.focus("#sae")
     await pg.keyboard.press("Space")
-    off_kbd = not await pg.is_checked("#sae")
-    check("SAE correction is on by default, and the box is drawn ticked", on_default and "X" in box_drawn,
-          f"checked at load: {on_default}, box shows {box_drawn}")
-    check("SAE checkbox toggles by label text, [X] box and Space key", off_text and on_box and off_kbd,
-          f"text-off:{off_text} box-on:{on_box} space-off:{off_kbd}")
+    on_kbd = await pg.is_checked("#sae")
+    check("SAE correction is off by default, and the box is drawn empty", off_default and "X" not in box_drawn,
+          f"unchecked at load: {off_default}, box shows {box_drawn}")
+    check("SAE checkbox toggles by label text, box and Space key, and draws [X] when ticked",
+          on_text and off_box and on_kbd and "X" in box_on, f"text-on:{on_text} box-off:{off_box} space-on:{on_kbd}, ticked box shows {box_on}")
     await ctx.close()
 
 

@@ -23,12 +23,13 @@ def init_script(expand=False):
     """JS injected before the page runs.
 
     - seeds sessionStorage so the boot-in animation is skipped (it would make screenshots flaky)
-    - optionally opens the collapsed "Car & Conditions" section
+    - optionally makes sure "Car & Conditions" is open. It starts open now, so this only clicks it if it is closed
+      (a plain click would close it).
     """
     js = "try{sessionStorage.setItem('dyno-boot','1')}catch(e){};"
     if expand:
         js += ("document.addEventListener('DOMContentLoaded',()=>{const t=document.getElementById('condtg');"
-               "if(t)t.click()});")
+               "if(t&&t.getAttribute('aria-expanded')!=='true')t.click()});")
     return js
 
 

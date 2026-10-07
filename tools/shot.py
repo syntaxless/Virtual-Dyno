@@ -3,7 +3,7 @@
   python tools/shot.py                           # 1200 and 375 wide, top of page
   python tools/shot.py --scroll bottom           # footer area
   python tools/shot.py --scroll .notes           # scroll a CSS selector into view
-  python tools/shot.py --expand --widths 375     # with "Car & Conditions" open
+  python tools/shot.py --widths 375              # Car & Conditions is open by default (--expand just makes sure)
   python tools/shot.py --click '#howtg' --full   # with "How It Works" open
   python tools/shot.py --theme green --full      # green theme, whole page (the default is color)
   python tools/shot.py --gpx                     # with the synthetic GPS track loaded
@@ -25,7 +25,7 @@ async def main():
     ap.add_argument("--widths", default="1200,375")
     ap.add_argument("--height", type=int, default=800)
     ap.add_argument("--scroll", default="top", help="top | bottom | <css selector>")
-    ap.add_argument("--expand", action="store_true", help="open Car & Conditions")
+    ap.add_argument("--expand", action="store_true", help="make sure Car & Conditions is open (it is open by default)")
     ap.add_argument("--click", action="append", default=[], metavar="SELECTOR",
                     help="click an element before the screenshot, e.g. --click '#howtg' (repeatable)")
     ap.add_argument("--theme", choices=["green", "color"])

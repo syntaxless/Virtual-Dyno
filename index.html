@@ -242,12 +242,12 @@ input[type=range]::-moz-range-thumb{width:12px;height:20px;background:var(--fg);
    <div class="cvw"><canvas id="cv" role="img" aria-label="Dyno graph of horsepower and torque"></canvas></div><div id="ro">hover or touch the graph for exact values</div><div id="cond"></div>
   </fieldset>
  </section>
-  <fieldset class="cond shut"><legend><button type="button" class="tg" id="condtg" aria-expanded="false" aria-controls="condbody">Car &amp; Conditions</button></legend>
-   <div id="condbody" hidden>
+  <fieldset class="cond"><legend><button type="button" class="tg" id="condtg" aria-expanded="true" aria-controls="condbody">Car &amp; Conditions</button></legend>
+   <div id="condbody">
    <div class="fields" id="fields"></div>
    <div class="opts">
    <label class="sl">Speed Source (Log or GPS)<select id="spd"><option value="ecu">Cobb speed as logged</option><option value="cal">Cobb speed scaled to GPS</option><option value="gps">GPS speed (RaceBox or Dragy)</option></select></label>
-   <label class="chk"><input type="checkbox" id="sae" class="vh" checked><span class="bx" aria-hidden="true"></span><span>Correct to SAE J1349</span></label>
+   <label class="chk"><input type="checkbox" id="sae" class="vh"><span class="bx" aria-hidden="true"></span><span>Correct to SAE J1349</span></label>
    <label class="sl">Smoothing<input type="range" id="smooth" min="1" max="10" value="7"></label>
    </div>
    </div>

@@ -4,8 +4,8 @@
   DYNO_LOG=/path/to/accessport.csv python tools/functional.py   # also exercises a real Accessport log
 
 The reference numbers asserted for the owner's log (GolfR_NewEngine_4thGearPull_10_01_2026.csv, not stored
-in this repo) are: 430 hp / 394 lb-ft / 339 whp at 4138 ft density altitude with the SAE J1349 correction, which is
-on by default, and 396 hp / 363 lb-ft / 312 whp with the correction switched off.
+in this repo) are: 396 hp / 363 lb-ft / 312 whp at 4138 ft density altitude with the SAE J1349 correction off, which
+is the default, and 430 hp / 394 lb-ft / 339 whp with the correction ticked.
 If the physics is changed on purpose, update the numbers below. Other logs are only printed, not asserted.
 """
 import asyncio
@@ -42,8 +42,11 @@ async def gps_only(browser):
     await pg.fill("#rpmpm", "67")
     await pg.wait_for_timeout(COUNTUP_MS)
     tq = (await pg.inner_text("#s2 .n")).strip()
-    check("GPS only: torque appears once RPM per mph is entered (67 -> 351 lb-ft on the synthetic track, SAE on; 330 with it off)",
-          tq == "351", tq)
+    check("GPS only: torque appears once RPM per mph is entered (67 -> 330 lb-ft on the synthetic track, SAE off, the default; 351 with it on)",
+          tq == "330", tq)
+    await pg.click("label.chk")
+    await pg.wait_for_timeout(COUNTUP_MS)
+    check("GPS only: ticking SAE raises the torque to 351", (await pg.inner_text("#s2 .n")).strip() == "351")
     await pg.set_input_files("#file", {"name": "x.csv", "mimeType": "text/csv", "buffer": b"a,b\n1,2\n"})
     await pg.wait_for_timeout(300)
     msg = (await pg.inner_text("#msg")).strip()
@@ -57,26 +60,26 @@ async def with_log(browser):
     ctx, pg, errs = await open_page(browser, expand=True)
     await pg.set_input_files("#file", LOG)
     await pg.wait_for_timeout(COUNTUP_MS)
-    corrected = await nums(pg)          # the SAE J1349 correction is on by default
+    plain = await nums(pg)              # the SAE J1349 correction is off by default
     da_auto = await pg.input_value("#da")
-    print(f"     log: hp/tq/whp {corrected} | density altitude {da_auto} ft | temp {await pg.input_value('#temp')} F"
+    print(f"     log: hp/tq/whp {plain} | density altitude {da_auto} ft | temp {await pg.input_value('#temp')} F"
           f" | loss {await pg.input_value('#loss')}")
-    check("log loads and produces numbers", all(n.isdigit() for n in corrected), str(corrected))
-    check("SAE correction is on by default", await pg.is_checked("#sae"))
+    check("log loads and produces numbers", all(n.isdigit() for n in plain), str(plain))
+    check("SAE correction is off by default", not await pg.is_checked("#sae"))
     if os.path.basename(LOG) == OWNER_LOG:
-        check("owner's log: 430 hp / 394 lb-ft / 339 whp with SAE correction (the default)", corrected == ["430", "394", "339"], str(corrected))
+        check("owner's log: 396 hp / 363 lb-ft / 312 whp with SAE correction off (the default)", plain == ["396", "363", "312"], str(plain))
         check("owner's log: density altitude 4138 ft", da_auto.replace(",", "") == "4138", da_auto)
 
-    # SAE correction is on; unticking lowers the numbers to the uncorrected ones, ticking again restores them
+    # SAE correction is off; ticking raises the numbers to the corrected ones, unticking restores them
     await pg.click("label.chk")
     await pg.wait_for_timeout(COUNTUP_MS)
-    plain = await nums(pg)
-    check("unticking SAE lowers horsepower", int(plain[0]) < int(corrected[0]), f"{corrected[0]} -> {plain[0]}")
+    corrected = await nums(pg)
+    check("ticking SAE raises horsepower", int(corrected[0]) > int(plain[0]), f"{plain[0]} -> {corrected[0]}")
     if os.path.basename(LOG) == OWNER_LOG:
-        check("owner's log: 396 hp / 363 lb-ft / 312 whp without SAE correction", plain == ["396", "363", "312"], str(plain))
+        check("owner's log: 430 hp / 394 lb-ft / 339 whp with SAE correction ticked", corrected == ["430", "394", "339"], str(corrected))
     await pg.click("label.chk")
     await pg.wait_for_timeout(COUNTUP_MS)
-    check("ticking SAE again restores the corrected numbers", await nums(pg) == corrected)
+    check("unticking SAE again restores the uncorrected numbers", await nums(pg) == plain)
 
     # density altitude override sticks until a new log is loaded
     await pg.fill("#da", "1000")
