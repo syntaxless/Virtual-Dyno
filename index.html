@@ -260,14 +260,14 @@ input[type=range]::-moz-range-thumb{width:12px;height:20px;background:var(--fg);
    </fieldset>
   </div>
 </div>
-<footer class="foot">This site was built with help from Claude and Claude makes mistakes because he's only human.</footer>
+<footer class="foot">This site was built with help from Claude and Claude can make mistakes because he's only human.</footer>
 <div class="ps1" aria-hidden="true">trbo@losr:~$ <i></i></div>
 <div class="crt" aria-hidden="true"></div>
 </main>
 <script>
 
 const $=s=>document.querySelector(s),G=9.80665,LB=.45359237,MPH=.44704,HP=745.69987,LBFT=.737562;
-const FIELDS=[['fhp','Factory Horsepower (HP)',292,1],['ftq','Factory Torque (lb-ft)',280,1],['curb','Curb Weight (lb)',3300,10],['load','Driver+Fuel (lb)',200,10],['cd','Drag Coefficient',.32,.01],['area','Frontal Area (m²)',2.2,.05],['crr','Rolling Resistance',.012,.001],['loss','Drivetrain Loss (%)',20,.5],['temp','Air Temp (°F)',70,1],['da','Density Altitude (ft)',0,100],['humid','Humidity (%)',25,5],['ped','Throttle Position >= (%)',90,1],['wind','Wind Speed (MPH)',0,1],['wdir','Wind From (° Compass)',0,10],['head','Car Heading (°)',0,1],['grade','Road Grade (%)',0,.1],['rpmpm','RPM per MPH (GPS Only)',0,.1]];
+const FIELDS=[['fhp','Factory Horsepower (HP)',292,1],['ftq','Factory Torque (lb-ft)',280,1],['curb','Curb Weight (lbs)',3300,10],['load','Driver &amp; Fuel (lbs)',200,10],['cd','Drag Coefficient',.32,.01],['area','Frontal Area (m²)',2.2,.05],['crr','Rolling Resistance',.012,.001],['loss','Drivetrain Loss (%)',20,.5],['temp','Air Temp (°F)',70,1],['da','Density Altitude (ft)',0,100],['humid','Humidity (%)',25,5],['ped','Throttle Position >= (%)',90,1],['wind','Wind Speed (MPH)',0,1],['wdir','Wind From (° Compass)',0,10],['head','Car Heading (°)',0,1],['grade','Road Grade (%)',0,.1],['rpmpm','RPM per MPH (GPS Only)',0,.1]];
 $('#fields').innerHTML=FIELDS.map(([id,l,v,st])=>`<label class="f">${l}<input type="number" id="${id}" value="${v}" step="${st}"></label>`).join('');
 /* Power correction factor to a standard day. T: air temp (K), pd: dry-air pressure (Pa), pt: total pressure (Pa).
    J1349 and ISO 1585 reference 25 C and 99 kPa dry air; J607 (STD) 60 F, 101.325 kPa dry air; DIN 70020 20 C, 1013 mbar total. */
