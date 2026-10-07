@@ -13,7 +13,7 @@ import sys
 
 from playwright.async_api import async_playwright
 
-from common import open_page
+from common import REPO, open_page
 
 WIDTHS = (320, 375, 480, 600, 768, 1024, 1100, 1200)
 BANNER = {320: "stack", 375: "stack", 480: "stack", 600: "row", 768: "row", 1024: "row", 1100: "row", 1200: "row"}   # phones: stacked; wider: one row
@@ -211,6 +211,29 @@ async def load_message(browser):
         await ctx.close()
 
 
+async def link_preview(browser):
+    """The link-unfurling image: the meta tags point at a real PNG of the stated size, on the site's own domain."""
+    import struct
+    ctx, pg, errs = await open_page(browser)
+    m = await pg.evaluate("""(() => { const g = s => (document.querySelector(s) || {}).content || ''; return {
+        og: g('meta[property="og:image"]'), tw: g('meta[name="twitter:image"]'), card: g('meta[name="twitter:card"]'),
+        w: +g('meta[property="og:image:width"]'), h: +g('meta[property="og:image:height"]'),
+        alt: g('meta[property="og:image:alt"]'), twalt: g('meta[name="twitter:image:alt"]')} })()""")
+    await ctx.close()
+    prefix = f"https://{(REPO / 'CNAME').read_text().strip()}/"
+    f = REPO / m["og"][len(prefix):] if m["og"].startswith(prefix) and len(m["og"]) > len(prefix) else None
+    data = f.read_bytes() if f and f.is_file() else b""
+    png = data[:8] == b"\x89PNG\r\n\x1a\n"
+    w, h = struct.unpack(">II", data[16:24]) if png else (0, 0)
+    check("link preview: og:image is an absolute URL on the site's own domain, and the file is in the repo", bool(data), f"{m['og']!r}")
+    check("link preview: the file is a PNG whose real size matches og:image:width/height, in the wide-card shape",
+          png and (w, h) == (m["w"], m["h"]) and 1.8 <= w / h <= 2.0, f"{w}x{h} vs {m['w']}x{m['h']}")
+    check("link preview: small enough for chat apps that skip big previews (300 KB)", 0 < len(data) <= 300 * 1024, f"{len(data) / 1024:.0f} KB")
+    check("link preview: the large Twitter card uses the same image and both have alt text",
+          m["card"] == "summary_large_image" and m["tw"] == m["og"] and bool(m["alt"]) and bool(m["twalt"]), f"{m}")
+    check("link preview: no page errors", not errs, "; ".join(errs))
+
+
 async def realtime(browser):
     """Replay plays in real time: it takes as long as the pull did, shows a live readout, and a click skips it."""
     ctx, pg, errs = await open_page(browser, reduced_motion=False)
@@ -252,7 +275,7 @@ async def realtime(browser):
 async def main():
     async with async_playwright() as pw:
         browser = await pw.chromium.launch()
-        for step in (layout, collapsible, sae_checkbox, themes, boot, font, load_message, realtime):
+        for step in (layout, collapsible, sae_checkbox, themes, boot, font, load_message, link_preview, realtime):
             await step(browser)
         await browser.close()
     bad = results.count(False)

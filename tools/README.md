@@ -1,11 +1,12 @@
 # tools/
 
-Browser checks for `index.html`. Nothing here is deployed; Pages only serves the repo root files it needs.
+Browser checks for `index.html`, and `og.py`, which builds the link-preview image. Nothing here is deployed; Pages only serves the repo root files it needs.
 
 ## One-time setup
 
 ```bash
 pip install playwright && playwright install chromium
+pip install pillow          # only for og.py
 ```
 
 ## Scripts
@@ -17,6 +18,7 @@ Run from anywhere, e.g. `python tools/smoke.py`.
 | `shot.py` | Screenshot at chosen widths/scroll/theme into `tools/out/` (`--click '#howtg'` opens a section first, `--nofont` shows the look when the font cannot load). The quick look after a text or color edit. | nothing |
 | `smoke.py` | Layout at eight widths (no JS errors, no horizontal scroll, banner variant and fit, SAE label on one line), both collapsible sections, themes, boot-in gate, self-hosted font (loads from the site, no third-party requests, fallback heading when blocked). Exit 1 on failure. | nothing |
 | `functional.py` | GPS-only calculation, error handling, the factory-number fields and captions, and (with a log) the reference numbers, SAE, density-altitude override, GPS attach, weather paste, and the weather temperature and pressure rules. | log optional |
+| `og.py` | Renders `og.png` at the repo root, the link-preview image (the page's stacked banner on its own screen look, 1200x630, under 300 KB). `--check` writes only to `tools/out/`. Rerun after changing the banner art or palette. | Pillow |
 | `weather.py` | About 20 weather-lookup scenarios (humidity, wind, temperature, pressure) against a mocked Open-Meteo, diffed against `data/weather_expected.txt`. `--update` re-saves it. | `DYNO_LOG` |
 
 Environment variables:
