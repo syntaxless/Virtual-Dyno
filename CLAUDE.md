@@ -168,6 +168,12 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
   the size, the real PNG dimensions against the meta tags, and that the file exists. Chat apps and social sites cache a
   preview per URL, so a changed image can take a while (or a re-scrape in their debugger tools) to show up.
 - Text and punctuation in the file are plain ASCII (straight apostrophes), which VT323 renders reliably.
+- **Units are capitals wherever a visitor reads them**: RPM, MPH, HP, WHP (the owner's style; "lb-ft" and "hPa" are
+  unchanged). That covers page text, field labels, captions, messages, the hover readout and the graph's canvas labels.
+  Keep the lowercase forms in code: variables and object keys (`rpm`, `hp`, `hw`), the header-matching regexes, and the
+  Open-Meteo parameter `wind_speed_unit=mph`. `AX.u`, the axis unit, holds `'RPM'` or `'MPH'` and is compared and drawn as
+  is. `smoke.py`'s `unit_case` step fails on any lowercase unit in the page text, the readout or the canvas labels (it spies
+  on `fillText`); weather messages are covered by the `weather.py` snapshot.
 - The `<meta>` and `og:` descriptions still mention the Accessport and RaceBox/Dragy and end with "Calibrated with a
   real-world dyno." (the owner's wording, replacing "Tuned for the 2016 VW Golf R."); the visible intro line was
   generalized to "a log file, gps data, or both" and the meta text was not.

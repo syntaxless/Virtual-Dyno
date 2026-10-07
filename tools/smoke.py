@@ -3,7 +3,7 @@
   python tools/smoke.py
 
 Checks layout at phone/tablet/desktop widths (including which banner variant shows, Load Data full width with its two upload boxes side by side or stacked), the collapsible
-Car & Conditions and How It Works sections, the Power Correction dropdown, the one-line place-date-time weather row, tile text colors, theme switching/persistence,
+Car & Conditions and How It Works sections, the Power Correction dropdown, the one-line place-date-time weather row, tile text colors, units in capitals, theme switching/persistence,
 the boot-in animation gate, and the self-hosted font (loads from the site, nothing third-party is
 requested, and the page degrades to a plain heading when the font file cannot load), and real-time Replay
 (takes as long as the pull did, live readout, click to skip).
@@ -13,7 +13,7 @@ import sys
 
 from playwright.async_api import async_playwright
 
-from common import REPO, open_page
+from common import GPX, REPO, open_page
 
 WIDTHS = (320, 375, 480, 600, 768, 1024, 1100, 1200)
 BANNER = {320: "stack", 375: "stack", 480: "stack", 600: "row", 768: "row", 1024: "row", 1100: "row", 1200: "row"}   # phones: stacked; wider: one row
@@ -253,6 +253,33 @@ async def tile_colors(browser):
     await ctx.close()
 
 
+async def unit_case(browser):
+    """RPM, MPH, HP and WHP are written in capitals everywhere the visitor reads them: the page text (How It Works open),
+    the hover readout, and the labels the graph draws on its canvas. Run with a demo log (RPM axis) and with GPS only (MPH axis)."""
+    import re
+    bad = re.compile(r"\b(rpm|mph|hp|whp)\b")
+    spy = ("(() => { window.__ft = []; const f = CanvasRenderingContext2D.prototype.fillText;"
+           " CanvasRenderingContext2D.prototype.fillText = function (t, ...a) { window.__ft.push(String(t)); return f.call(this, t, ...a) } })()")
+    for name, axis in (("demo log", "RPM"), ("GPS only", "MPH")):
+        ctx, pg, errs = await open_page(browser, expand=True)
+        await pg.evaluate(spy)
+        if name == "demo log":
+            await pg.click("#demo")
+        else:
+            await pg.set_input_files("#gps", GPX)
+        await pg.wait_for_timeout(2600)
+        await pg.click("#howtg")
+        await pg.hover("#cv")
+        await pg.wait_for_timeout(300)
+        text = await pg.evaluate("document.body.innerText")
+        drawn = await pg.evaluate("window.__ft")
+        check(f"{name}: RPM, MPH, HP and WHP are capitals in the page text and the readout", not bad.findall(text), str(sorted(set(bad.findall(text)))))
+        check(f"{name}: the graph's own labels are capitals, and its axis says {axis}",
+              not any(bad.search(t) for t in drawn) and axis in drawn, str(sorted({t for t in drawn if not t.replace(',', '').replace('K', '').isdigit()})))
+        check(f"{name}: no page errors", not errs, "; ".join(errs))
+        await ctx.close()
+
+
 async def link_preview(browser):
     """The link-unfurling image: the meta tags point at a real PNG of the stated size, on the site's own domain."""
     import struct
@@ -285,7 +312,7 @@ async def realtime(browser):
         let live=false;const iv=setInterval(()=>{live=live||/\\d\\.\\d s ·/.test(document.getElementById('ro').textContent);
           if(grow>=1||performance.now()-t0>30000){clearInterval(iv);res({elapsed:(performance.now()-t0)/1000,span,label,live,
             end:/\\d\\.\\d s ·/.test(document.getElementById('ro').textContent)})}},20)})""")
-    pull_s = float(r["label"].rsplit(",", 1)[1].split()[0])      # "Pull 1: 2,404-6,685 rpm, 9.6 s"
+    pull_s = float(r["label"].rsplit(",", 1)[1].split()[0])      # "Pull 1: 2,404-6,685 RPM, 9.6 s"
     check("Replay takes as long as the pull did (real time)", abs(r["elapsed"] - r["span"]) <= 0.5 and 0.8 * pull_s <= r["span"] <= pull_s + 0.1,
           f"played in {r['elapsed']:.1f} s, plotted span {r['span']:.1f} s, pull {pull_s} s")
     check("a live time/value readout shows while it plays, and goes away at the end", r["live"] and not r["end"], str(r))
@@ -317,7 +344,7 @@ async def realtime(browser):
 async def main():
     async with async_playwright() as pw:
         browser = await pw.chromium.launch()
-        for step in (layout, collapsible, correction_select, themes, boot, font, load_message, weather_row, tile_colors, link_preview, realtime):
+        for step in (layout, collapsible, correction_select, themes, boot, font, load_message, weather_row, tile_colors, unit_case, link_preview, realtime):
             await step(browser)
         await browser.close()
     bad = results.count(False)

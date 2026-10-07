@@ -232,13 +232,13 @@ input[type=range]::-moz-range-thumb{width:12px;height:20px;background:var(--fg);
   </fieldset>
  <section class="main">
   <div class="stats">
-   <fieldset class="stat" id="s1" style="--c:var(--fg)"><legend>Peak Crank Power</legend><b><span class="n">–</span><i>hp</i></b><em></em></fieldset>
+   <fieldset class="stat" id="s1" style="--c:var(--fg)"><legend>Peak Crank Power</legend><b><span class="n">–</span><i>HP</i></b><em></em></fieldset>
    <fieldset class="stat" id="s2" style="--c:var(--s2)"><legend>Peak Crank Torque</legend><b><span class="n">–</span><i>lb-ft</i></b><em></em></fieldset>
-   <fieldset class="stat" id="s3" style="--c:var(--s3)"><legend>Peak Wheel Power</legend><b><span class="n">–</span><i>whp</i></b><em></em></fieldset>
+   <fieldset class="stat" id="s3" style="--c:var(--s3)"><legend>Peak Wheel Power</legend><b><span class="n">–</span><i>WHP</i></b><em></em></fieldset>
   </div>
   <fieldset class="run"><legend>Dyno Run</legend>
    <div class="top"><select id="pull" aria-label="Select pull"></select><button class="btn" id="replay" type="button">Replay</button>
-    <div class="lg"><span style="--c:var(--fg)">crank hp</span><span style="--c:var(--s2)">crank torque (lb-ft)</span><span class="d" style="--c:var(--s3)">wheel hp</span></div></div>
+    <div class="lg"><span style="--c:var(--fg)">crank HP</span><span style="--c:var(--s2)">crank torque (lb-ft)</span><span class="d" style="--c:var(--s3)">wheel HP</span></div></div>
    <div class="cvw"><canvas id="cv" role="img" aria-label="Dyno graph of horsepower and torque"></canvas></div><div id="ro">hover or touch the graph for exact values</div><div id="cond"></div>
   </fieldset>
  </section>
@@ -255,7 +255,7 @@ input[type=range]::-moz-range-thumb{width:12px;height:20px;background:var(--fg);
   <div class="notes">
    <fieldset class="how shut"><legend><button type="button" class="tg" id="howtg" aria-expanded="false" aria-controls="howbody">How It Works</button></legend>
     <div id="howbody" hidden>
-     <p>Speed is turned into acceleration, then force = mass × acceleration + aerodynamic drag + rolling resistance + hills. Wheel power is force × speed, and crank power adds drivetrain loss and the energy spent spinning up the engine. Density altitude is filled in from your log's pressure and temperature. With no pressure in the log it uses GPS altitude, and fetching the weather adds that hour's sea-level pressure. It sets the air density, and you can overwrite it. With GPS only there is no RPM, so power is plotted against speed. Enter RPM per mph for the gear you used to get RPM and torque.</p>
+     <p>Speed is turned into acceleration, then force = mass × acceleration + aerodynamic drag + rolling resistance + hills. Wheel Power is Force × Speed, and Crank Power adds drivetrain loss and the energy spent spinning up the engine. Density Altitude is filled in from your log's pressure and temperature. With no pressure in the log it uses GPS altitude, and fetching the weather adds that hour's sea-level pressure. That sets the air density, but you can overwrite it. With GPS only there is no RPM, so power is plotted against Speed. Enter RPM per MPH for the gear you used to get RPM and torque.</p>
     </div>
    </fieldset>
   </div>
@@ -267,7 +267,7 @@ input[type=range]::-moz-range-thumb{width:12px;height:20px;background:var(--fg);
 <script>
 
 const $=s=>document.querySelector(s),G=9.80665,LB=.45359237,MPH=.44704,HP=745.69987,LBFT=.737562;
-const FIELDS=[['fhp','Factory Horsepower (hp)',292,1],['ftq','Factory Torque (lb-ft)',280,1],['curb','Curb Weight (lb)',3300,10],['load','Driver + Fuel + Cargo (lb)',200,10],['cd','Drag Coefficient',.32,.01],['area','Frontal Area (m²)',2.2,.05],['crr','Rolling Resistance',.012,.001],['loss','Drivetrain Loss (%)',20,.5],['temp','Air Temp (°F)',70,1],['da','Density Altitude (ft)',0,100],['humid','Humidity (%)',25,5],['ped','Full-Throttle Pedal >= (%)',90,1],['wind','Wind Speed (mph)',0,1],['wdir','Wind From (° Compass)',0,10],['head','Car Heading (°)',0,1],['grade','Road Grade (%)',0,.1],['rpmpm','RPM per mph (GPS Only)',0,.1]];
+const FIELDS=[['fhp','Factory Horsepower (HP)',292,1],['ftq','Factory Torque (lb-ft)',280,1],['curb','Curb Weight (lb)',3300,10],['load','Driver+Fuel (lb)',200,10],['cd','Drag Coefficient',.32,.01],['area','Frontal Area (m²)',2.2,.05],['crr','Rolling Resistance',.012,.001],['loss','Drivetrain Loss (%)',20,.5],['temp','Air Temp (°F)',70,1],['da','Density Altitude (ft)',0,100],['humid','Humidity (%)',25,5],['ped','Gas Pedal >= (%)',90,1],['wind','Wind Speed (MPH)',0,1],['wdir','Wind From (° Compass)',0,10],['head','Car Heading (°)',0,1],['grade','Road Grade (%)',0,.1],['rpmpm','RPM per MPH (GPS Only)',0,.1]];
 $('#fields').innerHTML=FIELDS.map(([id,l,v,st])=>`<label class="f">${l}<input type="number" id="${id}" value="${v}" step="${st}"></label>`).join('');
 /* Power correction factor to a standard day. T: air temp (K), pd: dry-air pressure (Pa), pt: total pressure (Pa).
    J1349 and ISO 1585 reference 25 C and 99 kPa dry air; J607 (STD) 60 F, 101.325 kPa dry air; DIN 70020 20 C, 1013 mbar total. */
@@ -278,7 +278,7 @@ function corrFactor(std,T,pd,pt){
   if(std=='iso')return Math.pow(99000/pd,1.2)*Math.pow(T/298.15,.6);
   return 1}
 const P=()=>{const o={smooth:+$('#smooth').value};FIELDS.forEach(([id])=>o[id]=+$('#'+id).value);o.corr=$('#corr').value;o.spd=$('#spd').value;return o};
-let D=null,pulls=[],sel=0,cur=null,hov=-1,mp={},GPS=null,gi=null,cond='',atm={baro:0,wp:0,alt:null},daAuto=true,fresh=false,shown={},grow=1,gAF=0,AX={u:'rpm',bin:100,tick:500,span:1000};
+let D=null,pulls=[],sel=0,cur=null,hov=-1,mp={},GPS=null,gi=null,cond='',atm={baro:0,wp:0,alt:null},daAuto=true,fresh=false,shown={},grow=1,gAF=0,AX={u:'RPM',bin:100,tick:500,span:1000};
 const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function parse(text){
@@ -313,7 +313,7 @@ function analyze(reset){
   if(!D)return;const p=P();if(reset)gi=null;wxVis();const{t,ped}=D,n=t.length;let v=D.v,rpm=D.rpm;
   if(!D.gpsOnly&&gi){if(p.spd=='cal')v=v.map(x=>x*gi.ratio);else if(p.spd=='gps')v=t.map(x=>gAt(x+gi.off,'v'))}
   if(D.gpsOnly)rpm=v.map(x=>p.rpmpm>0?x/MPH*p.rpmpm:NaN);
-  const sp=D.gpsOnly&&!(p.rpmpm>0),X=sp?v.map(x=>x/MPH):rpm;AX=sp?{u:'mph',bin:2,tick:10,span:15}:{u:'rpm',bin:100,tick:500,span:1000};
+  const sp=D.gpsOnly&&!(p.rpmpm>0),X=sp?v.map(x=>x/MPH):rpm;AX=sp?{u:'MPH',bin:2,tick:10,span:15}:{u:'RPM',bin:100,tick:500,span:1000};
   const d=[];for(let i=1;i<n;i++)d.push(t[i]-t[i-1]);d.sort((a,b)=>a-b);const dt=d[d.length>>1]||.1;
   const hw=Math.max(2,Math.round((.25+.12*p.smooth)/dt/2));
   const ls=(i,a,b)=>{let sx=0,sy=0,sxx=0,sxy=0,m=b-a+1;for(let j=a;j<=b;j++){const x=t[j]-t[i];sx+=x;sy+=v[j];sxx+=x*x;sxy+=x*v[j]}
@@ -330,7 +330,7 @@ function analyze(reset){
   const hwd=p.wind*MPH*Math.cos((p.wdir-p.head)*Math.PI/180),gr=Math.atan(p.grade/100);
   const kc=corrFactor(p.corr,T,pd,pd+pv),cn=$('#corr').selectedOptions[0].textContent;
   const srcTxt=D.gpsOnly?'GPS only':p.spd=='gps'&&gi?'Cobb log + GPS speed':p.spd=='cal'&&gi?`Cobb log scaled ×${gi.ratio.toFixed(3)} to GPS`:'Cobb log';
-  cond=`${srcTxt} · Air ${rho.toFixed(3)} kg/m³ (density altitude ${Math.round(p.da).toLocaleString()} ft, ${Math.round(p.temp)} °F, ${p.humid}% humidity) · ${hwd>=0?'headwind':'tailwind'} ${Math.abs(hwd/MPH).toFixed(1)} mph · grade ${p.grade}% · ${p.corr=='none'?'uncorrected':`${cn} factor ${kc.toFixed(3)} applied`}`;
+  cond=`${srcTxt} · Air ${rho.toFixed(3)} kg/m³ (density altitude ${Math.round(p.da).toLocaleString()} ft, ${Math.round(p.temp)} °F, ${p.humid}% humidity) · ${hwd>=0?'headwind':'tailwind'} ${Math.abs(hwd/MPH).toFixed(1)} MPH · grade ${p.grade}% · ${p.corr=='none'?'uncorrected':`${cn} factor ${kc.toFixed(3)} applied`}`;
   const m=(p.curb+p.load)*LB,mw=36,Ie=.2,lf=p.loss/100;
   pulls=raw.map(([a,b])=>{const pts=[];
     const tr=Math.round(hw/3);
@@ -378,14 +378,14 @@ function replay(){
     if(!cur||cur.length<2){grow=1;return}
     grow=Math.min(1,(now-t0)/1000/span());draw();
     if(grow<1){const a=playAt(grow),q=a.q;
-      $('#ro').textContent=`${a.s.toFixed(1)} s · ${Math.round(a.x).toLocaleString()} ${AX.u} · ${Math.round(q.hp)} hp · ${isFinite(q.tq)?Math.round(q.tq)+' lb-ft · ':''}${Math.round(q.hw)} whp`;
+      $('#ro').textContent=`${a.s.toFixed(1)} s · ${Math.round(a.x).toLocaleString()} ${AX.u} · ${Math.round(q.hp)} HP · ${isFinite(q.tq)?Math.round(q.tq)+' lb-ft · ':''}${Math.round(q.hw)} WHP`;
       gAF=requestAnimationFrame(step)}
     else $('#ro').textContent=HINT};
   grow=0;gAF=requestAnimationFrame(step)}
 
 function render(){
   const S=$('#pull');$('#spd').disabled=!(D&&!D.gpsOnly&&gi);
-  $('#cond').textContent=pulls.length?cond+(pulls[sel]&&isFinite(pulls[sel].rm)&&!D.gpsOnly?` · this pull is about ${pulls[sel].rm.toFixed(1)} rpm per mph`:''):'';
+  $('#cond').textContent=pulls.length?cond+(pulls[sel]&&isFinite(pulls[sel].rm)&&!D.gpsOnly?` · this pull is about ${pulls[sel].rm.toFixed(1)} RPM per MPH`:''):'';
   S.innerHTML=pulls.map((q,i)=>`<option value="${i}">Pull ${i+1}: ${q.lo.toLocaleString()}–${q.hi.toLocaleString()} ${AX.u}, ${q.dur.toFixed(1)} s</option>`).join('')||'<option>No pull selected</option>';
   S.disabled=!pulls.length;hov=-1;if(fresh)shown={};
   if(!pulls.length){cur=null;['s1','s2','s3'].forEach(i=>{roll(i,NaN);$('#'+i+' em').textContent=''});
@@ -393,11 +393,11 @@ function render(){
     $('#ro').textContent='';fresh=false;draw();return}
   S.value=sel;const pp=P();cur=build(pulls[sel],pp);
   const pk=f=>cur.reduce((b,q)=>q[f]>b[f]||!isFinite(b[f])?q:b),h=pk('hp'),t=pk('tq'),w=pk('hw'),hasT=isFinite(t.tq);
-  const at=q=>AX.u=='mph'?Math.round(q.r)+' mph':(Math.round(q.r/10)*10).toLocaleString()+' rpm';
+  const at=q=>AX.u=='MPH'?Math.round(q.r)+' MPH':(Math.round(q.r/10)*10).toLocaleString()+' RPM';
   const dl=(x,ref,u)=>ref>0?` · ${x>=ref?'+':'−'}${Math.abs(Math.round(x-ref))} ${u} vs stock ${ref}`:'';
   roll('s1',h.hp);roll('s2',hasT?t.tq:NaN);roll('s3',w.hw);
-  $('#s1 em').textContent=`at ${at(h)}${dl(h.hp,pp.fhp,'hp')}`;
-  $('#s2 em').textContent=hasT?`at ${at(t)}${dl(t.tq,pp.ftq,'lb-ft')}`:'Enter RPM per mph (under Car & Conditions) to get torque';
+  $('#s1 em').textContent=`at ${at(h)}${dl(h.hp,pp.fhp,'HP')}`;
+  $('#s2 em').textContent=hasT?`at ${at(t)}${dl(t.tq,pp.ftq,'lb-ft')}`:'Enter RPM per MPH (under Car & Conditions) to get torque';
   $('#s3 em').textContent=`at ${at(w)} · after ${pp.loss}% loss`;
   $('#ro').textContent=HINT;
   if(fresh){fresh=false;replay()}else draw()}
@@ -420,8 +420,8 @@ function draw(){
   x.fillStyle=C('--mut');x.textAlign='right';
   for(let v=0;v<=y1;v+=st)x.fillText(v,l-8,Y(v)+5);
   x.textAlign='center';
-  for(let v=Math.ceil(x0/xs)*xs;v<=x1;v+=xs)x.fillText(AX.u=='rpm'?v/1000+'K':v,X(v),H-9);
-  x.textAlign='left';x.fillText('hp / lb-ft',4,18);x.textAlign='right';x.fillText(AX.u,W-4,H-9);
+  for(let v=Math.ceil(x0/xs)*xs;v<=x1;v+=xs)x.fillText(AX.u=='RPM'?v/1000+'K':v,X(v),H-9);
+  x.textAlign='left';x.fillText('HP / lb-ft',4,18);x.textAlign='right';x.fillText(AX.u,W-4,H-9);
   const xc=playAt(grow).x,tip={},col={hp:C('--s1'),tq:C('--s2'),hw:C('--s3')};
   const pts=k=>{const P=[];
     for(let i=0;i<cur.length;i++){const q=cur[i];if(!isFinite(q[k]))continue;
@@ -443,7 +443,7 @@ function hover(e){
   if(grow<1){if(e.type!='pointerdown')return;cancelAnimationFrame(gAF);grow=1}   // a click or tap while it plays skips to the end
   const rc=e.target.getBoundingClientRect(),rp=mp.inv(e.clientX-rc.left);
   let bi=0;cur.forEach((q,i)=>{if(Math.abs(q.r-rp)<Math.abs(cur[bi].r-rp))bi=i});hov=bi;const q=cur[bi];
-  $('#ro').textContent=`${Math.round(q.r).toLocaleString()} ${AX.u} · ${Math.round(q.hp)} hp · ${isFinite(q.tq)?Math.round(q.tq)+' lb-ft · ':''}${Math.round(q.hw)} whp`;if(grow>=1)draw()}
+  $('#ro').textContent=`${Math.round(q.r).toLocaleString()} ${AX.u} · ${Math.round(q.hp)} HP · ${isFinite(q.tq)?Math.round(q.tq)+' lb-ft · ':''}${Math.round(q.hw)} WHP`;if(grow>=1)draw()}
 $('#cv').addEventListener('pointermove',hover);$('#cv').addEventListener('pointerdown',hover);
 $('#cv').addEventListener('pointerleave',()=>{hov=-1;if(cur){if(grow>=1)$('#ro').textContent=HINT;draw()}});
 
@@ -468,7 +468,7 @@ function demo(){
     const r=k*v,Pc=tq(r)/LBFT*r*Math.PI/30,F=Pc*(1-p.loss/100)/v;
     const a=(F-.5*1.2*p.cd*p.area*v*v-p.crr*(p.curb+p.load)*LB*G)/m;
     rows.push(`${time},${Math.round(r+(Math.random()-.5)*40)},${Math.round(v/MPH)},100,${(p.temp+(Math.random()-.5)*2).toFixed(1)}`);v+=a*.08}
-  load(rows.join('\n'),'Simulated demo log (about 350 hp tune)')}
+  load(rows.join('\n'),'Simulated demo log (about 350 HP tune)')}
 
 const R2=Math.PI/180,dist=(p,q)=>6371000*Math.hypot((q.lon-p.lon)*R2*Math.cos((p.lat+q.lat)/2*R2),(q.lat-p.lat)*R2),
  bear=(p,q)=>(Math.atan2((q.lon-p.lon)*Math.cos((p.lat+q.lat)/2*R2),q.lat-p.lat)/R2+360)%360;
@@ -521,12 +521,12 @@ function fromGPS(init){
       wxReq++;atm.wp=0;$('#wxin').value='';$('#wxmsg').textContent='';
       const f=(id,x)=>$('#'+id).value=x;f('head',Math.round(gi.head));f('grade',gi.grade==null?0:gi.grade.toFixed(1));if(gi.alt!=null){atm.alt=gi.alt;syncDA()}
       const dv=100/gi.ratio-100;M.className='msg'+(gi.err>3*MPH?' err':'');
-      M.textContent=`${D.gpsOnly?'Pull located':'GPS matched to this pull (speed error '+(gi.err/MPH).toFixed(1)+' mph)'} near ${gi.lat.toFixed(4)}, ${gi.lon.toFixed(4)} at ${new Date(gi.T*1e3).toLocaleString()}. Heading ${Math.round(gi.head)}°, grade ${gi.grade==null?'unknown (no elevation)':gi.grade.toFixed(1)+'%'}.${D.gpsOnly?'':` ECU speed reads ${dv>=0?'+':''}${dv.toFixed(1)}% vs GPS.`}`+(gi.err>3*MPH?' The match is poor, so check that this is the right track.':'')}
+      M.textContent=`${D.gpsOnly?'Pull located':'GPS matched to this pull (speed error '+(gi.err/MPH).toFixed(1)+' MPH)'} near ${gi.lat.toFixed(4)}, ${gi.lon.toFixed(4)} at ${new Date(gi.T*1e3).toLocaleString()}. Heading ${Math.round(gi.head)}°, grade ${gi.grade==null?'unknown (no elevation)':gi.grade.toFixed(1)+'%'}.${D.gpsOnly?'':` ECU speed reads ${dv>=0?'+':''}${dv.toFixed(1)}% vs GPS.`}`+(gi.err>3*MPH?' The match is poor, so check that this is the right track.':'')}
     else{M.className='msg err';M.textContent='The GPS track is shorter than this pull, so it could not be matched.'}}
   analyze(false)}
 function gpsOnly(){
   atm.baro=0;atm.wp=0;const g=GPS,t0=g[0].t;D={t:g.map(p=>p.t-t0),v:g.map(p=>p.v),rpm:g.map(()=>NaN),ped:null,n:g.length,gpsOnly:true};
-  $('#msg').className='msg';$('#msg').textContent='GPS only: power is plotted against speed. Enter RPM per mph for your gear (under Car & Conditions) to get RPM and torque.';analyze(true)}
+  $('#msg').className='msg';$('#msg').textContent='GPS only: power is plotted against speed. Enter RPM per MPH for your gear (under Car & Conditions) to get RPM and torque.';analyze(true)}
 const readGPS=f=>f&&f.text().then(tx=>{const M=$('#gmsg');
   try{GPS=parseGPS(tx);fresh=true;M.className='msg';M.textContent=`${f.name}: ${GPS.length} GPS points at about ${Math.round(GPS.hz)} Hz.`;
     if(!D||D.gpsOnly)gpsOnly();else if(pulls.length)fromGPS(1)}
@@ -557,7 +557,7 @@ function applyWx(text,T,zone,useWind){const M=$('#wxmsg');
     if([i,...(w>0?[k]:[])].some(n=>[h.wind_direction_10m[n],h.wind_speed_10m[n],h.relative_humidity_2m[n]].some(x=>typeof x!=='number'||!isFinite(x))))throw Error('The weather data has missing values for that hour.');
     const vec=n=>{const a=h.wind_direction_10m[n]*R2,s=h.wind_speed_10m[n];return[-s*Math.sin(a),-s*Math.cos(a)]},a=vec(i),b=vec(k);
     const u=a[0]*(1-w)+b[0]*w,vv=a[1]*(1-w)+b[1]*w,rh=h.relative_humidity_2m[i]*(1-w)+h.relative_humidity_2m[k]*w;
-    const sp=Math.hypot(u,vv),dr=(Math.atan2(-u,-vv)/R2+360)%360,wd=`${sp.toFixed(1)} mph from ${Math.round(dr)}°`;
+    const sp=Math.hypot(u,vv),dr=(Math.atan2(-u,-vv)/R2+360)%360,wd=`${sp.toFixed(1)} MPH from ${Math.round(dr)}°`;
     // Optional extras. Air temperature fills the field only when the log has none (a log's own sensor is kept, with a note if
     // the two disagree). Sea-level pressure is reduced to the altitude of the pull for density altitude, but only used when
     // the log has no pressure of its own.
