@@ -291,6 +291,11 @@ async def weather_pressure_temp(browser):
     da_hi, temp = int(await pg.input_value("#da")), await pg.input_value("#temp")
     await paste_wx(pg, wx_json(temp_f=68, msl=993))
     da_lo = int(await pg.input_value("#da"))
+    ap = await pg.evaluate("[...document.querySelectorAll('#wxmsg .ap')].map(e => e.textContent)")
+    plain_col, ap_col = await pg.evaluate("[getComputedStyle(document.getElementById('wxmsg')).color, getComputedStyle(document.querySelector('#wxmsg .ap')).color]")
+    check("the applied weather (humidity, temperature, wind, and the density altitude it set) is in an accent color, the rest of the message is not",
+          len(ap) == 2 and "40% humidity" in ap[0] and "68" in ap[0] and "wind" in ap[0] and "Density altitude set to" in ap[1] and ap_col != plain_col,
+          f"{ap} {ap_col} vs {plain_col}")
     print(f"     GPS only: density altitude {da0} (standard day) -> {da_hi} (1033 hPa) / {da_lo} (993 hPa), temp {temp}, altitude {alt:.0f} ft")
     check("GPS only: the weather temperature fills the air temp field", float(temp) == 68.0, temp)
     check("GPS only: density altitude follows the hour's sea-level pressure (40 hPa is roughly 1,300 ft)", 1100 < da_lo - da_hi < 1600, f"{da_hi} / {da_lo}")
@@ -359,6 +364,10 @@ async def weather_pressure_temp(browser):
     print(f"     log without temp/pressure, no GPS: density altitude {d1} (ground elevation 1600 m from the answer)")
     check("with no GPS altitude, the elevation in the weather answer is used", abs(d1 - expected_da(1013.25, 68, 40, 1600 / 0.3048)) <= 4,
           f"{d1} vs {expected_da(1013.25, 68, 40, 1600 / 0.3048):.0f}")
+    ap = await pg.evaluate("[...document.querySelectorAll('#wxmsg .ap')].map(e => e.textContent)")
+    msg = await pg.inner_text("#wxmsg")
+    check("wind that was not applied (no heading) is not in the accent color, and only the applied humidity and temperature are",
+          bool(ap) and "humidity" in ap[0] and "wind" not in ap[0] and "not applied" in msg, f"{ap} | {msg[:120]!r}")
     check("no page errors", not errs, "; ".join(errs))
     await ctx.close()
 

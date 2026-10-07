@@ -84,7 +84,8 @@ legend{padding:0 8px;color:var(--hi)}
 .drops{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;margin-bottom:10px}
 .drop{display:block;margin-bottom:10px;padding:8px 12px;border:1px dashed var(--dim);cursor:pointer}
 .drops .drop{margin-bottom:0}
-#wx .wl,#wx .wr{max-width:560px}
+#wx .wl{max-width:560px}
+#wx .wr{max-width:640px}
 #wx textarea{display:block;max-width:560px}
 .drop b{display:block;font-weight:400;color:var(--hi)}
 .drop b::before{content:"> ";color:var(--fg)}
@@ -97,6 +98,8 @@ legend{padding:0 8px;color:var(--hi)}
 .wl{display:block;margin-top:8px;color:var(--mut);font-size:20px}
 .wr{display:grid;grid-template-columns:minmax(0,6fr) minmax(0,5fr);gap:0 10px;margin-bottom:6px}
 .wr input{font-size:20px;padding:1px 4px}
+.wr .wp{grid-column:1/-1}
+@media (min-width:700px){.wr{grid-template-columns:minmax(150px,1fr) minmax(150px,170px) minmax(130px,140px);gap:0 14px}.wr .wp{grid-column:auto}}
 .btn:disabled{color:var(--dim);cursor:progress;background:none;text-shadow:none}
 .hint a{color:var(--fg)}.hint a:hover{background:var(--fg);color:var(--ink);text-decoration:none}
 summary{margin-top:10px;color:var(--mut);font-size:20px;cursor:pointer;list-style:none}
@@ -108,6 +111,7 @@ summary:focus-visible{outline:1px dashed var(--hi);outline-offset:3px}
 .msg{margin-top:8px;color:var(--mut);font-size:20px;word-break:break-word}
 .msg:empty{display:none}
 .msg::before{content:"> ";color:var(--dim)}
+.msg .ap{color:var(--s2)}
 .msg.err,.msg.err::before{color:var(--err)}
 .msg.err::before{content:"! "}
 .fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:10px 16px}
@@ -132,8 +136,8 @@ input[type=range]::-moz-range-thumb{width:12px;height:20px;background:var(--fg);
 .stat{--c:var(--fg);border-color:var(--c);padding:6px 14px 12px}
 .stat legend{color:var(--c)}
 .stat b{display:block;font-weight:400;font-size:78px;line-height:.95;color:var(--c);text-shadow:0 0 14px var(--c);white-space:nowrap}
-.stat b i{font-style:normal;font-size:26px;color:var(--mut);text-shadow:none;margin-left:8px}
-.stat em{display:block;margin-top:6px;font-style:normal;font-size:20px;line-height:1.05;color:var(--mut)}
+.stat b i{font-style:normal;font-size:26px;color:var(--c);text-shadow:none;margin-left:8px}
+.stat em{display:block;margin-top:6px;font-style:normal;font-size:20px;line-height:1.05;color:var(--c)}
 .run .top{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;justify-content:space-between;margin-bottom:10px}
 .run select{width:auto;max-width:100%}
 .lg{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:20px}
@@ -216,8 +220,7 @@ input[type=range]::-moz-range-thumb{width:12px;height:20px;background:var(--fg);
     </div>
     <div id="wxpl" hidden>
      <p class="hint" style="margin:12px 0 0">No GPS track? Look up the weather by place and date instead.</p>
-     <label class="wl">Place<input type="text" id="wxplace" placeholder="City, ZIP code or lat, lon" autocomplete="off" spellcheck="false"></label>
-     <div class="wr"><label class="wl">Date<input type="date" id="wxdate"></label><label class="wl">Local Time<input type="time" id="wxtime" value="12:00"></label></div>
+     <div class="wr"><label class="wl wp">Place<input type="text" id="wxplace" placeholder="City, ZIP code or lat, lon" autocomplete="off" spellcheck="false"></label><label class="wl">Date<input type="date" id="wxdate"></label><label class="wl">Local Time<input type="time" id="wxtime" value="12:00"></label></div>
      <button class="btn" id="wxpget" type="button">Fetch weather</button> <button class="btn" id="wxgeo" type="button">Use my location</button>
      <p class="hint" style="margin:6px 0 0">Humidity and wind, and air temperature and pressure if your log lacks them, come from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (CC BY 4.0), which receives the place you type (or its coordinates) and the date. Wind needs the car's heading to count.</p>
     </div>
@@ -542,6 +545,8 @@ const getText=url=>{const ac=new AbortController(),to=setTimeout(()=>ac.abort(),
 const wxErr=er=>er.name==='AbortError'?'Open-Meteo took too long to answer.':er instanceof TypeError?'Could not reach Open-Meteo from this page.':er.message;
 const wxLive=id=>id===wxReq;
 function wxVis(){const has=!!D;$('#wx').hidden=!has;$('#wxgps').hidden=!gi;$('#wxman').hidden=!gi;$('#wxpl').hidden=!has||!!gi}
+// Fill a message line from strings and [string] parts; the [string] parts (the weather that was applied) get the accent color.
+function say(M,...parts){M.textContent='';parts.forEach(x=>{if(typeof x=='string')M.append(x);else{const e=document.createElement('span');e.className='ap';e.textContent=x[0];M.append(e)}})}
 function applyWx(text,T,zone,useWind){const M=$('#wxmsg');
   try{let j;try{j=JSON.parse(text)}catch{throw Error('That does not look like weather data.')}
     const h=j&&j.hourly;
@@ -560,7 +565,7 @@ function applyWx(text,T,zone,useWind){const M=$('#wxmsg');
       mix=a=>{const x=num(a,i),y=w>0?num(a,k):x;return x==null||y==null?null:x*(1-w)+y*w},
       tF=mix(h.temperature_2m),pm=mix(h.pressure_msl),
       zm=gi&&gi.alt!=null?gi.alt*.3048:typeof j.elevation==='number'&&isFinite(j.elevation)?j.elevation:null;
-    let tt='',tn='',pt='';atm.wp=0;
+    let tt='',tn='',pt=[];atm.wp=0;
     if(tF!=null&&tF>-40&&tF<150){
       if(D.amb==null){$('#temp').value=Math.round(tF*10)/10;tt=`, ${Math.round(tF)} °F`}
       else if(Math.abs(tF-D.amb)>=5)tn=` Open-Meteo has ${Math.round(tF)} °F for that hour. The log's ambient sensor read ${Math.round(D.amb)} °F, and that was kept.`}
@@ -568,10 +573,11 @@ function applyWx(text,T,zone,useWind){const M=$('#wxmsg');
       const Tk=(tF!=null?(tF-32)*5/9:15-.0065*zm)+273.15;
       atm.wp=pm*100*Math.exp(-9.80665*zm/(287.058*(Tk+.0065*zm/2)))}
     $('#humid').value=Math.round(rh);syncDA();
-    if(atm.wp>0&&!(atm.baro>0)&&daAuto)pt=` Density altitude set to ${$('#da').value} ft from that hour's sea-level pressure (${Math.round(pm)} hPa) at ${Math.round(zm*3.28084)} ft.`;
+    if(atm.wp>0&&!(atm.baro>0)&&daAuto)pt=[' ',[`Density altitude set to ${$('#da').value} ft`],` from that hour's sea-level pressure (${Math.round(pm)} hPa) at ${Math.round(zm*3.28084)} ft.`];
     if(useWind){$('#wind').value=sp.toFixed(1);$('#wdir').value=Math.round(dr)}
     M.className='msg';
-    M.textContent=`Filled for ${new Date(T).toISOString().slice(11,16)} ${zone}: ${Math.round(rh)}% humidity${tt}`+(useWind?`, wind ${wd}. This is 10 m wind, so wind at the road is often lower.`:`. Wind was ${wd} at that hour but was not applied, because the car's heading is unknown. Enter it under Car & Conditions, then fetch again.`)+pt+tn;
+    say(M,`Filled for ${new Date(T).toISOString().slice(11,16)} ${zone}: `,[`${Math.round(rh)}% humidity${tt}${useWind?`, wind ${wd}`:''}`],
+      useWind?'. This is 10 m wind, so wind at the road is often lower.':`. Wind was ${wd} at that hour but was not applied, because the car's heading is unknown. Enter it under Car & Conditions, then fetch again.`,...pt,tn);
     analyze(false);return true}
   catch(er){M.className='msg err';M.textContent=er.message;return false}}
 $('#wxin').oninput=e=>{if(e.target.value.trim()&&gi)applyWx(e.target.value,gi.T*1e3,'UTC',true)};

@@ -3,7 +3,7 @@
   python tools/smoke.py
 
 Checks layout at phone/tablet/desktop widths (including which banner variant shows, Load Data full width with its two upload boxes side by side or stacked), the collapsible
-Car & Conditions and How It Works sections, the Power Correction dropdown, theme switching/persistence,
+Car & Conditions and How It Works sections, the Power Correction dropdown, the one-line place-date-time weather row, tile text colors, theme switching/persistence,
 the boot-in animation gate, and the self-hosted font (loads from the site, nothing third-party is
 requested, and the page degrades to a plain heading when the font file cannot load), and real-time Replay
 (takes as long as the pull did, live readout, click to skip).
@@ -213,8 +213,44 @@ async def load_message(browser):
             row:Math.round(document.querySelector('#wxpl .wr').getBoundingClientRect().width)})""")
         check(f"{w}px: the weather hints and message use the full Load Data width",
               wx["chars"] > 0 and wx["hints"] and all(x >= m["drops"] - 2 for x in wx["hints"]) and wx["msg"] >= m["drops"] - 2, f"{wx}, section {m['drops']}px")
-        check(f"{w}px: the weather form fields stay form-sized (560px at most)", wx["place"] <= 561 and wx["row"] <= 561, f"{wx}")
+        check(f"{w}px: the weather form fields stay form-sized (the place box 560px at most, the place-date-time row 640px)", wx["place"] <= 561 and wx["row"] <= 641, f"{wx}")
         await ctx.close()
+
+
+async def weather_row(browser):
+    """Place, date and local time share one line from 700px up; below that the place box has a line to itself and
+    date and time stay together under it. Nothing is cut off at either size (the date and time boxes keep room for their text)."""
+    for w in (375, 600, 699, 700, 768, 1200):
+        ctx, pg, errs = await open_page(browser, width=w)
+        await pg.click("#demo")                  # the demo log has no GPS track, so the place form is the one shown
+        await pg.wait_for_timeout(300)
+        m = await pg.evaluate("""(() => { const r = q => document.querySelector(q).getBoundingClientRect(), a = r('#wxplace'), d = r('#wxdate'), t = r('#wxtime');
+            return {top: [a.top, d.top, t.top].map(Math.round), w: [a.width, d.width, t.width].map(Math.round), right: Math.round(t.right), vw: innerWidth} })()""")
+        if w >= 700:
+            check(f"{w}px: place, date and time are on one line, with room for the date and time",
+                  m["top"][0] == m["top"][1] == m["top"][2] and m["w"][0] >= 200 and m["w"][1] >= 150 and m["w"][2] >= 130 and m["right"] <= m["vw"], str(m))
+        else:
+            check(f"{w}px: place has its own line, and date and time share the one under it",
+                  m["top"][0] < m["top"][1] == m["top"][2] and m["right"] <= m["vw"], str(m))
+        check(f"{w}px: no page errors in the weather form", not errs, "; ".join(errs))
+        await ctx.close()
+
+
+async def tile_colors(browser):
+    """Every piece of text in the Peak Crank Power, Peak Crank Torque and Peak Wheel Power tiles (title, number, unit, caption)
+    is the same color, in both themes."""
+    ctx, pg, errs = await open_page(browser)
+    await pg.click("#demo")
+    await pg.wait_for_timeout(2600)
+    for theme in ("color", "green"):
+        await pg.click(f'#phos button[data-p="{theme}"]')
+        got = await pg.evaluate("""['#s1','#s2','#s3'].map(id => { const t = document.querySelector(id), c = q => getComputedStyle(t.querySelector(q)).color;
+            return {id, caption: t.querySelector('em').textContent.length > 0, colors: [c('legend'), c('b .n'), c('b i'), c('em')]} })""")
+        for g in got:
+            check(f"{theme} theme: {g['id']} title, number, unit and caption are all one color", g["caption"] and len(set(g["colors"])) == 1, str(g))
+        check(f"{theme} theme: the three tiles keep three different colors", len({g["colors"][0] for g in got}) == 3, str([g["colors"][0] for g in got]))
+    check("no page errors", not errs, "; ".join(errs))
+    await ctx.close()
 
 
 async def link_preview(browser):
@@ -281,7 +317,7 @@ async def realtime(browser):
 async def main():
     async with async_playwright() as pw:
         browser = await pw.chromium.launch()
-        for step in (layout, collapsible, correction_select, themes, boot, font, load_message, link_preview, realtime):
+        for step in (layout, collapsible, correction_select, themes, boot, font, load_message, weather_row, tile_colors, link_preview, realtime):
             await step(browser)
         await browser.close()
     bad = results.count(False)

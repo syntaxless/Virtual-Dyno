@@ -108,11 +108,23 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
   load and Replay press; `smoke.py`'s `realtime` check loads the demo log and times it (about 10 s of the run). On
   phones `#ro` reserves two lines, because the live readout wraps and the page would otherwise jump when it starts.
 - **Load Data**: its two upload boxes sit in `.drops`, an auto-fit grid (`minmax(260px,1fr)`), so they are side by
-  side when there is room (tablet and up) and stacked on phones. The weather form's controls (`#wx .wl`, `.wr` and the paste
-  `textarea`, which is a block so it stacks under its link) are capped at 560px (a form, not text); the hint and message
+  side when there is room (tablet and up) and stacked on phones. The weather form's controls (`#wx .wl` and the paste
+  `textarea`, which is a block so it stacks under its link) are capped at 560px (a form, not text). Place, Date and Local
+  Time are one grid, `.wr` (capped at 640px): one line from 700px up (`minmax(150px,1fr) minmax(150px,170px)
+  minmax(130px,140px)`, because the time box needs about 130px to show "06:00 PM" and its clock icon; fr ratios cut it
+  off), and below 700px the place box has a line to itself (`.wp`, `grid-column:1/-1`) with date and time side by side
+  under it. `smoke.py`'s `weather_row` step checks both and the box widths. The hint and message
   lines, including the weather hint and `#wxmsg`, have no cap and run the full width of the section, by the owner's
-  request. The `#wx` block itself must not have a `max-width`: it used to, which capped those lines too, and the old
+  request. When weather is applied (`applyWx`), the values that were applied (humidity, air temp, wind, and the density
+  altitude it set) are wrapped in `<span class="ap">` in the amber `--s2` accent, the same color as the live readout; the
+  rest of the line stays muted, so wind that was not applied (no car heading) is not in the accent. Messages are built
+  with `say(M, ...parts)` (strings, and `[string]` for the accented parts) using DOM nodes, never `innerHTML`, because the
+  place name in the text comes from the geocoder. Errors stay `--err`. The `#wx` block itself must not have a `max-width`: it used to, which capped those lines too, and the old
   check only measured the first hint. `smoke.py`'s `load_message` step measures the weather ones.
+- **Result tiles** (Peak Crank Power, Peak Crank Torque, Peak Wheel Power) take every piece of their text from one
+  per-tile variable, `--c` (the same colors as the graph lines: `--fg`, `--s2`, `--s3`): the title, the big number, the
+  unit (hp, lb-ft, whp) and the caption under it. Do not give the unit or caption their own muted color; `smoke.py`'s
+  `tile_colors` step compares all four in both themes.
 - **Factory numbers** are the first two Car & Conditions fields, `fhp` (Factory Horsepower, 292) and `ftq` (Factory
   Torque, 280): the 2016 Golf R's US figures. They are the only reference for the "+N hp vs stock X" captions under
   the Peak Crank Power and Torque tiles, and they change nothing but those captions. A blank or zero value drops the
