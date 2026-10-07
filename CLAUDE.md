@@ -121,6 +121,9 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
   with `say(M, ...parts)` (strings, and `[string]` for the accented parts) using DOM nodes, never `innerHTML`, because the
   place name in the text comes from the geocoder. Errors stay `--err`. The `#wx` block itself must not have a `max-width`: it used to, which capped those lines too, and the old
   check only measured the first hint. `smoke.py`'s `load_message` step measures the weather ones.
+- **No-pulls message**: when `render()` finds no pull it appends one red line (`<span id="nopull" class="bad">`, `--err`)
+  to `#msg`, built with DOM nodes. `render()` removes any earlier `#nopull` first, so the line neither piles up when a
+  setting is edited again nor stays after pulls are found; `smoke.py`'s `no_pulls_message` step checks that.
 - **Result tiles** (Peak Crank Power, Peak Crank Torque, Peak Wheel Power) take every piece of their text from one
   per-tile variable, `--c` (the same colors as the graph lines: `--fg`, `--s2`, `--s3`): the title, the big number, the
   unit (hp, lb-ft, whp) and the caption under it. Do not give the unit or caption their own muted color; `smoke.py`'s

@@ -112,6 +112,7 @@ summary:focus-visible{outline:1px dashed var(--hi);outline-offset:3px}
 .msg:empty{display:none}
 .msg::before{content:"> ";color:var(--dim)}
 .msg .ap{color:var(--s2)}
+.msg .bad{color:var(--err)}
 .msg.err,.msg.err::before{color:var(--err)}
 .msg.err::before{content:"! "}
 .fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:10px 16px}
@@ -384,12 +385,13 @@ function replay(){
   grow=0;gAF=requestAnimationFrame(step)}
 
 function render(){
-  const S=$('#pull');$('#spd').disabled=!(D&&!D.gpsOnly&&gi);
+  const S=$('#pull'),old=$('#nopull');if(old)old.remove();$('#spd').disabled=!(D&&!D.gpsOnly&&gi);
   $('#cond').textContent=pulls.length?cond+(pulls[sel]&&isFinite(pulls[sel].rm)&&!D.gpsOnly?` · this pull is about ${pulls[sel].rm.toFixed(1)} RPM per MPH`:''):'';
   S.innerHTML=pulls.map((q,i)=>`<option value="${i}">Pull ${i+1}: ${q.lo.toLocaleString()}–${q.hi.toLocaleString()} ${AX.u}, ${q.dur.toFixed(1)} s</option>`).join('')||'<option>No pull selected</option>';
   S.disabled=!pulls.length;hov=-1;if(fresh)shown={};
   if(!pulls.length){cur=null;['s1','s2','s3'].forEach(i=>{roll(i,NaN);$('#'+i+' em').textContent=''});
-    if(D)$('#msg').innerHTML+=' <br><b>No full-throttle pulls found.</b> Log a clean pull with the pedal fully down, or lower the pedal threshold.';
+    if(D){const e=document.createElement('span'),b=document.createElement('b');e.id='nopull';e.className='bad';b.textContent='No full-throttle pulls found.';
+      e.append(document.createElement('br'),b,' Log a clean pull with the pedal fully down, or lower the throttle position (%).');$('#msg').append(e)}
     $('#ro').textContent='';fresh=false;draw();return}
   S.value=sel;const pp=P();cur=build(pulls[sel],pp);
   const pk=f=>cur.reduce((b,q)=>q[f]>b[f]||!isFinite(b[f])?q:b),h=pk('hp'),t=pk('tq'),w=pk('hw'),hasT=isFinite(t.tq);

@@ -127,6 +127,31 @@ async def correction_select(browser):
     await ctx.close()
 
 
+async def no_pulls_message(browser):
+    """When no pull is found the page says so in red, once; the line goes away when pulls come back and does not pile up."""
+    ctx, pg, errs = await open_page(browser, expand=True)
+    await pg.click("#demo")
+    await pg.wait_for_timeout(800)
+    state = lambda: pg.evaluate("""({n: document.querySelectorAll('#nopull').length,
+        red: document.querySelector('#nopull') && getComputedStyle(document.querySelector('#nopull')).color,
+        err: (() => { const t = document.createElement('i'); t.style.color = getComputedStyle(document.documentElement).getPropertyValue('--err'); document.body.append(t); const c = getComputedStyle(t).color; t.remove(); return c })(),
+        plain: getComputedStyle(document.getElementById('msg')).color})""")
+    check("with pulls found there is no no-pulls line", (await state())["n"] == 0)
+    await pg.fill("#ped", "101")             # nothing reaches a 101% pedal
+    await pg.wait_for_timeout(500)
+    st = await state()
+    check("no pulls found: the message shows once, in the error red (not the plain message color)",
+          st["n"] == 1 and st["red"] == st["err"] and st["red"] != st["plain"], str(st))
+    await pg.fill("#ped", "102")
+    await pg.wait_for_timeout(500)
+    check("changing the setting again does not repeat the message", (await state())["n"] == 1, str(await state()))
+    await pg.fill("#ped", "90")
+    await pg.wait_for_timeout(500)
+    check("the message goes away when pulls are found again", (await state())["n"] == 0 and "Pull 1" in await pg.inner_text("#pull"))
+    check("no page errors", not errs, "; ".join(errs))
+    await ctx.close()
+
+
 async def themes(browser):
     ctx, pg, errs = await open_page(browser)
     ph = lambda: pg.evaluate("document.documentElement.dataset.phosphor||''")
@@ -344,7 +369,7 @@ async def realtime(browser):
 async def main():
     async with async_playwright() as pw:
         browser = await pw.chromium.launch()
-        for step in (layout, collapsible, correction_select, themes, boot, font, load_message, weather_row, tile_colors, unit_case, link_preview, realtime):
+        for step in (layout, collapsible, correction_select, no_pulls_message, themes, boot, font, load_message, weather_row, tile_colors, unit_case, link_preview, realtime):
             await step(browser)
         await browser.close()
     bad = results.count(False)
