@@ -208,8 +208,8 @@ input[type=range]::-moz-range-thumb{width:12px;height:20px;background:var(--fg);
   <fieldset class="load"><legend>Load Data</legend>
    <p class="hint">Use either one, or both together for the best accuracy.</p>
    <div class="drops">
-   <label class="drop" id="drop"><input type="file" id="file" accept=".csv,.txt,text/csv" class="vh"><b>Cobb Accessport log</b><span>drop a .csv or click to browse</span></label>
-   <label class="drop" id="gdrop"><input type="file" id="gps" accept=".gpx,.csv,.txt" class="vh"><b>RaceBox, Dragy or GPX</b><span>drop a track or click to browse</span></label>
+   <label class="drop" id="drop"><input type="file" id="file" accept=".csv,.txt,text/csv" class="vh"><b>Cobb Accessport log</b><span>Drop a .csv file or click to browse</span></label>
+   <label class="drop" id="gdrop"><input type="file" id="gps" accept=".gpx,.csv,.txt" class="vh"><b>RaceBox, Dragy or GPX</b><span>Drop a GPS file or click to browse</span></label>
    </div>
    <button class="btn" id="demo" type="button">Try a demo log</button>
    <div class="msg" id="msg"></div><div class="msg" id="gmsg"></div>
@@ -233,12 +233,12 @@ input[type=range]::-moz-range-thumb{width:12px;height:20px;background:var(--fg);
  <section class="main">
   <div class="stats">
    <fieldset class="stat" id="s1" style="--c:var(--fg)"><legend>Peak Crank Power</legend><b><span class="n">–</span><i>HP</i></b><em></em></fieldset>
-   <fieldset class="stat" id="s2" style="--c:var(--s2)"><legend>Peak Crank Torque</legend><b><span class="n">–</span><i>lb-ft</i></b><em></em></fieldset>
+   <fieldset class="stat" id="s2" style="--c:var(--s2)"><legend>Peak Crank Torque</legend><b><span class="n">–</span><i>LB-FT</i></b><em></em></fieldset>
    <fieldset class="stat" id="s3" style="--c:var(--s3)"><legend>Peak Wheel Power</legend><b><span class="n">–</span><i>WHP</i></b><em></em></fieldset>
   </div>
   <fieldset class="run"><legend>Dyno Run</legend>
    <div class="top"><select id="pull" aria-label="Select pull"></select><button class="btn" id="replay" type="button">Replay</button>
-    <div class="lg"><span style="--c:var(--fg)">crank HP</span><span style="--c:var(--s2)">crank torque (lb-ft)</span><span class="d" style="--c:var(--s3)">wheel HP</span></div></div>
+    <div class="lg"><span style="--c:var(--fg)">Crank HP</span><span style="--c:var(--s2)">Crank Torque (ft-lb)</span><span class="d" style="--c:var(--s3)">Wheel HP</span></div></div>
    <div class="cvw"><canvas id="cv" role="img" aria-label="Dyno graph of horsepower and torque"></canvas></div><div id="ro">hover or touch the graph for exact values</div><div id="cond"></div>
   </fieldset>
  </section>
@@ -260,14 +260,14 @@ input[type=range]::-moz-range-thumb{width:12px;height:20px;background:var(--fg);
    </fieldset>
   </div>
 </div>
-<footer class="foot">This site was built with AI and AI makes mistakes because it's only human.</footer>
+<footer class="foot">This site was built with help from Claude and Claude makes mistakes because he's only human.</footer>
 <div class="ps1" aria-hidden="true">trbo@losr:~$ <i></i></div>
 <div class="crt" aria-hidden="true"></div>
 </main>
 <script>
 
 const $=s=>document.querySelector(s),G=9.80665,LB=.45359237,MPH=.44704,HP=745.69987,LBFT=.737562;
-const FIELDS=[['fhp','Factory Horsepower (HP)',292,1],['ftq','Factory Torque (lb-ft)',280,1],['curb','Curb Weight (lb)',3300,10],['load','Driver+Fuel (lb)',200,10],['cd','Drag Coefficient',.32,.01],['area','Frontal Area (m²)',2.2,.05],['crr','Rolling Resistance',.012,.001],['loss','Drivetrain Loss (%)',20,.5],['temp','Air Temp (°F)',70,1],['da','Density Altitude (ft)',0,100],['humid','Humidity (%)',25,5],['ped','Gas Pedal >= (%)',90,1],['wind','Wind Speed (MPH)',0,1],['wdir','Wind From (° Compass)',0,10],['head','Car Heading (°)',0,1],['grade','Road Grade (%)',0,.1],['rpmpm','RPM per MPH (GPS Only)',0,.1]];
+const FIELDS=[['fhp','Factory Horsepower (HP)',292,1],['ftq','Factory Torque (lb-ft)',280,1],['curb','Curb Weight (lb)',3300,10],['load','Driver+Fuel (lb)',200,10],['cd','Drag Coefficient',.32,.01],['area','Frontal Area (m²)',2.2,.05],['crr','Rolling Resistance',.012,.001],['loss','Drivetrain Loss (%)',20,.5],['temp','Air Temp (°F)',70,1],['da','Density Altitude (ft)',0,100],['humid','Humidity (%)',25,5],['ped','Throttle Position >= (%)',90,1],['wind','Wind Speed (MPH)',0,1],['wdir','Wind From (° Compass)',0,10],['head','Car Heading (°)',0,1],['grade','Road Grade (%)',0,.1],['rpmpm','RPM per MPH (GPS Only)',0,.1]];
 $('#fields').innerHTML=FIELDS.map(([id,l,v,st])=>`<label class="f">${l}<input type="number" id="${id}" value="${v}" step="${st}"></label>`).join('');
 /* Power correction factor to a standard day. T: air temp (K), pd: dry-air pressure (Pa), pt: total pressure (Pa).
    J1349 and ISO 1585 reference 25 C and 99 kPa dry air; J607 (STD) 60 F, 101.325 kPa dry air; DIN 70020 20 C, 1013 mbar total. */
@@ -397,7 +397,7 @@ function render(){
   const dl=(x,ref,u)=>ref>0?` · ${x>=ref?'+':'−'}${Math.abs(Math.round(x-ref))} ${u} vs stock ${ref}`:'';
   roll('s1',h.hp);roll('s2',hasT?t.tq:NaN);roll('s3',w.hw);
   $('#s1 em').textContent=`at ${at(h)}${dl(h.hp,pp.fhp,'HP')}`;
-  $('#s2 em').textContent=hasT?`at ${at(t)}${dl(t.tq,pp.ftq,'lb-ft')}`:'Enter RPM per MPH (under Car & Conditions) to get torque';
+  $('#s2 em').textContent=hasT?`at ${at(t)}${dl(t.tq,pp.ftq,'LB-FT')}`:'Enter RPM per MPH (under Car & Conditions) to get torque';
   $('#s3 em').textContent=`at ${at(w)} · after ${pp.loss}% loss`;
   $('#ro').textContent=HINT;
   if(fresh){fresh=false;replay()}else draw()}
@@ -407,7 +407,7 @@ function draw(){
   c.width=W*d;c.height=H*d;x.setTransform(d,0,0,d,0,0);
   const cs=getComputedStyle(document.documentElement),C=n=>cs.getPropertyValue(n).trim(),RGB=C('--rgb');
   x.fillStyle=C('--screen');x.fillRect(0,0,W,H);x.font='19px '+F;
-  if(!cur){x.fillStyle=C('--mut');x.textAlign='center';x.fillText('no data loaded.',W/2,H/2-6);x.fillText('drop a log or track to start.',W/2,H/2+16);return}
+  if(!cur){x.fillStyle=C('--mut');x.textAlign='center';x.fillText('No data loaded.',W/2,H/2-6);x.fillText('Drop a log or GPS file to start.',W/2,H/2+16);return}
   const l=50,r=46,t=30,b=30,rs=cur.map(q=>q.r),mn=Math.min(...rs),mxr=Math.max(...rs),x0=Math.floor(mn/AX.tick)*AX.tick,x1=Math.max(x0+AX.tick,Math.ceil(mxr/AX.tick)*AX.tick);
   const ym=Math.max(...cur.map(q=>Math.max(q.hp,isFinite(q.tq)?q.tq:0))),st=ym>250?100:50,y1=Math.ceil(ym*1.05/st)*st;
   const X=v=>l+(v-x0)/(x1-x0)*(W-l-r),Y=v=>t+(1-v/y1)*(H-t-b),xs=W<520?AX.tick*2:AX.tick;
