@@ -4,8 +4,9 @@
   DYNO_LOG=/path/to/accessport.csv python tools/functional.py   # also exercises a real Accessport log
 
 The reference numbers asserted for the owner's log (GolfR_NewEngine_4thGearPull_10_01_2026.csv, not stored
-in this repo) are: 396 hp / 363 lb-ft / 312 whp at 4138 ft density altitude with Power Correction on Uncorrected, which
-is the default, and 430 hp / 394 lb-ft / 339 whp with SAE J1349 chosen. The other standards are checked against factors
+in this repo) are: 390 hp / 360 lb-ft / 307 whp at 4138 ft density altitude with Power Correction on Uncorrected, which
+is the default, and 423 hp / 391 lb-ft / 334 whp with SAE J1349 chosen (they were 396 / 363 / 312 and 430 / 394 / 339 before
+whole-MPH speed was rebuilt from RPM; see stepped_speed). The other standards are checked against factors
 worked out here from each standard's published formula.
 If the physics is changed on purpose, update the numbers below. Other logs are only printed, not asserted.
 """
@@ -163,7 +164,7 @@ async def with_log(browser):
     check("log loads and produces numbers", all(n.isdigit() for n in plain), str(plain))
     check("Power Correction is Uncorrected by default", await pg.input_value("#corr") == "none")
     if os.path.basename(LOG) == OWNER_LOG:
-        check("owner's log: 396 hp / 363 lb-ft / 312 whp Uncorrected (the default)", plain == ["396", "363", "312"], str(plain))
+        check("owner's log: 390 hp / 360 lb-ft / 307 whp Uncorrected (the default)", plain == ["390", "360", "307"], str(plain))
         check("owner's log: density altitude 4138 ft", da_auto.replace(",", "") == "4138", da_auto)
 
     # Uncorrected to start; choosing SAE J1349 raises the numbers to the corrected ones, and Uncorrected restores them
@@ -172,7 +173,7 @@ async def with_log(browser):
     corrected = await nums(pg)
     check("choosing SAE J1349 raises horsepower", int(corrected[0]) > int(plain[0]), f"{plain[0]} -> {corrected[0]}")
     if os.path.basename(LOG) == OWNER_LOG:
-        check("owner's log: 430 hp / 394 lb-ft / 339 whp with SAE J1349", corrected == ["430", "394", "339"], str(corrected))
+        check("owner's log: 423 hp / 391 lb-ft / 334 whp with SAE J1349", corrected == ["423", "391", "334"], str(corrected))
     await pg.select_option("#corr", "none")
     await pg.wait_for_timeout(COUNTUP_MS)
     check("choosing Uncorrected again restores the uncorrected numbers", await nums(pg) == plain)
@@ -387,12 +388,75 @@ async def weather_pressure_temp(browser):
     await ctx.close()
 
 
+def synth_pull(speed_of, rpm_wobble=0.0, step=None):
+    """A smooth full-throttle pull as Accessport CSV text: RPM 2000 up to about 6100 over 7 s at ~45 Hz.
+
+    speed_of(t, rpm) gives the true speed in MPH; step rounds what is logged to that resolution (1 = whole MPH).
+    rpm_wobble adds a 3 Hz ripple (RPM) to the RPM column only, which speed does not have.
+    """
+    rows = ["Time (sec),Engine Speed (RPM),Vehicle Speed (mph),Accel Pedal Position (%)"]
+    for i in range(0, 316):
+        t = i * 0.0222
+        rpm = 2000 + 800 * t - 30 * t * t
+        v = speed_of(t, rpm)
+        if step:
+            v = round(v / step) * step
+        rows.append(f"{t:.3f},{rpm + rpm_wobble * math.sin(2 * math.pi * 3 * t):.0f},{v:.3f},100")
+    return "\n".join(rows)
+
+
+async def pull_curve(browser, text):
+    """[(rpm, wheel power)] of the plotted curve for a log given as text, uncorrected, no drag or rolling resistance."""
+    ctx, pg, errs = await open_page(browser, expand=True)
+    await pg.set_input_files("#file", {"name": "synthetic.csv", "mimeType": "text/csv", "buffer": text.encode()})
+    await pg.wait_for_timeout(800)
+    curve = await pg.evaluate("""() => {for (const [k, v] of Object.entries({cd: 0, crr: 0, grade: 0, wind: 0, loss: 0}))
+        document.getElementById(k).value = v; analyze(false); return cur ? cur.map(q => [q.r, q.hw]) : null}""")
+    await ctx.close()
+    return curve, errs
+
+
+def curve_gap(a, b, lo=2800, hi=5400):
+    """RMS relative difference (percent) of two [(rpm, y)] curves over the same RPM range."""
+    def at(c, x):
+        for (x0, y0), (x1, y1) in zip(c, c[1:]):
+            if x0 <= x <= x1:
+                return y0 + (y1 - y0) * (x - x0) / (x1 - x0) if x1 > x0 else y0
+        return None
+    d = [(at(b, x) / at(a, x) - 1) for x in range(lo, hi + 1, 100) if at(a, x) and at(b, x)]
+    return 100 * math.sqrt(sum(e * e for e in d) / len(d)), len(d)
+
+
+async def stepped_speed(browser):
+    """A Cobb log's speed moves in whole-MPH steps; the page rebuilds it from RPM inside the pull (see steady() in analyze()).
+
+    Checked against the same pull logged with exact speed, which is left alone. Needs no real log.
+    """
+    lock = lambda t, rpm: rpm / 59.0
+    exact, errs = await pull_curve(browser, synth_pull(lock))
+    stepped, errs2 = await pull_curve(browser, synth_pull(lock, step=1))
+    check("stepped speed: the synthetic pull is found", bool(exact) and bool(stepped) and not errs and not errs2, "; ".join(errs + errs2))
+    gap, n = curve_gap(exact, stepped)
+    check("whole-MPH speed gives the same curve as exact speed (0.3% RMS or better; without the rebuild it is 0.7%)", gap < 0.3, f"{gap:.2f}% over {n} points")
+    # a ratio that drifts 3% over the pull (clutch slip) must still be followed, not flattened
+    slip = lambda t, rpm: rpm / (59.0 + 0.4 * t)
+    exact_s, _ = await pull_curve(browser, synth_pull(slip))
+    stepped_s, _ = await pull_curve(browser, synth_pull(slip, step=1))
+    gap, n = curve_gap(exact_s, stepped_s)
+    check("a drifting RPM-per-MPH ratio (slip) is followed with whole-MPH speed (1.5% RMS or better)", gap < 1.5, f"{gap:.2f}% over {n} points")
+    # speed that is not stepped is used as logged: a ripple that only the RPM column has must not reach the power
+    fine, _ = await pull_curve(browser, synth_pull(lock, step=0.01, rpm_wobble=150))
+    gap, n = curve_gap(exact, fine)
+    check("speed with fine resolution is used as logged (an RPM-only ripple does not reach the power)", gap < 1.0, f"{gap:.2f}% over {n} points")
+
+
 async def main():
     async with async_playwright() as pw:
         browser = await pw.chromium.launch()
         await correction_formulas(browser)
         await gps_only(browser)
         await factory_fields(browser)
+        await stepped_speed(browser)
         await weather_pressure_temp(browser)
         if LOG:
             await with_log(browser)

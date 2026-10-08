@@ -190,6 +190,29 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
   No validity range is enforced (ISO 1585 only allows factors of about 0.93 to 1.07); a very thin or hot day just gets a
   bigger factor. The option labels are the only place the standards' names live: `analyze()` reads the selected
   option's text for the conditions line, and `functional.py` has the same names in `STANDARDS`.
+- **Stepped speed is rebuilt from RPM.** A Cobb log's `Vehicle Speed (mph)` moves in whole-MPH steps (about 3 samples per
+  step in a hard pull), and that staircase put noise into the acceleration and made the peak read 1-4% high and late. In
+  `analyze()`, `coarse` is true when the log's own speed (after the Speed Source choice) has a median gap between its
+  distinct values of 0.2 m/s (0.45 MPH) or more, and it is never true for GPS only. Then, inside each pull, `steady(a,b)`
+  returns the speed rebuilt as `rpm / ratio`, where the ratio is `sum(rpm*v) / sum(v*v)` in a +-1.5 s window clipped to the
+  pull, so slow clutch slip is followed and the scale of the logged speed (including a GPS calibration, `spd=='cal'`) is
+  kept. Only the second regression (the one that produces the power points) uses it: pull detection and the gear-change
+  split still use the logged speed. `ls(i,a,b,y)` takes the array to fit and defaults to `v`. GPS speed (Speed Source = GPS)
+  and logs with finer speed are not stepped and are used as logged. `functional.py`'s `stepped_speed` checks this on a
+  generated pull, with no real log: whole-MPH speed must match the same pull with exact speed to 0.3% RMS (0.7% without the
+  rebuild), a ratio that drifts 3% must still be followed, and a fine-resolution log with an RPM-only ripple must ignore the ripple.
+  Why: five Dynojet pulls of the owner's hybrid-turbo Golf R (WinPEP, STD, Smoothing 5, one Cobb log per pull) were used to
+  calibrate the page. A dyno measures roller inertia, which the page cannot know, so one effective mass (about 2,350 lb,
+  specific to that dyno) is fitted and then only the shape and the run-to-run consistency mean anything. With it, before the
+  rebuild the peaks were within 1.6% RMS (worst 2.6%) of the dyno and peak power and peak torque disagreed by 1.3% between
+  them; after it, 0.7% RMS (worst 1.1%), both agreeing to 0.2%, and the curve error against the one run read off a photo
+  fell from 2.5% to 1.7% RMS. Findings that need no change: the logged speed is in step with RPM (offset 0.01 s, RPM per MPH
+  is constant to 0.1% in a locked gear), Smoothing 7 is the best or tied of 1-10 against the dyno curves, and the J607 (STD)
+  factor matches the dyno's. Findings that stay open: the dyno's own smoothing seems to pull its power down in the last
+  ~0.3 s of a run (the ECU shows full throttle and flat torque to 7,170 RPM while WinPEP peaks near 6,750), so the page's
+  peak-power RPM reads about 150 RPM later than the dyno's; the 3,500-3,750 RPM spool knee reads 5% low from the regression
+  window. Drivetrain loss, drag, rolling resistance and the mass defaults are NOT tested by a dyno and still need road logs of
+  the same car and tune on a known weight, plus a coast-down. The dyno logs and photos are not in the repo and must not be.
 - **Link preview** (what chat apps and social sites show when the URL is pasted): `og.png` is the stacked VIRTUAL DYNO
   banner on the page's own screen look, in the default (color) theme, at 1200x630. `og:image` and `twitter:image` are
   absolute URLs on the CNAME domain, `twitter:card` is `summary_large_image` (the old `summary` is the small square
@@ -220,8 +243,9 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
   message change means reviewing the diff and running it with `--update`.
 - Power Correction is Uncorrected by default (the `#corr` select has `none` selected in the markup), so the numbers the
   page shows at load are the uncorrected ones. Reference result for the owner's log
-  (`GolfR_NewEngine_4thGearPull_10_01_2026.csv`): 396 hp, 363 lb-ft, 312 whp at 4138 ft density altitude as loaded;
-  430 hp, 394 lb-ft, 339 whp with SAE J1349 chosen. On the bundled synthetic GPS track with 67 RPM per mph,
+  (`GolfR_NewEngine_4thGearPull_10_01_2026.csv`): 390 hp, 360 lb-ft, 307 whp at 4138 ft density altitude as loaded;
+  423 hp, 391 lb-ft, 334 whp with SAE J1349 chosen (396 / 363 / 312 and 430 / 394 / 339 before stepped speed was rebuilt
+  from RPM). On the bundled synthetic GPS track with 67 RPM per mph,
   torque is 330 as loaded (351 with SAE J1349). `functional.py` checks every other standard against a factor it works
   out itself from the published formula (`expected_cf`), and `correction_formulas` checks `corrFactor` directly (1.000 at
   each reference condition). If the physics or a default changes on purpose, update `tools/functional.py`,

@@ -1,11 +1,11 @@
 no data: weather block visible = False
 LOG ONLY: wx True | place form True | gps block False | manual paste False | requests 0
-baseline ['396', '363', '312']
+baseline ['390', '360', '307']
 1 NAME  -> Filled for 11:00 local time at Denver, Colorado, United States: 31% humidity. Wind was 6.0 MPH from 270° at that hour but was not applied, because the car's heading is unknown. Enter it under Car & Conditions, then fetch again. Open-Meteo has 61 °F for that hour. The log's ambient sensor read 77 °F, and that was kept.
    humid 31 wind 0 wdir 0
    requests: ['geocoding-api.open-meteo.com/v1/search?name=Denver&count=1&language=en&format=json', 'api.open-meteo.com/v1/forecast?latitude=39.74&longitude=-104.98&start_date=2026-10-01&end_date=2026-10-02&wind_speed_unit=mph&temperature_unit=fahrenh']
 2 HEADING SET -> Filled for 11:00 local time at Denver, Colorado, United States: 31% humidity, wind 6.0 MPH from 270°. This is 10 m wind, so wind at the road is often lower. Open-Meteo has 61 °F for that hour. The log's ambient sensor read 77 °F, and that was kept.
-   humid 31 wind 6.0 wdir 270 | nums ['387', '358', '305']
+   humid 31 wind 6.0 wdir 270 | nums ['381', '356', '301']
 3 11:30 -> Filled for 11:30 local time at Denver, Colorado, United States: 32% humidity, wind 6.8 MPH from 287°. This is 10 m wind,
 4 COORDS -> Filled for 11:00 local time at 40.01, -105.27: 31% humidity, wind 6.0 MPH from 270°. This is 10 m wi | geocode calls: 0 | forecast url: api.open-meteo.com/v1/forecast?latitude=40.01&longitude=-105.27&start_date=2026-10-01&end_date=2026-10-02&wind_speed_unit=mph&temperature_un
 5 OLD DATE -> endpoint: archive-api.open-meteo.com/v1/archive | Filled for 11:00 local time at Denver, Colorado, United States: 31% humidity, wi

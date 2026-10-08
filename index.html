@@ -257,7 +257,7 @@ input[type=range]::-moz-range-thumb{width:12px;height:20px;background:var(--fg);
   <div class="notes">
    <fieldset class="how shut"><legend><button type="button" class="tg" id="howtg" aria-expanded="false" aria-controls="howbody">How It Works</button></legend>
     <div id="howbody" hidden>
-     <p>Speed is turned into acceleration, then force = mass × acceleration + aerodynamic drag + rolling resistance + hills. Wheel Power is Force × Speed, and Crank Power adds drivetrain loss and the energy spent spinning up the engine. Density Altitude is filled in from your log's pressure and temperature. With no pressure in the log it uses GPS altitude, and fetching the weather adds that hour's sea-level pressure. That sets the air density, but you can overwrite it. With GPS only there is no RPM, so power is plotted against Speed. Enter RPM per MPH for the gear you used to get RPM and torque.</p>
+     <p>Speed is turned into acceleration (a log whose speed moves in whole-MPH steps has it rebuilt from RPM first, which removes the staircase noise), then force = mass × acceleration + aerodynamic drag + rolling resistance + hills. Wheel Power is Force × Speed, and Crank Power adds drivetrain loss and the energy spent spinning up the engine. Density Altitude is filled in from your log's pressure and temperature. With no pressure in the log it uses GPS altitude, and fetching the weather adds that hour's sea-level pressure. That sets the air density, but you can overwrite it. With GPS only there is no RPM, so power is plotted against Speed. Enter RPM per MPH for the gear you used to get RPM and torque.</p>
     </div>
    </fieldset>
   </div>
@@ -318,7 +318,7 @@ function analyze(reset){
   const sp=D.gpsOnly&&!(p.rpmpm>0),X=sp?v.map(x=>x/MPH):rpm;AX=sp?{u:'MPH',bin:2,tick:10,span:15}:{u:'RPM',bin:100,tick:500,span:1000};
   const d=[];for(let i=1;i<n;i++)d.push(t[i]-t[i-1]);d.sort((a,b)=>a-b);const dt=d[d.length>>1]||.1;
   const hw=Math.max(2,Math.round((.25+.12*p.smooth)/dt/2));
-  const ls=(i,a,b)=>{let sx=0,sy=0,sxx=0,sxy=0,m=b-a+1;for(let j=a;j<=b;j++){const x=t[j]-t[i];sx+=x;sy+=v[j];sxx+=x*x;sxy+=x*v[j]}
+  const ls=(i,a,b,y=v)=>{let sx=0,sy=0,sxx=0,sxy=0,m=b-a+1;for(let j=a;j<=b;j++){const x=t[j]-t[i];sx+=x;sy+=y[j];sxx+=x*x;sxy+=x*y[j]}
     const den=m*sxx-sx*sx,s=den>1e-12?(m*sxy-sx*sy)/den:0;return[s,(sy-s*sx)/m]};
   const g=[],vs=[];for(let i=0;i<n;i++){const r=ls(i,Math.max(0,i-hw),Math.min(n-1,i+hw));g.push(r[0]);vs.push(r[1])}
   const ok=i=>(sp||rpm[i]>=1800)&&vs[i]>3&&g[i]>.3&&(!ped||ped[i]==null||ped[i]>=p.ped);
@@ -327,6 +327,17 @@ function analyze(reset){
   for(let i=0;i<=n;i++){
     if(i<n&&ok(i)){if(s<0)s=i;else if(Math.abs(rpm[i]/vs[i]/(rpm[i-1]/vs[i-1])-1)>.08){end(i-1);s=i}}
     else end(i-1)}
+  // A Cobb log's speed moves in whole-MPH steps (about 3 samples per step in a hard pull), and that staircase adds noise to the
+  // acceleration and makes the peak read high and late. Checked against five Dynojet pulls of one car: with the drivetrain locked,
+  // speed is RPM over a ratio, and RPM is finer. So inside a pull, when the logged speed is that coarse, speed is rebuilt as RPM over
+  // a ratio that is re-fitted in a +-1.5 s window, so it still follows slip. The ratio is fitted to the logged speed, so the scale
+  // (including a GPS calibration) is kept. GPS speed and finer logs are not stepped and are left alone.
+  const steps=[...new Set(v)].sort((x,y)=>x-y).map((x,i,u)=>x-u[i-1]).slice(1).sort((x,y)=>x-y),
+    coarse=!D.gpsOnly&&steps.length>20&&steps[steps.length>>1]>=.2;   // .2 m/s is 0.45 MPH
+  const steady=(a,b)=>{if(!coarse)return v;const y=v.slice(),W=Math.round(1.5/dt);
+    for(let j=a;j<=b;j++){let nu=0,de=0;for(let k=Math.max(a,j-W);k<=Math.min(b,j+W);k++){nu+=rpm[k]*v[k];de+=v[k]*v[k]}
+      if(nu>0&&de>0)y[j]=rpm[j]/(nu/de)}
+    return y};
   const Tc=(p.temp-32)*5/9,T=Tc+273.15,rho=1.225*Math.pow(1-2.25577e-5*p.da*.3048,4.25588);
   const pv=Math.min(p.humid,100)/100*610.78*Math.pow(10,7.5*Tc/(Tc+237.3)),pd=Math.max(5e4,(rho-pv/(461.495*T))*287.058*T);
   const hwd=p.wind*MPH*Math.cos((p.wdir-p.head)*Math.PI/180),gr=Math.atan(p.grade/100);
@@ -335,9 +346,9 @@ function analyze(reset){
   cond=`${srcTxt} · Air ${rho.toFixed(3)} kg/m³ (density altitude ${Math.round(p.da).toLocaleString()} ft, ${Math.round(p.temp)} °F, ${p.humid}% humidity) · ${hwd>=0?'headwind':'tailwind'} ${Math.abs(hwd/MPH).toFixed(1)} MPH · grade ${p.grade}% · ${p.corr=='none'?'uncorrected':`${cn} factor ${kc.toFixed(3)} applied`}`;
   const m=(p.curb+p.load)*LB,mw=36,Ie=.2,lf=p.loss/100;
   pulls=raw.map(([a,b])=>{const pts=[];
-    const tr=Math.round(hw/3);
+    const tr=Math.round(hw/3),Y=steady(a,b);
     for(let i=a+tr;i<=b-tr;i++){
-      const[ac,vv]=ls(i,Math.max(a,i-hw),Math.min(b,i+hw));if(ac<=0||vv<=0)continue;
+      const[ac,vv]=ls(i,Math.max(a,i-hw),Math.min(b,i+hw),Y);if(ac<=0||vv<=0)continue;
       const w=rpm[i]*Math.PI/30,kr=w/vv,ei=isFinite(kr)?Ie*kr*kr*ac*vv:0;
       const va=vv+hwd,Pw=((m+mw)*ac+.5*rho*p.cd*p.area*va*Math.abs(va)+p.crr*m*G+m*G*Math.sin(gr))*vv;
       const Pc=Pw/(1-lf)+ei;
