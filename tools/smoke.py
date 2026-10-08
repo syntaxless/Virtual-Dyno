@@ -6,15 +6,22 @@ Checks layout at phone/tablet/desktop widths (including which banner variant sho
 Car & Conditions and How It Works sections, the Power Correction dropdown, the one-line place-date-time weather row, tile text colors, units in capitals, theme switching/persistence,
 the boot-in animation gate, and the self-hosted font (loads from the site, nothing third-party is
 requested, and the page degrades to a plain heading when the font file cannot load), and real-time Replay
-(takes as long as the pull did, live readout, click to skip), and the Print button (a JPEG of the same size on any screen).
+(takes as long as the pull did, live readout, click to skip), and the Print button (a JPEG of the same size on any screen), and the installable web app (manifest, icons, theme color, and a service
+worker that, served from a local http server, keeps the page working offline and still shows a new deploy at once).
 """
 import asyncio
+import functools
+import http.server
+import json
 import pathlib
+import re
 import sys
+import threading
+import time
 
 from playwright.async_api import async_playwright
 
-from common import GPX, REPO, open_page
+from common import GPX, REPO, init_script, open_page
 
 WIDTHS = (320, 375, 480, 600, 768, 1024, 1100, 1200)
 BANNER = {320: "stack", 375: "stack", 480: "stack", 600: "row", 768: "row", 1024: "row", 1100: "row", 1200: "row"}   # phones: stacked; wider: one row
@@ -479,10 +486,121 @@ async def print_button(browser):
     await ctx.close()
 
 
+class Site:
+    """The repo served over http on localhost (service workers need http, not file://). `late` maps a path to the body to send
+    instead of the file, and `delay` maps a path to seconds to wait first: that is how a new deploy and a slow network are staged."""
+    def __init__(self):
+        self.late, self.delay = {}, {}
+        site = self
+        class H(http.server.SimpleHTTPRequestHandler):
+            def log_message(self, *a): pass
+            def do_GET(self):
+                path = self.path.split("?")[0]
+                time.sleep(site.delay.get(path, 0))
+                if path in site.late:
+                    body = site.late[path].encode()
+                    self.send_response(200); self.send_header("Content-Type", "text/html; charset=utf-8")
+                    self.send_header("Content-Length", str(len(body))); self.end_headers(); self.wfile.write(body)
+                else:
+                    super().do_GET()
+        class Quiet(http.server.ThreadingHTTPServer):
+            def handle_error(self, request, client_address): pass     # the browser drops the stalled request on purpose: no broken-pipe noise
+        self.srv = Quiet(("127.0.0.1", 0), functools.partial(H, directory=str(REPO)))
+        self.url = f"http://127.0.0.1:{self.srv.server_port}/"
+        threading.Thread(target=self.srv.serve_forever, daemon=True).start()
+    def close(self):
+        self.srv.shutdown(); self.srv.server_close()
+
+
+async def web_app(browser):
+    """Installable and offline: manifest, icons, theme color, and the service worker (sw.js), on a local http server."""
+    site = Site()
+    ctx = await browser.new_context(viewport={"width": 1200, "height": 900}, reduced_motion="reduce")
+    await ctx.add_init_script(init_script())
+    pg = await ctx.new_page()
+    errs, outside = [], []
+    pg.on("pageerror", lambda e: errs.append(str(e)))
+    pg.on("console", lambda m: errs.append(m.text) if m.type == "error" and "ERR_" not in m.text and "Failed to load" not in m.text else None)
+    pg.on("request", lambda r: outside.append(r.url) if not r.url.startswith(site.url) and not r.url.startswith("data:") and not r.url.startswith("blob:") else None)
+    await pg.goto(site.url)
+    registered = await pg.evaluate("Promise.race([navigator.serviceWorker.ready.then(() => 1), new Promise(r => setTimeout(() => r(0), 8000))])")
+    check("web app: the service worker registers and activates on http", registered == 1)
+    await pg.reload()                                       # now the worker controls the page
+    await pg.wait_for_timeout(500)
+
+    man_url = await pg.evaluate("document.querySelector('link[rel=manifest]') && document.querySelector('link[rel=manifest]').href")
+    man = json.loads(await pg.evaluate("u => fetch(u).then(r => r.text())", man_url)) if man_url else {}
+    icons = {(i["sizes"], i.get("purpose", "any")): i["src"] for i in man.get("icons", [])}
+    check("web app: the page links a manifest that can be fetched and parsed", bool(man), str(man_url))
+    check("web app: the manifest names the app, starts at the page, and opens it standalone",
+          bool(man.get("name")) and bool(man.get("short_name")) and len(man.get("short_name", "")) <= 12 and man.get("display") == "standalone"
+          and man.get("start_url") in (".", "./", "index.html") and man.get("scope") in (".", "./"), f"{ {k: man.get(k) for k in ('name', 'short_name', 'display', 'start_url', 'scope')} }")
+    check("web app: icons for 192 and 512 (any) and a 512 maskable are listed", {("192x192", "any"), ("512x512", "any"), ("512x512", "maskable")} <= set(icons), str(sorted(icons)))
+    probe = """async src => { const im = new Image(); im.src = src; await im.decode();
+        const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight; const x = c.getContext('2d'); x.drawImage(im, 0, 0);
+        return [im.naturalWidth, im.naturalHeight, x.getImageData(0, 0, 1, 1).data[3], x.getImageData(c.width >> 1, c.height >> 1, 1, 1).data[3]] }"""
+    ok_icons, detail = True, []
+    for (size, purpose), src in icons.items():
+        w, h, corner, middle = await pg.evaluate(probe, site.url + src)
+        want = int(size.split("x")[0])
+        good = (w, h) == (want, want) and middle == 255 and (corner == 0 if purpose == "any" else corner == 255)
+        ok_icons &= good; detail.append(f"{src} {w}x{h} corner alpha {corner}")
+    check("web app: each icon is a PNG of its stated size; the 'any' ones have clear corners and the maskable one is full-bleed", ok_icons and bool(icons), "; ".join(detail))
+    apple = await pg.evaluate("document.querySelector('link[rel=apple-touch-icon]') && document.querySelector('link[rel=apple-touch-icon]').href")
+    w, h, corner, _ = await pg.evaluate(probe, apple) if apple else (0, 0, 0, 0)
+    check("web app: the iPhone home-screen icon is 180x180 and has no transparency", (w, h) == (180, 180) and corner == 255, f"{apple} {w}x{h} corner alpha {corner}")
+    check("web app: a favicon is linked", bool(await pg.evaluate("document.querySelector('link[rel=icon]') && document.querySelector('link[rel=icon]').href")))
+    desk = await pg.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--desk').trim()")
+    tc = lambda: pg.evaluate("document.querySelector('meta[name=theme-color]').content")
+    check("web app: the theme color is the page's background, and the manifest agrees", await tc() == desk == man.get("theme_color") == man.get("background_color"), f"{await tc()} {desk}")
+    await pg.click("#phos button[data-p=green]")
+    desk_g = await pg.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--desk').trim()")
+    check("web app: the theme color follows the green theme and back", await tc() == desk_g != desk, f"{await tc()} vs {desk_g}")
+    await pg.click("#phos button[data-p=color]")
+    check("web app: back on the default theme the theme color is back", await tc() == desk)
+
+    controlled = await pg.evaluate("!!navigator.serviceWorker.controller")
+    cached = await pg.evaluate("caches.keys().then(async ks => { const c = await caches.open(ks[0]); return (await c.keys()).map(r => new URL(r.url).pathname) })")
+    need = ["/", "/index.html", "/manifest.webmanifest", "/fonts/vt323-latin-400-normal.woff2"] + ["/" + s for s in icons.values()] + ["/icons/apple-touch-icon.png"]
+    missing = [n for n in need if n not in cached]
+    check("web app: a service worker controls the page and has kept the page, font, manifest and icons", controlled and not missing, f"missing {missing}")
+    core = re.search(r"const CORE = \[(.*?)\];", (REPO / "sw.js").read_text(), re.S)
+    listed = re.findall(r"'([^']+)'", core.group(1)) if core else []
+    check("web app: every file the worker lists exists in the repo (a missing one would stop it installing)", bool(listed) and all((REPO / x).is_file() or x == "./" for x in listed), str([x for x in listed if x != "./" and not (REPO / x).is_file()]))
+
+    # a new deploy shows at once while online
+    html = (REPO / "index.html").read_text(encoding="utf-8")
+    site.late["/index.html"] = site.late["/"] = html.replace("</body>", "<!--deploy-2--></body>")
+    await pg.reload(); await pg.wait_for_timeout(300)
+    check("web app: online, a changed page is shown on the next load (network first)", "<!--deploy-2-->" in await pg.content())
+    # offline: the copy kept from the last visit opens, with its font and a working calculation
+    await ctx.set_offline(True)
+    await pg.reload(); await pg.wait_for_timeout(500)
+    title = await pg.title()
+    font_ok = await pg.evaluate("document.fonts.ready.then(() => document.fonts.check('20px VT323'))")
+    await pg.evaluate("demo()"); await pg.wait_for_timeout(600)
+    pulls = await pg.evaluate("cur ? cur.length : 0")
+    check("web app: offline, the page opens (the latest copy it kept), with its font", "Virtual Dyno" in title and font_ok and "<!--deploy-2-->" in await pg.content(), f"{title!r} font {font_ok}")
+    check("web app: offline, a log still analyzes", pulls > 5, f"{pulls} points")
+    await ctx.set_offline(False)
+    # a network that is up but too slow: the kept copy opens after the 4 s cutoff instead of hanging
+    site.late["/index.html"] = site.late["/"] = html.replace("</body>", "<!--deploy-3--></body>")
+    site.delay["/index.html"] = site.delay["/"] = 6
+    t0 = time.time()
+    await pg.reload(wait_until="commit")
+    await pg.wait_for_selector("#fields", timeout=9000)
+    took = time.time() - t0
+    check("web app: on a network that stalls, the kept copy opens after about 4 s", 3.5 <= took <= 5.5 and "<!--deploy-2-->" in await pg.content(), f"{took:.1f} s")
+    check("web app: nothing outside the site's own origin was requested", not outside, "; ".join(outside))
+    check("web app: no page errors", not errs, "; ".join(errs))
+    await ctx.close()
+    site.close()
+
+
 async def main():
     async with async_playwright() as pw:
         browser = await pw.chromium.launch()
-        steps = (layout, collapsible, correction_select, no_pulls_message, themes, boot, font, load_message, weather_row, tile_colors, unit_case, link_preview, realtime, print_button)
+        steps = (layout, collapsible, correction_select, no_pulls_message, themes, boot, font, load_message, weather_row, tile_colors, unit_case, link_preview, web_app, realtime, print_button)
         for step in steps:
             if len(sys.argv) < 2 or step.__name__ in sys.argv[1:]:    # `python tools/smoke.py print_button` runs just that step
                 await step(browser)
