@@ -6,7 +6,7 @@ Checks layout at phone/tablet/desktop widths (including which banner variant sho
 Car & Conditions and How It Works sections, the Power Correction dropdown, the one-line place-date-time weather row, tile text colors, units in capitals, theme switching/persistence,
 the boot-in animation gate, and the self-hosted font (loads from the site, nothing third-party is
 requested, and the page degrades to a plain heading when the font file cannot load), and real-time Replay
-(takes as long as the pull did, live readout, click to skip), and the Print button (a PNG of the same size on any screen).
+(takes as long as the pull did, live readout, click to skip), and the Print button (a JPEG of the same size on any screen).
 """
 import asyncio
 import pathlib
@@ -367,8 +367,8 @@ async def realtime(browser):
     await ctx.close()
 
 
-PNG_INK = """async b64 => {
-  const im = new Image(); im.src = 'data:image/png;base64,' + b64; await im.decode();
+IMG_INK = """async b64 => {
+  const im = new Image(); im.src = 'data:image/jpeg;base64,' + b64; await im.decode();
   const c = document.createElement('canvas'); c.width = im.width; c.height = im.height;
   const x = c.getContext('2d'); x.drawImage(im, 0, 0); const d = x.getImageData(0, 0, c.width, c.height).data;
   const bg = [d[0], d[1], d[2]]; let ink = 0;
@@ -379,11 +379,32 @@ PNG_INK = """async b64 => {
 
 
 async def print_button(browser):
-    """The Print button: next to Replay, off until there is a pull, and it saves one PNG of the same size on any screen
-    (page at its widest, twice over), in the current theme, with the fields even when Car & Conditions is collapsed,
-    without any request to another site."""
+    """The Print button: next to Replay, off until there is a pull, and it saves one JPEG (under 600 KB) of the same size on
+    any screen (page at its widest, twice over), in the current theme, with the fields even when Car & Conditions is
+    collapsed, without any request to another site."""
     import base64
+    import re
     import struct
+
+    def jpeg_size(data):
+        """(width, height) from the JPEG's start-of-frame marker, or (0, 0) when it is not a JPEG."""
+        if data[:3] != b"\xff\xd8\xff":
+            return 0, 0
+        i = 2
+        while i + 9 < len(data):
+            if data[i] != 0xFF:
+                return 0, 0
+            m, n = data[i + 1], struct.unpack(">H", data[i + 2:i + 4])[0]
+            if m in (0xC0, 0xC1, 0xC2):
+                h, w = struct.unpack(">HH", data[i + 5:i + 9])
+                return w, h
+            i += 2 + n
+        return 0, 0
+
+    def same_color(a, b, tol=4):
+        """'rgb(r, g, b)' strings equal within a few levels (JPEG is lossy)."""
+        x, y = ([int(v) for v in re.findall(r"\d+", c)[:3]] for c in (a, b))
+        return all(abs(p - q) <= tol for p, q in zip(x, y))
 
     async def grab(pg):
         reqs = []
@@ -392,9 +413,8 @@ async def print_button(browser):
             await pg.click("#print")
         d = await dl.value
         data = pathlib.Path(await d.path()).read_bytes()
-        png = data[:8] == b"\x89PNG\r\n\x1a\n"
-        w, h = struct.unpack(">II", data[16:24]) if png else (0, 0)
-        return d.suggested_filename, png, w, h, base64.b64encode(data).decode(), reqs
+        w, h = jpeg_size(data)
+        return d.suggested_filename, bool(w), w, h, base64.b64encode(data).decode(), reqs, len(data)
 
     sizes = {}
     for w in (375, 768, 1200):
@@ -405,20 +425,21 @@ async def print_button(browser):
         g = await pg.evaluate("""(()=>{const r=document.getElementById('replay').getBoundingClientRect(),p=document.getElementById('print').getBoundingClientRect();
             return {off:document.getElementById('print').disabled,gap:Math.round(p.left-r.right),dy:Math.round(p.top-r.top)}})()""")
         check(f"{w}px: Print is on and sits right next to Replay", not g["off"] and g["dy"] == 0 and 0 <= g["gap"] <= 16, str(g))
-        name, png, iw, ih, b64, reqs = await grab(pg)
+        name, jpg, iw, ih, b64, reqs, nbytes = await grab(pg)
         sizes[w] = (iw, ih)
-        check(f"{w}px: Print saves a PNG with a dated name", png and name.startswith("virtual-dyno-") and name.endswith(".png"), f"{name} png={png}")
+        check(f"{w}px: Print saves a JPEG with a dated name", jpg and name.startswith("virtual-dyno-") and name.endswith(".jpg"), f"{name} jpeg={jpg}")
+        check(f"{w}px: the file is small enough to upload anywhere (under 600 KB)", 0 < nbytes <= 600 * 1024, f"{nbytes / 1024:.0f} KB")
         check(f"{w}px: Print makes no request to another site", not reqs, str(reqs))
         check(f"{w}px: no page errors", not errs, "; ".join(errs))
         if w == 1200:
-            ink = await pg.evaluate(PNG_INK, b64)
-            check("the image is drawn on the page's own background and is not blank", ink["bg"] == ink["page"] and 0.03 <= ink["ink"] <= 0.6, str(ink))
+            ink = await pg.evaluate(IMG_INK, b64)
+            check("the image is drawn on the page's own background and is not blank", same_color(ink["bg"], ink["page"]) and 0.03 <= ink["ink"] <= 0.6, str(ink))
             await pg.click("#condtg")      # collapse Car & Conditions: the image still has every field
             collapsed = (await grab(pg))[2:4]
             check("with Car & Conditions collapsed the image is the same size (fields still included)", collapsed == (iw, ih), f"{collapsed} vs {(iw, ih)}")
             await pg.click("[data-p=green]")
-            green = await pg.evaluate(PNG_INK, (await grab(pg))[4])
-            check("the image follows the theme", green["bg"] == green["page"] and green["bg"] != ink["bg"], f"{green['bg']} vs {ink['bg']}")
+            green = await pg.evaluate(IMG_INK, (await grab(pg))[4])
+            check("the image follows the theme", same_color(green["bg"], green["page"]) and not same_color(green["bg"], ink["bg"], 2), f"{green['bg']} vs {ink['bg']}")
             await pg.click("#condtg")      # open it again to reach the pedal field
             await pg.fill("#ped", "101")
             await pg.wait_for_timeout(500)

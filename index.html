@@ -626,7 +626,8 @@ async function snap(){
     await document.fonts.ready;
     const S=2,W=1156,h=Math.ceil(sheet(document.createElement('canvas').getContext('2d'),S,W)),c=document.createElement('canvas');
     c.width=W*S;c.height=h*S;sheet(c.getContext('2d'),S,W);
-    const name='virtual-dyno-'+new Date().toLocaleDateString('en-CA')+'.png',blob=await new Promise(r=>c.toBlob(r,'image/png'));
+    // JPEG at 0.9 is about 400 KB where PNG was about 1 MB; the canvas is opaque (sheet() fills it), so no transparency is lost
+    const name='virtual-dyno-'+new Date().toLocaleDateString('en-CA')+'.jpg',blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.9));
     if(!blob)throw new Error('no image');
     const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.append(a);a.click();a.remove();
     setTimeout(()=>URL.revokeObjectURL(u),6e4);note('Saved '+name)}
