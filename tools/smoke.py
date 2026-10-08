@@ -1,6 +1,6 @@
 """Self-contained smoke test: needs no data files. Exit code 1 if anything fails.
 
-  python tools/smoke.py
+  python tools/smoke.py [step ...]      (no step names: run everything; e.g. `print_button` runs just that one)
 
 Checks layout at phone/tablet/desktop widths (including which banner variant shows, Load Data full width with its two upload boxes side by side or stacked), the collapsible
 Car & Conditions and How It Works sections, the Power Correction dropdown, the one-line place-date-time weather row, tile text colors, units in capitals, theme switching/persistence,
@@ -427,7 +427,7 @@ async def print_button(browser):
         check(f"{w}px: Print is on and sits right next to Replay", not g["off"] and g["dy"] == 0 and 0 <= g["gap"] <= 16, str(g))
         name, jpg, iw, ih, b64, reqs, nbytes = await grab(pg)
         sizes[w] = (iw, ih)
-        check(f"{w}px: Print saves a JPEG with a dated name", jpg and name.startswith("virtual-dyno-") and name.endswith(".jpg"), f"{name} jpeg={jpg}")
+        check(f"{w}px: Print saves a JPEG named after the loaded file (the demo has no upload, so it is called Demo)", jpg and name == "Demo_VirtualDyno.jpg", f"{name} jpeg={jpg}")
         check(f"{w}px: the file is small enough to upload anywhere (under 600 KB)", 0 < nbytes <= 600 * 1024, f"{nbytes / 1024:.0f} KB")
         check(f"{w}px: Print makes no request to another site", not reqs, str(reqs))
         check(f"{w}px: no page errors", not errs, "; ".join(errs))
@@ -447,12 +447,45 @@ async def print_button(browser):
         await ctx.close()
     check("the image is the same size on a phone, a tablet and a desktop", len(set(sizes.values())) == 1 and sizes[375][0] > 2000, str(sizes))
 
+    # The file name comes from what was uploaded: the log (its extension dropped) + "_VirtualDyno", else the GPS file's name.
+    def log_csv():
+        rows = ["Time (msec),Engine Speed (RPM),Vehicle Speed (MPH),Accel. Pedal Position (%),Ambient Air Temp (F)"]
+        rows += [f"{i * 80},{round(2400 + 4300 * i / 119)},{round((2400 + 4300 * i / 119) / 67.1)},100,70" for i in range(120)]
+        return "\n".join(rows).encode()
+
+    def upload(name):
+        return {"name": name, "mimeType": "text/csv", "buffer": log_csv()}
+
+    ctx, pg, errs = await open_page(browser, width=1200, expand=True, accept_downloads=True)
+    await pg.set_input_files("#file", files=[upload("My Test Pull 10.01.2026.csv")])
+    await pg.wait_for_timeout(600)
+    check("an uploaded log is named after the file, without its extension, plus _VirtualDyno",
+          (await grab(pg))[0] == "My Test Pull 10.01.2026_VirtualDyno.jpg")
+    await pg.set_input_files("#gps", GPX)
+    await pg.wait_for_timeout(600)
+    check("adding a GPS file to a log keeps the log's name", (await grab(pg))[0] == "My Test Pull 10.01.2026_VirtualDyno.jpg")
+    await pg.set_input_files("#file", files=[upload("Second Pull.csv")])
+    await pg.wait_for_timeout(600)
+    check("loading another log changes the name", (await grab(pg))[0] == "Second Pull_VirtualDyno.jpg")
+    check("no page errors with uploaded files", not errs, "; ".join(errs))
+    await ctx.close()
+    ctx, pg, errs = await open_page(browser, width=1200, expand=True, accept_downloads=True)
+    await pg.set_input_files("#gps", GPX)
+    await pg.wait_for_timeout(600)
+    gps = await grab(pg) if not await pg.evaluate("document.getElementById('print').disabled") else None
+    check("with only a GPS file, Print is on and the name comes from that file", gps is not None and gps[0] == "synthetic_VirtualDyno.jpg" and gps[1],
+          str(gps[:2]) if gps else "Print is off")
+    check("no page errors with a GPS-only print", not errs, "; ".join(errs))
+    await ctx.close()
+
 
 async def main():
     async with async_playwright() as pw:
         browser = await pw.chromium.launch()
-        for step in (layout, collapsible, correction_select, no_pulls_message, themes, boot, font, load_message, weather_row, tile_colors, unit_case, link_preview, realtime, print_button):
-            await step(browser)
+        steps = (layout, collapsible, correction_select, no_pulls_message, themes, boot, font, load_message, weather_row, tile_colors, unit_case, link_preview, realtime, print_button)
+        for step in steps:
+            if len(sys.argv) < 2 or step.__name__ in sys.argv[1:]:    # `python tools/smoke.py print_button` runs just that step
+                await step(browser)
         await browser.close()
     bad = results.count(False)
     print(f"\n{len(results) - bad}/{len(results)} checks passed")

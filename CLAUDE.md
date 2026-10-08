@@ -120,7 +120,10 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
   `sheet()` were measured from the page at 1160px (VT323's ascent is 0.79em); if the look of tiles, fieldsets, fields or
   the key changes in CSS, re-measure and update them, and compare the image with the page. It needs `document.fonts.ready`
   and `--mono` (a fallback font is shrunk to fit with `o.max`). The button is off (`disabled`) until `render()` has a
-  pull and off again when it finds none. The file is `virtual-dyno-YYYY-MM-DD.jpg` (local date), saved with an
+  pull and off again when it finds none. The file is named after the upload, `<name without extension>_VirtualDyno.jpg` (the owner's request: the log's name, so
+  `GolfR_..._2026_VirtualDyno.jpg`; with no log, the GPS file's; the demo has no upload and is `Demo_VirtualDyno.jpg`; with nothing
+  known, `VirtualDyno.jpg`). `load()` stores `logName` and `readGPS()` stores `gpsName` (both cleared on a bad file), and the log
+  wins when both are loaded. It is saved with an
   `<a download>` of a blob URL; `#ro` says "Saved ..." for a few seconds. It is a JPEG at quality 0.9 by the owner's choice
   (it was a PNG at about 1 MB; measured in the browser, JPEG 0.9 is 400-450 KB, WebP 0.9 about 200 KB but Safari may not
   encode WebP and some sites reject it). To go back to PNG, change the type in the `toBlob` call and the extension in

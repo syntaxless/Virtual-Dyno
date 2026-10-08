@@ -280,7 +280,7 @@ function corrFactor(std,T,pd,pt){
   if(std=='iso')return Math.pow(99000/pd,1.2)*Math.pow(T/298.15,.6);
   return 1}
 const P=()=>{const o={smooth:+$('#smooth').value};FIELDS.forEach(([id])=>o[id]=+$('#'+id).value);o.corr=$('#corr').value;o.spd=$('#spd').value;return o};
-let D=null,pulls=[],sel=0,cur=null,hov=-1,mp={},GPS=null,gi=null,cond='',atm={baro:0,wp:0,alt:null},daAuto=true,fresh=false,shown={},grow=1,gAF=0,AX={u:'RPM',bin:100,tick:500,span:1000};
+let D=null,logName='',gpsName='',pulls=[],sel=0,cur=null,hov=-1,mp={},GPS=null,gi=null,cond='',atm={baro:0,wp:0,alt:null},daAuto=true,fresh=false,shown={},grow=1,gAF=0,AX={u:'RPM',bin:100,tick:500,span:1000};
 const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function parse(text){
@@ -460,10 +460,10 @@ function calcDA(){
   return 44330.77*(1-Math.pow(rho/1.225,1/4.25588))/.3048}
 function syncDA(){if(!daAuto)return;const d=calcDA();if(d!=null)$('#da').value=Math.round(d)}
 
-function load(text,name){
+function load(text,name,fname){   // fname: what Print names its file after, when it is not the name shown in the message
   const M=$('#msg');fresh=true;wxReq++;$('#wxmsg').textContent='';
-  try{D=parse(text);M.className='msg';M.textContent=`${name}: ${D.n.toLocaleString()} rows. ${D.info}`;if(D.amb!=null)$('#temp').value=D.amb;atm.baro=D.baro||0;atm.wp=0;daAuto=true;syncDA();if(atm.baro)M.textContent+=` Density altitude set to ${$('#da').value} ft from the log's pressure and temperature.`;analyze(true)}
-  catch(e){D=null;pulls=[];M.className='msg err';M.textContent=e.message;render();wxVis()}}
+  try{D=parse(text);logName=fname||name;M.className='msg';M.textContent=`${name}: ${D.n.toLocaleString()} rows. ${D.info}`;if(D.amb!=null)$('#temp').value=D.amb;atm.baro=D.baro||0;atm.wp=0;daAuto=true;syncDA();if(atm.baro)M.textContent+=` Density altitude set to ${$('#da').value} ft from the log's pressure and temperature.`;analyze(true)}
+  catch(e){D=null;logName='';pulls=[];M.className='msg err';M.textContent=e.message;render();wxVis()}}
 
 function demo(){
   const p=P(),TQ=[[2000,240],[2500,300],[3000,340],[3500,360],[4000,362],[4500,355],[5000,345],[5500,328],[6000,308],[6500,275],[6800,255]];
@@ -474,7 +474,7 @@ function demo(){
     const r=k*v,Pc=tq(r)/LBFT*r*Math.PI/30,F=Pc*(1-p.loss/100)/v;
     const a=(F-.5*1.2*p.cd*p.area*v*v-p.crr*(p.curb+p.load)*LB*G)/m;
     rows.push(`${time},${Math.round(r+(Math.random()-.5)*40)},${Math.round(v/MPH)},100,${(p.temp+(Math.random()-.5)*2).toFixed(1)}`);v+=a*.08}
-  load(rows.join('\n'),'Simulated demo log (about 350 HP tune)')}
+  load(rows.join('\n'),'Simulated demo log (about 350 HP tune)','Demo')}
 
 const R2=Math.PI/180,dist=(p,q)=>6371000*Math.hypot((q.lon-p.lon)*R2*Math.cos((p.lat+q.lat)/2*R2),(q.lat-p.lat)*R2),
  bear=(p,q)=>(Math.atan2((q.lon-p.lon)*Math.cos((p.lat+q.lat)/2*R2),q.lat-p.lat)/R2+360)%360;
@@ -534,9 +534,9 @@ function gpsOnly(){
   atm.baro=0;atm.wp=0;const g=GPS,t0=g[0].t;D={t:g.map(p=>p.t-t0),v:g.map(p=>p.v),rpm:g.map(()=>NaN),ped:null,n:g.length,gpsOnly:true};
   $('#msg').className='msg';$('#msg').textContent='GPS only: power is plotted against speed. Enter RPM per MPH for your gear (under Car & Conditions) to get RPM and torque.';analyze(true)}
 const readGPS=f=>f&&f.text().then(tx=>{const M=$('#gmsg');
-  try{GPS=parseGPS(tx);fresh=true;M.className='msg';M.textContent=`${f.name}: ${GPS.length} GPS points at about ${Math.round(GPS.hz)} Hz.`;
+  try{GPS=parseGPS(tx);gpsName=f.name;fresh=true;M.className='msg';M.textContent=`${f.name}: ${GPS.length} GPS points at about ${Math.round(GPS.hz)} Hz.`;
     if(!D||D.gpsOnly)gpsOnly();else if(pulls.length)fromGPS(1)}
-  catch(er){GPS=null;gi=null;M.className='msg err';M.textContent=er.message}});
+  catch(er){GPS=null;gpsName='';gi=null;M.className='msg err';M.textContent=er.message}});
 $('#gps').onchange=e=>{const f=e.target.files[0];e.target.value='';readGPS(f)};
 const gz=$('#gdrop');gz.ondragover=e=>{e.preventDefault();gz.classList.add('on')};gz.ondragleave=()=>gz.classList.remove('on');
 gz.ondrop=e=>{e.preventDefault();gz.classList.remove('on');readGPS(e.dataTransfer.files[0])};
@@ -626,8 +626,10 @@ async function snap(){
     await document.fonts.ready;
     const S=2,W=1156,h=Math.ceil(sheet(document.createElement('canvas').getContext('2d'),S,W)),c=document.createElement('canvas');
     c.width=W*S;c.height=h*S;sheet(c.getContext('2d'),S,W);
-    // JPEG at 0.9 is about 400 KB where PNG was about 1 MB; the canvas is opaque (sheet() fills it), so no transparency is lost
-    const name='virtual-dyno-'+new Date().toLocaleDateString('en-CA')+'.jpg',blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.9));
+    // JPEG at 0.9 is about 400 KB where PNG was about 1 MB; the canvas is opaque (sheet() fills it), so no transparency is lost.
+    // The file is named after the upload it came from (the log, or the GPS file when there is no log), minus its extension.
+    const stem=(D&&!D.gpsOnly&&logName||GPS&&gpsName||'').replace(/\.[^.]*$/,''),
+      name=(stem?stem+'_':'')+'VirtualDyno.jpg',blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.9));
     if(!blob)throw new Error('no image');
     const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.append(a);a.click();a.remove();
     setTimeout(()=>URL.revokeObjectURL(u),6e4);note('Saved '+name)}
