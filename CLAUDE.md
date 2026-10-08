@@ -126,7 +126,8 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
   `GolfR_..._2026_VirtualDyno.jpg`; with no log, the GPS file's; the demo has no upload and is `Demo_VirtualDyno.jpg`; with nothing
   known, `VirtualDyno.jpg`). `load()` stores `logName` and `readGPS()` stores `gpsName` (both cleared on a bad file), and the log
   wins when both are loaded. It is saved with an
-  `<a download>` of a blob URL; `#ro` says "Saved ..." for a few seconds. It is a JPEG at quality 0.9 by the owner's choice
+  `<a download>` of a blob URL; `#ro` says "Saved ..." for a few seconds. On an iPhone it opens the image preview dialog
+  instead of saving straight to a file, and the owner is fine with that, so leave it. It is a JPEG at quality 0.9 by the owner's choice
   (it was a PNG at about 1 MB; measured in the browser, JPEG 0.9 is 400-450 KB, WebP 0.9 about 200 KB but Safari may not
   encode WebP and some sites reject it). To go back to PNG, change the type in the `toBlob` call and the extension in
   `snap()`, and the signature and size parsing in `smoke.py`. `smoke.py`'s `print_button` step checks the placement,
@@ -233,8 +234,9 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
   local http server (service workers need http) and checks the manifest, the icons' real sizes and corners, theme-color and the
   green theme, that the worker installs and caches everything, that a changed page shows online, that the page and a log work
   with the network off, that a stalled network falls back to the kept copy after about 4 s, and that nothing outside the
-  site's origin is requested. Not tested on real phones: the install flows themselves, and whether Print's
-  `<a download>` blob save works from an installed iPhone app (it may open a preview instead).
+  site's origin is requested. There is deliberately no install button in the page: the owner declined one (browsers show their
+  own, and iPhone uses Share, then Add to Home Screen), so do not add one unasked. The install flows themselves have not been
+  tested on real phones from here.
 - **Link preview** (what chat apps and social sites show when the URL is pasted): `og.png` is the stacked VIRTUAL DYNO
   banner on the page's own screen look, in the default (color) theme, at 1200x630. `og:image` and `twitter:image` are
   absolute URLs on the CNAME domain, `twitter:card` is `summary_large_image` (the old `summary` is the small square
