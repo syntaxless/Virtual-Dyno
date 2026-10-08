@@ -64,6 +64,8 @@ async def standards_match(pg, where):
     await pg.select_option("#corr", "none")
     await pg.wait_for_timeout(COUNTUP_MS)
     base = [float(x) for x in await nums(pg)]
+    snap = "() => ({pts: pulls[sel].pts.map(q => [q.hp, q.tq, q.hw]), cur: cur.map(q => [q.hp, q.tq, q.hw])})"
+    pts0 = await pg.evaluate(snap)       # every point of the pull and every bin of the plotted curve, uncorrected
     temp, rh, da = [float((await pg.input_value(i)).replace(",", "")) for i in ("#temp", "#humid", "#da")]
     for std, label in STANDARDS:
         await pg.select_option("#corr", std)
@@ -71,6 +73,11 @@ async def standards_match(pg, where):
         got = [float(x) for x in await nums(pg)]
         cf = expected_cf(std, temp, rh, da)
         want = [b * cf for b in base]
+        pts1 = await pg.evaluate(snap)
+        dev = max((abs(y / x / cf - 1) for k in ("pts", "cur") for a, c in zip(pts0[k], pts1[k]) for x, y in zip(a, c)
+                   if x and y and x > 0), default=1)
+        check(f"{where}: {label} is the last step: every plotted point and curve bin is its uncorrected value times the factor, applied once",
+              dev < 1e-9, f"worst deviation {dev:.1e}")
         cond = await pg.inner_text("#cond")
         others = [l for v, l in STANDARDS if v != std]
         check(f"{where}: {label} scales hp / torque / whp by its own factor ({cf:.3f}) for {temp:.0f} F, {rh:.0f}% humidity, {da:.0f} ft",

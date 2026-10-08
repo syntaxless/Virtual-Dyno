@@ -159,6 +159,10 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
     this is a judgement call, not a verified reading of the withdrawn standard.
   - DIN 70020: `(101300/pt)*sqrt(T/293.15)` (20 C, 1013 mbar, total pressure, no humidity term). The owner wrote
     "DIN 70200"; the standard is DIN 70020, so that is the label.
+  The factor is the last step: `analyze()` multiplies it into each point's finished hp, torque and wheel power (`kc`,
+  after drag, rolling resistance, grade, wind, drivetrain loss and engine inertia, all of which use the real air, not the
+  standard day), and `build()` then only bins and smooths those points, which is linear, so the order there cannot matter.
+  `functional.py` checks every standard point by point (uncorrected value times the factor, applied once).
   No validity range is enforced (ISO 1585 only allows factors of about 0.93 to 1.07); a very thin or hot day just gets a
   bigger factor. The option labels are the only place the standards' names live: `analyze()` reads the selected
   option's text for the conditions line, and `functional.py` has the same names in `STANDARDS`.
