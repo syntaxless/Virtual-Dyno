@@ -107,6 +107,22 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
   The big numbers still roll up to the final peaks right away. A pull can be 10 s or more, so playback runs on every
   load and Replay press; `smoke.py`'s `realtime` check loads the demo log and times it (about 10 s of the run). On
   phones `#ro` reserves two lines, because the live readout wraps and the page would otherwise jump when it starts.
+- **Print** (`#print`, `[ Print ]`, next to Replay inside `span.acts` in `.run .top`) saves a PNG of the region from the top
+  of the three power tiles to the bottom of Car & Conditions. It is not a copy of the screen and not a DOM-to-image
+  library (none is allowed: the page loads nothing third-party, and there is no build step). `sheet(x,S,W)` draws the
+  whole region on its own canvas: the page at its widest (1156 logical px, 2x, so 2312 px wide, about 1 MB), the same
+  size on a phone as on a desktop, in the current theme, with the full curve even mid-replay and with every field even
+  when Car & Conditions is collapsed. The graph is the page's own `paint(x,W,H,g,hv,live)` (what `draw()` now calls for
+  the live canvas) run at 1084x350 with `g=1`; `live` is false so the hover mapping `mp` is left alone. The rest is
+  drawn from live values, so a new entry in `FIELDS` or a new select in `.opts` shows up with no change here: tile
+  peaks come from `el._to` (the final value `roll()` stores, so a press during the count-up is right), captions and
+  the conditions line from their elements, fields from `#fields label` and `.opts label`. The offsets and sizes in
+  `sheet()` were measured from the page at 1160px (VT323's ascent is 0.79em); if the look of tiles, fieldsets, fields or
+  the key changes in CSS, re-measure and update them, and compare the PNG with the page. It needs `document.fonts.ready`
+  and `--mono` (a fallback font is shrunk to fit with `o.max`). The button is off (`disabled`) until `render()` has a
+  pull and off again when it finds none. The file is `virtual-dyno-YYYY-MM-DD.png` (local date), saved with an
+  `<a download>` of a blob URL; `#ro` says "Saved ..." for a few seconds. `smoke.py`'s `print_button` step checks
+  the placement, the PNG, that every width gives the same size, theme, collapsed state and no outside request.
 - **Load Data**: its two upload boxes sit in `.drops`, an auto-fit grid (`minmax(260px,1fr)`), so they are side by
   side when there is room (tablet and up) and stacked on phones. The weather form's controls (`#wx .wl` and the paste
   `textarea`, which is a block so it stacks under its link) are capped at 560px (a form, not text). Place, Date and Local

@@ -6,9 +6,10 @@ Checks layout at phone/tablet/desktop widths (including which banner variant sho
 Car & Conditions and How It Works sections, the Power Correction dropdown, the one-line place-date-time weather row, tile text colors, units in capitals, theme switching/persistence,
 the boot-in animation gate, and the self-hosted font (loads from the site, nothing third-party is
 requested, and the page degrades to a plain heading when the font file cannot load), and real-time Replay
-(takes as long as the pull did, live readout, click to skip).
+(takes as long as the pull did, live readout, click to skip), and the Print button (a PNG of the same size on any screen).
 """
 import asyncio
+import pathlib
 import sys
 
 from playwright.async_api import async_playwright
@@ -366,10 +367,70 @@ async def realtime(browser):
     await ctx.close()
 
 
+PNG_INK = """async b64 => {
+  const im = new Image(); im.src = 'data:image/png;base64,' + b64; await im.decode();
+  const c = document.createElement('canvas'); c.width = im.width; c.height = im.height;
+  const x = c.getContext('2d'); x.drawImage(im, 0, 0); const d = x.getImageData(0, 0, c.width, c.height).data;
+  const bg = [d[0], d[1], d[2]]; let ink = 0;
+  for (let i = 0; i < d.length; i += 4) if (Math.abs(d[i] - bg[0]) + Math.abs(d[i + 1] - bg[1]) + Math.abs(d[i + 2] - bg[2]) > 30) ink++;
+  const t = document.createElement('i'); t.style.backgroundColor = 'var(--bg)'; document.body.append(t);
+  const page = getComputedStyle(t).backgroundColor; t.remove();
+  return {bg: 'rgb(' + bg.join(', ') + ')', page, ink: ink / (d.length / 4)} }"""
+
+
+async def print_button(browser):
+    """The Print button: next to Replay, off until there is a pull, and it saves one PNG of the same size on any screen
+    (page at its widest, twice over), in the current theme, with the fields even when Car & Conditions is collapsed,
+    without any request to another site."""
+    import base64
+    import struct
+
+    async def grab(pg):
+        reqs = []
+        pg.on("request", lambda r: reqs.append(r.url) if r.url.split(":", 1)[0] not in ("file", "data", "blob", "about") else None)
+        async with pg.expect_download() as dl:
+            await pg.click("#print")
+        d = await dl.value
+        data = pathlib.Path(await d.path()).read_bytes()
+        png = data[:8] == b"\x89PNG\r\n\x1a\n"
+        w, h = struct.unpack(">II", data[16:24]) if png else (0, 0)
+        return d.suggested_filename, png, w, h, base64.b64encode(data).decode(), reqs
+
+    sizes = {}
+    for w in (375, 768, 1200):
+        ctx, pg, errs = await open_page(browser, width=w, expand=True, accept_downloads=True)
+        check(f"{w}px: Print is off until a pull is loaded", await pg.evaluate("document.getElementById('print').disabled"))
+        await pg.click("#demo")
+        await pg.wait_for_timeout(500)
+        g = await pg.evaluate("""(()=>{const r=document.getElementById('replay').getBoundingClientRect(),p=document.getElementById('print').getBoundingClientRect();
+            return {off:document.getElementById('print').disabled,gap:Math.round(p.left-r.right),dy:Math.round(p.top-r.top)}})()""")
+        check(f"{w}px: Print is on and sits right next to Replay", not g["off"] and g["dy"] == 0 and 0 <= g["gap"] <= 16, str(g))
+        name, png, iw, ih, b64, reqs = await grab(pg)
+        sizes[w] = (iw, ih)
+        check(f"{w}px: Print saves a PNG with a dated name", png and name.startswith("virtual-dyno-") and name.endswith(".png"), f"{name} png={png}")
+        check(f"{w}px: Print makes no request to another site", not reqs, str(reqs))
+        check(f"{w}px: no page errors", not errs, "; ".join(errs))
+        if w == 1200:
+            ink = await pg.evaluate(PNG_INK, b64)
+            check("the image is drawn on the page's own background and is not blank", ink["bg"] == ink["page"] and 0.03 <= ink["ink"] <= 0.6, str(ink))
+            await pg.click("#condtg")      # collapse Car & Conditions: the image still has every field
+            collapsed = (await grab(pg))[2:4]
+            check("with Car & Conditions collapsed the image is the same size (fields still included)", collapsed == (iw, ih), f"{collapsed} vs {(iw, ih)}")
+            await pg.click("[data-p=green]")
+            green = await pg.evaluate(PNG_INK, (await grab(pg))[4])
+            check("the image follows the theme", green["bg"] == green["page"] and green["bg"] != ink["bg"], f"{green['bg']} vs {ink['bg']}")
+            await pg.click("#condtg")      # open it again to reach the pedal field
+            await pg.fill("#ped", "101")
+            await pg.wait_for_timeout(500)
+            check("Print is off again when no pull is found", await pg.evaluate("document.getElementById('print').disabled"))
+        await ctx.close()
+    check("the image is the same size on a phone, a tablet and a desktop", len(set(sizes.values())) == 1 and sizes[375][0] > 2000, str(sizes))
+
+
 async def main():
     async with async_playwright() as pw:
         browser = await pw.chromium.launch()
-        for step in (layout, collapsible, correction_select, no_pulls_message, themes, boot, font, load_message, weather_row, tile_colors, unit_case, link_preview, realtime):
+        for step in (layout, collapsible, correction_select, no_pulls_message, themes, boot, font, load_message, weather_row, tile_colors, unit_case, link_preview, realtime, print_button):
             await step(browser)
         await browser.close()
     bad = results.count(False)

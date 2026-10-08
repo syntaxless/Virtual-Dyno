@@ -141,6 +141,7 @@ input[type=range]::-moz-range-thumb{width:12px;height:20px;background:var(--fg);
 .stat em{display:block;margin-top:6px;font-style:normal;font-size:20px;line-height:1.05;color:var(--c)}
 .run .top{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;justify-content:space-between;margin-bottom:10px}
 .run select{width:auto;max-width:100%}
+.acts{display:flex;gap:8px}
 .lg{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:20px}
 .lg span{color:var(--c)}
 .lg span::before{content:"";display:inline-block;width:22px;height:3px;margin-right:7px;vertical-align:middle;background:var(--c);box-shadow:0 0 7px var(--c)}
@@ -238,7 +239,7 @@ input[type=range]::-moz-range-thumb{width:12px;height:20px;background:var(--fg);
    <fieldset class="stat" id="s3" style="--c:var(--s3)"><legend>Peak Wheel Power</legend><b><span class="n">–</span><i>WHP</i></b><em></em></fieldset>
   </div>
   <fieldset class="run"><legend>Dyno Run</legend>
-   <div class="top"><select id="pull" aria-label="Select pull"></select><button class="btn" id="replay" type="button">Replay</button>
+   <div class="top"><select id="pull" aria-label="Select pull"></select><span class="acts"><button class="btn" id="replay" type="button">Replay</button><button class="btn" id="print" type="button" disabled>Print</button></span>
     <div class="lg"><span style="--c:var(--fg)">HP</span><span style="--c:var(--s2)">Crank Torque (lb-ft)</span><span class="d" style="--c:var(--s3)">WHP</span></div></div>
    <div class="cvw"><canvas id="cv" role="img" aria-label="Dyno graph of horsepower and torque"></canvas></div><div id="ro">Hover or touch the graph for exact values</div><div id="cond"></div>
   </fieldset>
@@ -355,7 +356,7 @@ function build(pull,p){
   return c}
 
 function roll(id,to){
-  const el=$('#'+id+' .n');cancelAnimationFrame(el._r);
+  const el=$('#'+id+' .n');cancelAnimationFrame(el._r);el._to=to;   // _to: the final value, which Print uses while the count-up is still running
   if(!isFinite(to)){el.textContent='–';shown[id]=0;return}
   const from=shown[id]||0;
   if(reduce||from===to){el.textContent=Math.round(to);shown[id]=to;return}
@@ -392,8 +393,8 @@ function render(){
   if(!pulls.length){cur=null;['s1','s2','s3'].forEach(i=>{roll(i,NaN);$('#'+i+' em').textContent=''});
     if(D){const e=document.createElement('span'),b=document.createElement('b');e.id='nopull';e.className='bad';b.textContent='No full-throttle pulls found.';
       e.append(document.createElement('br'),b,' Log a clean pull with the pedal fully down, or lower the throttle position (%).');$('#msg').append(e)}
-    $('#ro').textContent='';fresh=false;draw();return}
-  S.value=sel;const pp=P();cur=build(pulls[sel],pp);
+    $('#ro').textContent='';$('#print').disabled=true;fresh=false;draw();return}
+  $('#print').disabled=false;S.value=sel;const pp=P();cur=build(pulls[sel],pp);
   const pk=f=>cur.reduce((b,q)=>q[f]>b[f]||!isFinite(b[f])?q:b),h=pk('hp'),t=pk('tq'),w=pk('hw'),hasT=isFinite(t.tq);
   const at=q=>AX.u=='MPH'?Math.round(q.r)+' MPH':(Math.round(q.r/10)*10).toLocaleString()+' RPM';
   const dl=(x,ref,u)=>ref>0?` · ${x>=ref?'+':'−'}${Math.abs(Math.round(x-ref))} ${u} vs stock ${ref}`:'';
@@ -405,15 +406,18 @@ function render(){
   if(fresh){fresh=false;replay()}else draw()}
 
 function draw(){
-  const c=$('#cv'),x=c.getContext('2d'),d=devicePixelRatio||1,W=c.clientWidth,H=c.clientHeight,F=getComputedStyle(document.documentElement).getPropertyValue('--mono');
-  c.width=W*d;c.height=H*d;x.setTransform(d,0,0,d,0,0);
-  const cs=getComputedStyle(document.documentElement),C=n=>cs.getPropertyValue(n).trim(),RGB=C('--rgb');
+  const c=$('#cv'),x=c.getContext('2d'),d=devicePixelRatio||1,W=c.clientWidth,H=c.clientHeight;
+  c.width=W*d;c.height=H*d;x.setTransform(d,0,0,d,0,0);paint(x,W,H,grow,hov,1)}
+// Draws the graph on any 2D context of size W x H. g: how much of the pull to show (0 to 1); hv: the hovered point (-1 for none);
+// live: true only for the page's own canvas, which owns the hover mapping. Print calls it with g=1 on its own canvas.
+function paint(x,W,H,g,hv,live){
+  const cs=getComputedStyle(document.documentElement),F=cs.getPropertyValue('--mono'),C=n=>cs.getPropertyValue(n).trim(),RGB=C('--rgb');
   x.fillStyle=C('--screen');x.fillRect(0,0,W,H);x.font='19px '+F;
   if(!cur){x.fillStyle=C('--mut');x.textAlign='center';x.fillText('No data loaded.',W/2,H/2-6);x.fillText('Drop a log or GPS file to start.',W/2,H/2+16);return}
   const l=50,r=46,t=30,b=30,rs=cur.map(q=>q.r),mn=Math.min(...rs),mxr=Math.max(...rs),x0=Math.floor(mn/AX.tick)*AX.tick,x1=Math.max(x0+AX.tick,Math.ceil(mxr/AX.tick)*AX.tick);
   const ym=Math.max(...cur.map(q=>Math.max(q.hp,isFinite(q.tq)?q.tq:0))),st=ym>250?100:50,y1=Math.ceil(ym*1.05/st)*st;
   const X=v=>l+(v-x0)/(x1-x0)*(W-l-r),Y=v=>t+(1-v/y1)*(H-t-b),xs=W<520?AX.tick*2:AX.tick;
-  mp={inv:px=>x0+(px-l)/(W-l-r)*(x1-x0)};
+  if(live)mp={inv:px=>x0+(px-l)/(W-l-r)*(x1-x0)};
   x.strokeStyle=`rgba(${RGB},.26)`;x.lineWidth=1;x.setLineDash([2,5]);x.beginPath();
   for(let v=st;v<=y1;v+=st){x.moveTo(l,Math.round(Y(v))+.5);x.lineTo(W-r,Math.round(Y(v))+.5)}
   for(let v=Math.ceil(x0/xs)*xs;v<=x1;v+=xs){x.moveTo(Math.round(X(v))+.5,t);x.lineTo(Math.round(X(v))+.5,H-b)}
@@ -424,7 +428,7 @@ function draw(){
   x.textAlign='center';
   for(let v=Math.ceil(x0/xs)*xs;v<=x1;v+=xs)x.fillText(AX.u=='RPM'?v/1000+'K':v,X(v),H-9);
   x.textAlign='left';x.fillText('HP / lb-ft',4,18);x.textAlign='right';x.fillText(AX.u,W-4,H-9);
-  const xc=playAt(grow).x,tip={},col={hp:C('--s1'),tq:C('--s2'),hw:C('--s3')};
+  const xc=playAt(g).x,tip={},col={hp:C('--s1'),tq:C('--s2'),hw:C('--s3')};
   const pts=k=>{const P=[];
     for(let i=0;i<cur.length;i++){const q=cur[i];if(!isFinite(q[k]))continue;
       if(q.r<=xc)P.push([X(q.r),Y(q[k])]);else{const o=cur[i-1];if(o&&isFinite(o[k])){const w=(xc-o.r)/(q.r-o.r);P.push([X(xc),Y(o[k]+(q[k]-o[k])*w)])}break}}
@@ -434,9 +438,9 @@ function draw(){
     x.beginPath();P.forEach(([a,b2],i)=>i?x.lineTo(a,b2):x.moveTo(a,b2));x.stroke();x.restore();tip[k]=P[P.length-1]};
   trace('hw',[9,6]);trace('tq');trace('hp');
   const sq=(p,s,cl)=>{x.save();x.shadowColor=cl;x.shadowBlur=10;x.fillStyle=cl;x.fillRect(Math.round(p[0])-s/2,Math.round(p[1])-s/2,s,s);x.restore()};
-  if(hov>=0){const q=cur[hov],px=Math.round(X(q.r))+.5;x.save();x.globalAlpha=.55;x.strokeStyle=C('--hi');x.setLineDash([4,4]);x.beginPath();x.moveTo(px,t);x.lineTo(px,H-b);x.stroke();x.restore();
+  if(hv>=0){const q=cur[hv],px=Math.round(X(q.r))+.5;x.save();x.globalAlpha=.55;x.strokeStyle=C('--hi');x.setLineDash([4,4]);x.beginPath();x.moveTo(px,t);x.lineTo(px,H-b);x.stroke();x.restore();
     ['hp','tq'].forEach(k=>{if(isFinite(q[k]))sq([X(q.r),Y(q[k])],9,col[k])})}
-  if(grow<1){if(Math.floor(performance.now()/160)%2||reduce)['hp','tq'].forEach(k=>{if(tip[k])sq(tip[k],9,C('--hi'))})}
+  if(g<1){if(Math.floor(performance.now()/160)%2||reduce)['hp','tq'].forEach(k=>{if(tip[k])sq(tip[k],9,C('--hi'))})}
   else{const L=[['hp','HP'],['tq','TQ'],['hw','WHP']].filter(a=>tip[a[0]]).sort((a,b)=>tip[a[0]][1]-tip[b[0]][1]);let py=-1e9;x.textAlign='left';
     L.forEach(([k,s])=>{const y=Math.max(tip[k][1]+5,py+15);py=y;x.fillStyle=col[k];x.fillText(s,tip[k][0]+9,y)})}}
 
@@ -537,6 +541,97 @@ $('#gps').onchange=e=>{const f=e.target.files[0];e.target.value='';readGPS(f)};
 const gz=$('#gdrop');gz.ondragover=e=>{e.preventDefault();gz.classList.add('on')};gz.ondragleave=()=>gz.classList.remove('on');
 gz.ondrop=e=>{e.preventDefault();gz.classList.remove('on');readGPS(e.dataTransfer.files[0])};
 $('#replay').onclick=()=>{fresh=true;render()};
+
+/* Print: saves a PNG of the three power tiles, the whole graph and Car & Conditions. It is drawn on its own canvas, not
+   copied from the screen, so it comes out the same size on a phone as on a desktop (the page at its widest, twice over),
+   shows the full curve even mid-replay, and includes the fields even when Car & Conditions is collapsed. It reads the
+   live values (tile peaks, the FIELDS inputs, the selects), so new fields appear without any change here.
+   The metrics (offsets, sizes, 0.79em ascent of VT323) were measured from the page at 1160px; sheet() returns the height. */
+function sheet(x,S,W){
+  const cs=getComputedStyle(document.documentElement),C=n=>cs.getPropertyValue(n).trim(),F=C('--mono'),RGB=C('--rgb'),
+    P=20,IW=W-2*P,GL=`rgba(${RGB},.32)`,hi=C('--hi'),mut=C('--mut'),dim=C('--dim'),fg=C('--fg');
+  x.setTransform(S,0,0,S,0,0);x.textBaseline='alphabetic';x.fillStyle=C('--bg');x.fillRect(0,0,W,1e4);
+  const ft=(sz,s)=>{x.font=sz+'px '+F;return s==null?0:x.measureText(s).width};
+  // Text in a line box of height lh whose top is `top`; o.max shrinks it to fit (for fallback fonts), o.gl is the glow
+  const T=(s,px,top,sz,lh,col,o={})=>{
+    if(o.max&&ft(sz,s)>o.max)sz=Math.max(10,Math.floor(sz*o.max/ft(sz,s)));
+    ft(sz);x.fillStyle=col;x.textAlign=o.al||'left';x.shadowColor=o.gl||'transparent';x.shadowBlur=o.gl?(o.bl||5)*S:0;
+    x.fillText(s,px,top+(lh-sz)/2+.79*sz);x.shadowBlur=0;x.shadowColor='transparent'};
+  const wrap=(s,w,sz)=>{ft(sz);const out=[];let ln='';
+    for(const wd of s.split(' ')){const t=ln?ln+' '+wd:wd;if(ln&&x.measureText(t).width>w){out.push(ln);ln=wd}else ln=t}
+    out.push(ln);return out};
+  // A fieldset border with a gap in the top edge for its legend (which starts 15px in and is lw wide)
+  const box=(bx,by,w,h,col,lw)=>{const t=by+13.5,r=bx+w-.5,b=by+h-.5;
+    x.strokeStyle=col;x.lineWidth=1;x.beginPath();x.moveTo(bx+15+lw,t);x.lineTo(r,t);x.lineTo(r,b);x.lineTo(bx+.5,b);x.lineTo(bx+.5,t);x.lineTo(bx+15,t);x.stroke()};
+  const arrow=(ax,ay)=>{x.fillStyle=fg;x.beginPath();x.moveTo(ax,ay-4);x.lineTo(ax+12,ay-4);x.lineTo(ax+6,ay+4);x.fill()};
+  const field=(bx,by,w,h)=>{x.fillStyle='#000';x.fillRect(bx,by,w,h);x.strokeStyle=dim;x.lineWidth=1;x.strokeRect(bx+.5,by+.5,w-1,h-1)};
+
+  // Power tiles
+  let y=P;const GAP=14,TW=(IW-2*GAP)/3,
+    tiles=['s1','s2','s3'].map(id=>{const e=document.getElementById(id),n=e.querySelector('.n')._to,lg=e.querySelector('legend');
+      return{col:getComputedStyle(lg).color,title:lg.textContent,num:isFinite(n)?String(Math.round(n)):'\u2013',unit:e.querySelector('i').textContent,cap:e.querySelector('em').textContent}}),
+    caps=tiles.map(t=>wrap(t.cap,TW-30,20)),TH=112+21*Math.max(...caps.map(l=>l.length))+13;
+  tiles.forEach((t,i)=>{
+    const bx=P+Math.round(i*(TW+GAP)),w=Math.round(TW);
+    box(bx,y,w,TH,t.col,ft(22,t.title)+16);
+    T(t.title,bx+23,y,22,26.4,t.col,{gl:GL});
+    T(t.num,bx+15,y+30,78,78,t.col,{gl:t.col,bl:14});
+    T(t.unit,bx+15+ft(78,t.num)+8,y+71,26,26,t.col);
+    caps[i].forEach((ln,k)=>T(ln,bx+15,y+112+21*k,20,21,t.col,{gl:GL}))});
+  y+=TH+16;
+
+  // Dyno Run: pull, key, graph, conditions line
+  const rx=P,ix=P+15,iw=IW-30,gw=iw-2,gh=350,sel=$('#pull').selectedOptions[0].textContent;
+  const sw=ft(22,sel)+34;field(ix,y+39,sw,30);T(sel,ix+7,y+40,22,28,hi);arrow(ix+sw-20,y+54);
+  let kr=ix+iw;
+  [...document.querySelectorAll('.run .lg span')].reverse().forEach(s=>{
+    const col=getComputedStyle(s).color,tx=s.textContent,w=29+ft(20,tx),kx=kr-w;
+    x.save();x.shadowColor=col;x.shadowBlur=7*S;x.fillStyle=col;
+    if(s.classList.contains('d'))for(let d=0;d<22;d+=9)x.fillRect(kx+d,y+53,Math.min(6,22-d),3);else x.fillRect(kx,y+53,22,3);
+    x.restore();T(tx,kx+29,y+42,20,24,col,{gl:GL});kr=kx-16});
+  const gx=ix,gy=y+81;
+  x.strokeStyle=C('--faint');x.lineWidth=1;x.strokeRect(gx+.5,gy+.5,iw-1,gh+1);
+  x.save();x.translate(gx+1,gy+1);x.beginPath();x.rect(0,0,gw,gh);x.clip();paint(x,gw,gh,1,-1,0);x.restore();
+  const cl=wrap('# '+$('#cond').textContent,iw,19),cy0=gy+gh+2+8;
+  cl.forEach((ln,k)=>{const top=cy0+k*20.9;
+    if(!k){T('# ',ix,top,19,20.9,dim,{gl:GL});T(ln.slice(2),ix+ft(19,'# '),top,19,20.9,mut,{gl:GL})}else T(ln,ix,top,19,20.9,mut,{gl:GL})});
+  const RH=Math.round(cy0+cl.length*20.9+15-y);
+  box(rx,y,IW,RH,dim,ft(22,'Dyno Run')+16);T('Dyno Run',rx+23,y,22,26.4,hi,{gl:GL});
+  y+=RH+16;
+
+  // Car & Conditions: every field, then the selects and the smoothing slider
+  const ck='- '+$('#condtg').textContent,fl=[...document.querySelectorAll('#fields label')],
+    nc=Math.max(1,Math.floor((iw+16)/184)),cw=(iw-(nc-1)*16)/nc,fy0=y+37;
+  fl.forEach((l,i)=>{const fx=ix+Math.round((i%nc)*(cw+16)),fy=fy0+Math.floor(i/nc)*60,w=Math.round(cw);
+    T(l.firstChild.textContent,fx,fy,20,21,mut,{gl:GL,max:w});
+    field(fx,fy+23,w,27);T(l.querySelector('input').value,fx+7,fy+24,22,25,hi,{max:w-14})});
+  let oy=fy0+Math.ceil(fl.length/nc)*60-10+14;
+  const ol=[...document.querySelectorAll('.opts label')],on=Math.min(ol.length,Math.max(1,Math.floor((iw+22)/252))),ow=(iw-(on-1)*22)/on;
+  ol.forEach((l,i)=>{const c=l.querySelector('select,input'),ox=ix+Math.round((i%on)*(ow+22)),w=Math.round(ow),rg=c.type=='range',off=rg?1:0;
+    T(l.firstChild.textContent,ox,oy+off,20,21,mut,{gl:GL,max:w});
+    x.save();if(c.disabled)x.globalAlpha=.45;
+    if(rg){const lo=+c.min,hiV=+c.max,th=ox+(w-12)*(c.value-lo)/(hiV-lo);
+      x.fillStyle=dim;for(let d=0;d<w;d+=10)x.fillRect(ox+d,oy+37,Math.min(6,w-d),2);
+      x.shadowColor=fg;x.shadowBlur=8*S;x.fillStyle=fg;x.fillRect(Math.round(th),oy+28,12,20)}
+    else{field(ox,oy+23,w,27);T(c.selectedOptions[0].textContent,ox+7,oy+24,22,25,hi,{max:w-34});arrow(ox+w-20,oy+36.5)}
+    x.restore()});
+  const CH=Math.round(oy+50+15-y);
+  box(rx,y,IW,CH,dim,ft(22,ck)+16);T('- ',rx+23,y,22,26.4,dim,{gl:GL});T(ck.slice(2),rx+23+ft(22,'- '),y,22,26.4,hi,{gl:GL});
+  return y+CH+P}
+
+async function snap(){
+  const ro=$('#ro'),note=t=>{ro.textContent=t;setTimeout(()=>{if(ro.textContent==t)ro.textContent=HINT},3500)};
+  if(!cur)return;
+  try{
+    await document.fonts.ready;
+    const S=2,W=1156,h=Math.ceil(sheet(document.createElement('canvas').getContext('2d'),S,W)),c=document.createElement('canvas');
+    c.width=W*S;c.height=h*S;sheet(c.getContext('2d'),S,W);
+    const name='virtual-dyno-'+new Date().toLocaleDateString('en-CA')+'.png',blob=await new Promise(r=>c.toBlob(r,'image/png'));
+    if(!blob)throw new Error('no image');
+    const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.append(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(u),6e4);note('Saved '+name)}
+  catch{note('Could not make the image')}}
+$('#print').onclick=snap;
 /* The banner is sized for VT323 (0.4em per character). If the font did not load, a wider fallback would overflow it,
    so show a plain heading instead; re-check once the font settles or the 3 s block period ends. */
 function noFont(){const t=document.createElement('span');t.style.cssText='position:absolute;visibility:hidden;white-space:pre;font:100px var(--mono)';t.textContent='0'.repeat(20);document.body.appendChild(t);const adv=t.getBoundingClientRect().width/2000;t.remove();document.documentElement.classList.toggle('nofont',adv>.45)}
