@@ -40,7 +40,7 @@ def expected_cf(std, temp_f, rh, da_ft):
     """Correction factor the page should apply, from each standard's published formula and the air the fields describe.
     T is the air temperature (K), pd the dry-air pressure and pt the total pressure (Pa). Reference conditions:
     J1349 25 C / 99 kPa dry (the 1990 form of the formula, 298 K), ISO 1585 the same with the power-law form,
-    J607 (STD) 60 F / 101.325 kPa dry, DIN 70020 20 C / 1013 mbar total pressure."""
+    J607 (STD) 60 F / 101.325 kPa total pressure with no humidity term (what a Dynojet's STD does), DIN 70020 20 C / 1013 mbar total pressure."""
     tc = (temp_f - 32) * 5 / 9
     tk = tc + 273.15
     rho = 1.225 * (1 - 2.25577e-5 * da_ft * 0.3048) ** 4.25588
@@ -50,7 +50,7 @@ def expected_cf(std, temp_f, rh, da_ft):
     if std == "j1349":
         return 1.18 * (99000 / pd) * math.sqrt(tk / 298) - 0.18
     if std == "j607":
-        return (101325 / pd) * math.sqrt(tk / 288.71)
+        return (101325 / pt) * math.sqrt(tk / 288.71)
     if std == "din":
         return (101300 / pt) * math.sqrt(tk / 293.15)
     if std == "iso":
@@ -104,11 +104,19 @@ async def correction_formulas(browser):
         for std, _ in STANDARDS:
             js = await pg.evaluate("a => corrFactor(...a)", [std, tk, pd, pt])
             py = {"j1349": lambda: 1.18 * (99000 / pd) * math.sqrt(tk / 298) - 0.18,
-                  "j607": lambda: (101325 / pd) * math.sqrt(tk / 288.71),
+                  "j607": lambda: (101325 / pt) * math.sqrt(tk / 288.71),
                   "din": lambda: (101300 / pt) * math.sqrt(tk / 293.15),
                   "iso": lambda: (99000 / pd) ** 1.2 * (tk / 298.15) ** 0.6}[std]()
             worst = max(worst, abs(js - py))
     check("corrFactor matches the published formulas at four sets of air conditions", worst < 1e-9, f"worst difference {worst:.2e}")
+    # A real Dynojet WinPEP 8 sheet (Golf R, 10/8/2026) lists STD:1.02 for 71.33 F, 29.60 inHg, 48.09% RH and again for
+    # 71.47 F, 29.61 inHg, 47.41% RH. STD uses total pressure; a dry-air form would give 1.035 (shown as 1.03).
+    for f_, inhg, rh in ((71.33, 29.60, 48.09), (71.47, 29.61, 47.41)):
+        tc = (f_ - 32) * 5 / 9
+        pt = inhg * 3386.389
+        pd = pt - rh / 100 * 610.78 * 10 ** (7.5 * tc / (tc + 237.3))
+        js = await pg.evaluate("a => corrFactor(...a)", ["j607", tc + 273.15, pd, pt])
+        check(f"SAE J607 (STD) gives the 1.02 a Dynojet sheet shows for {f_} F, {inhg} inHg, {rh}% RH", f"{js:.2f}" == "1.02", f"{js:.4f}")
     hot_high = [await pg.evaluate("a => corrFactor(...a)", [k, 313.15, 80000, 81500]) for k, _ in STANDARDS]
     cold_dense = [await pg.evaluate("a => corrFactor(...a)", [k, 273.15, 102000, 102300]) for k, _ in STANDARDS]
     check("hot thin air raises every standard's factor above 1 and cold dense air lowers it below 1",

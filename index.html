@@ -272,10 +272,10 @@ const $=s=>document.querySelector(s),G=9.80665,LB=.45359237,MPH=.44704,HP=745.69
 const FIELDS=[['fhp','Factory Horsepower (HP)',292,1],['ftq','Factory Torque (lb-ft)',280,1],['curb','Curb Weight (lbs)',3300,10],['load','Driver + Cargo (lbs)',200,10],['cd','Drag Coefficient',.32,.01],['area','Frontal Area (m²)',2.2,.05],['crr','Rolling Resistance',.012,.001],['loss','Drivetrain Loss (%)',20,.5],['temp','Air Temp (°F)',70,1],['da','Density Altitude (ft)',0,100],['humid','Humidity (%)',25,5],['ped','Throttle Position >= (%)',90,1],['wind','Wind Speed (MPH)',0,1],['wdir','Wind From (° Compass)',0,10],['head','Car Heading (°)',0,1],['grade','Road Grade (%)',0,.1],['rpmpm','RPM per MPH (GPS Only)',0,.1]];
 $('#fields').innerHTML=FIELDS.map(([id,l,v,st])=>`<label class="f">${l}<input type="number" id="${id}" value="${v}" step="${st}"></label>`).join('');
 /* Power correction factor to a standard day. T: air temp (K), pd: dry-air pressure (Pa), pt: total pressure (Pa).
-   J1349 and ISO 1585 reference 25 C and 99 kPa dry air; J607 (STD) 60 F, 101.325 kPa dry air; DIN 70020 20 C, 1013 mbar total. */
+   J1349 and ISO 1585 reference 25 C and 99 kPa dry air; J607 (STD) 60 F, 29.92 inHg total pressure, no humidity term (a Dynojet's STD); DIN 70020 20 C, 1013 mbar total. */
 function corrFactor(std,T,pd,pt){
   if(std=='j1349')return 1.18*(99000/pd)*Math.sqrt(T/298)-.18;
-  if(std=='j607')return(101325/pd)*Math.sqrt(T/288.71);
+  if(std=='j607')return(101325/pt)*Math.sqrt(T/288.71);
   if(std=='din')return(101300/pt)*Math.sqrt(T/293.15);
   if(std=='iso')return Math.pow(99000/pd,1.2)*Math.pow(T/298.15,.6);
   return 1}

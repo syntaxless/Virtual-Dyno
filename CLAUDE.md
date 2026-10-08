@@ -176,9 +176,11 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
   The formulas, with their reference conditions:
   - J1349: `1.18*(99000/pd)*sqrt(T/298)-.18` (25 C, 99 kPa dry). Do not touch it: the owner's reference numbers depend on it.
   - ISO 1585 (spark-ignition form): `(99000/pd)^1.2*(T/298.15)^0.6` (same reference as J1349).
-  - J607 (STD): `(101325/pd)*sqrt(T/288.71)` (60 F, 29.92 inHg, 0% humidity). Dry-air pressure is used because the
-    reference is dry air; published sources disagree on that point, and on whether "STP" means this same reference, so
-    this is a judgement call, not a verified reading of the withdrawn standard.
+  - J607 (STD): `(101325/pt)*sqrt(T/288.71)` (60 F, 29.92 inHg, total barometric pressure, no humidity term). This is
+    what a Dynojet's STD does, checked against a real WinPEP 8 sheet (Golf R, 10/8/2026): STD:1.02 for 71.33 F, 29.60
+    inHg, 48.09% RH and for 71.47 F, 29.61 inHg, 47.41% RH. The dry-air form it replaced gives 1.035 (shown as 1.03), so
+    it was wrong against a real dyno; `functional.py` has both sheet lines as checks. Whether "STP" means the same
+    reference is still unverified.
   - DIN 70020: `(101300/pt)*sqrt(T/293.15)` (20 C, 1013 mbar, total pressure, no humidity term). The owner wrote
     "DIN 70200"; the standard is DIN 70020, so that is the label.
   The factor is the last step: `analyze()` multiplies it into each point's finished hp, torque and wheel power (`kc`,
