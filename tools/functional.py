@@ -212,8 +212,8 @@ async def with_log(browser):
 
 
 async def tile_captions(browser):
-    """The Peak Crank Power and Peak Crank Torque captions say only where the peak is ("at 116 MPH", "at 6,910 RPM"): the
-    owner removed the "+N HP vs stock" comparison and the Factory Horsepower / Factory Torque fields as unnecessary."""
+    """The Peak Crank Power, Crank Torque and Wheel Power captions say only where the peak is ("at 116 MPH", "at 6,910 RPM"): the
+    owner removed the "+N HP vs stock" comparison, the Factory Horsepower / Factory Torque fields and the "after 20% loss" note."""
     import re
     ctx, pg, errs = await open_page(browser, expand=True)
     first = await pg.eval_on_selector_all("#fields input", "els => els.slice(0, 2).map(e => e.id)")
@@ -224,8 +224,8 @@ async def tile_captions(browser):
     await pg.wait_for_timeout(COUNTUP_MS)
     caps = [(await pg.inner_text(f"#s{i} em")).strip() for i in (1, 2, 3)]
     print(f"     captions: {caps}")
-    check("the power and torque captions only say where the peak is, with no comparison to stock",
-          bool(re.fullmatch(r"at [\d,]+ (RPM|MPH)", caps[0])) and bool(re.fullmatch(r"at [\d,]+ (RPM|MPH)", caps[1])) and not any("stock" in c.lower() for c in caps), str(caps))
+    check("the power, torque and wheel power captions only say where the peak is (no comparison to stock, no drivetrain-loss note)",
+          all(re.fullmatch(r"at [\d,]+ (RPM|MPH)", c) for c in caps), str(caps))
     check("no page errors", not errs, "; ".join(errs))
     await ctx.close()
 

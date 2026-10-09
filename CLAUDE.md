@@ -156,10 +156,9 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
   color; `smoke.py`'s `tile_colors` step compares the four pieces of each tile in both themes, and that the four tiles differ.
   Layout (`.stats`): four across from 941px up, two by two from 601 to 940, one column at 600 and below; the 940 breakpoint is
   where four across stops fitting (the unit after "485 LB-FT" has about 12px to spare at 941), so recheck it with `smoke.py`'s
-  `tile_layout` if the tile padding or number size changes. The Crank Power and Crank Torque captions say only where the peak is
-  ("at 6,910 RPM"); the owner removed the "+N HP vs stock" comparison and the Factory Horsepower and Factory Torque fields as
-  unnecessary, so do not bring them back unasked (`functional.py`'s `tile_captions` checks both are gone). The Wheel Power caption
-  ("at N RPM - after 20% loss") may wrap on the narrower four-across widths; that is fine.
+  `tile_layout` if the tile padding or number size changes. All four captions say only where the peak is ("at 6,910 RPM"). The owner
+  removed the "+N HP vs stock" comparison, the Factory Horsepower and Factory Torque fields, and the "after 20% loss" note on the
+  Wheel Power caption as unnecessary, so do not bring them back unasked (`functional.py`'s `tile_captions` checks all three).
 - **Peak Boost Pressure** (`#s4`, fourth tile, pink: `--s4` is `#ff7ad9` in green and `#e55fa6` in color) was added at the owner's
   request. The owner compared pink, violet, orange, olive or lime, and ivory or white, and chose pink. Solarized magenta
   (`#d33682`) is only 3.7:1 on the screen color, below the other tiles (4.6 to 5.3), so color's pink is a lightened one (5.2:1);

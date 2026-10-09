@@ -421,7 +421,7 @@ function render(){
   roll('s1',h.hp);roll('s2',hasT?t.tq:NaN);roll('s3',w.hw);roll('s4',hasB?b.bp:NaN,1,'N/A');
   $('#s1 em').textContent=`at ${at(h)}`;
   $('#s2 em').textContent=hasT?`at ${at(t)}`:'Enter RPM per MPH (under Car & Conditions) to get torque';
-  $('#s3 em').textContent=`at ${at(w)} · after ${pp.loss}% loss`;
+  $('#s3 em').textContent=`at ${at(w)}`;
   $('#s4 em').textContent=hasB?`at ${at(b)}`:D.gpsOnly?'Needs a log with a boost column':'No boost column found in this log';
   $('#ro').textContent=HINT;
   if(fresh){fresh=false;replay()}else draw()}
