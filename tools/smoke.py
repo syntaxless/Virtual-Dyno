@@ -3,7 +3,7 @@
   python tools/smoke.py [step ...]      (no step names: run everything; e.g. `print_button` runs just that one)
 
 Checks layout at phone/tablet/desktop widths (including which banner variant shows, Load Data full width with its two upload boxes side by side or stacked), the collapsible
-Car & Conditions and How It Works sections, the Power Correction dropdown, the one-line place-date-time weather row, tile text colors, units in capitals, theme switching/persistence,
+Car & Conditions and How It Works sections, the Power Correction dropdown, the one-line place-date-time weather row, tile text colors and layout (four across, two by two, one column), units in capitals, theme switching/persistence,
 the boot-in animation gate, and the self-hosted font (loads from the site, nothing third-party is
 requested, and the page degrades to a plain heading when the font file cannot load), and real-time Replay
 (takes as long as the pull did, live readout, click to skip), and the Print button (a JPEG of the same size on any screen), and the installable web app (manifest, icons, theme color, and a service
@@ -270,18 +270,40 @@ async def weather_row(browser):
 
 
 async def tile_colors(browser):
-    """Every piece of text in the Peak Crank Power, Peak Crank Torque and Peak Wheel Power tiles (title, number, unit, caption)
-    is the same color, in both themes."""
+    """Every piece of text in the four result tiles (Peak Crank Power, Peak Crank Torque, Peak Wheel Power, Peak Boost Pressure:
+    title, number, unit, caption) is the same color, in both themes, and the four tiles keep four different colors."""
     ctx, pg, errs = await open_page(browser)
     await pg.click("#demo")
     await pg.wait_for_timeout(2600)
     for theme in ("color", "green"):
         await pg.click(f'#phos button[data-p="{theme}"]')
-        got = await pg.evaluate("""['#s1','#s2','#s3'].map(id => { const t = document.querySelector(id), c = q => getComputedStyle(t.querySelector(q)).color;
+        got = await pg.evaluate("""['#s1','#s2','#s3','#s4'].map(id => { const t = document.querySelector(id), c = q => getComputedStyle(t.querySelector(q)).color;
             return {id, caption: t.querySelector('em').textContent.length > 0, colors: [c('legend'), c('b .n'), c('b i'), c('em')]} })""")
         for g in got:
             check(f"{theme} theme: {g['id']} title, number, unit and caption are all one color", g["caption"] and len(set(g["colors"])) == 1, str(g))
-        check(f"{theme} theme: the three tiles keep three different colors", len({g["colors"][0] for g in got}) == 3, str([g["colors"][0] for g in got]))
+        check(f"{theme} theme: the four tiles keep four different colors", len({g["colors"][0] for g in got}) == 4, str([g["colors"][0] for g in got]))
+    check("no page errors", not errs, "; ".join(errs))
+    await ctx.close()
+
+
+async def tile_layout(browser):
+    """The four result tiles: four across from 941px up, two by two from 601 to 940, one column on phones (600 and below).
+    Nothing pokes out of a tile (the unit after the big number stays inside its padding), the page does not scroll sideways,
+    and Peak Boost Pressure is the last tile, on the same row as Peak Crank Power when there are four across."""
+    JS = """() => { const q = [...document.querySelectorAll('.stat')], r = q.map(e => e.getBoundingClientRect());
+        return {n: q.length, ids: q.map(e => e.id), cols: getComputedStyle(document.querySelector('.stats')).gridTemplateColumns.split(' ').length,
+          tops: r.map(b => Math.round(b.top)), over: Math.max(...q.map((e, i) => Math.round(e.querySelector('i').getBoundingClientRect().right - (r[i].right - 14)))),
+          hs: document.documentElement.scrollWidth - innerWidth} }"""
+    ctx, pg, errs = await open_page(browser, width=1200)
+    await pg.click("#demo")
+    await pg.wait_for_timeout(500)
+    for w, cols in ((1200, 4), (1000, 4), (941, 4), (940, 2), (768, 2), (601, 2), (600, 1), (375, 1)):
+        await pg.set_viewport_size({"width": w, "height": 900})
+        await pg.wait_for_timeout(120)
+        m = await pg.evaluate(JS)
+        check(f"{w}px: {cols} tile column{'s' if cols > 1 else ''}, in order, Peak Boost Pressure last",
+              m["n"] == 4 and m["ids"] == ["s1", "s2", "s3", "s4"] and m["cols"] == cols and (cols != 4 or m["tops"][0] == m["tops"][3]), str(m))
+        check(f"{w}px: nothing pokes out of a tile and the page does not scroll sideways", m["over"] <= 0 and m["hs"] <= 0, str(m))
     check("no page errors", not errs, "; ".join(errs))
     await ctx.close()
 
@@ -385,6 +407,18 @@ IMG_INK = """async b64 => {
   return {bg: 'rgb(' + bg.join(', ') + ')', page, ink: ink / (d.length / 4)} }"""
 
 
+# Pixels near a color in the top band of the saved image (the result tiles), counted in each quarter of its width.
+IMG_TILES = """async ([b64, col]) => {
+  const im = new Image(); im.src = 'data:image/jpeg;base64,' + b64; await im.decode();
+  const c = document.createElement('canvas'); c.width = im.width; c.height = im.height;
+  const x = c.getContext('2d'); x.drawImage(im, 0, 0);
+  const t = document.createElement('i'); t.style.color = col; document.body.append(t);
+  const m = getComputedStyle(t).color.match(/\\d+/g).map(Number); t.remove();
+  const band = Math.round(c.height * 0.14), d = x.getImageData(0, 0, c.width, band).data, q = [0, 0, 0, 0];
+  for (let i = 0; i < d.length; i += 4) if (Math.abs(d[i] - m[0]) + Math.abs(d[i + 1] - m[1]) + Math.abs(d[i + 2] - m[2]) < 60) q[Math.min(3, Math.floor((i / 4 % c.width) / (c.width / 4)))]++;
+  return q }"""
+
+
 async def print_button(browser):
     """The Print button: next to Replay, off until there is a pull, and it saves one JPEG (under 600 KB) of the same size on
     any screen (page at its widest, twice over), in the current theme, with the fields even when Car & Conditions is
@@ -441,6 +475,9 @@ async def print_button(browser):
         if w == 1200:
             ink = await pg.evaluate(IMG_INK, b64)
             check("the image is drawn on the page's own background and is not blank", same_color(ink["bg"], ink["page"]) and 0.03 <= ink["ink"] <= 0.6, str(ink))
+            col4 = await pg.evaluate("getComputedStyle(document.querySelector('#s4 legend')).color")
+            q = await pg.evaluate(IMG_TILES, [b64, col4])
+            check("the image has four result tiles, the Peak Boost Pressure one (its own color) in the last quarter", q[3] > 300 and max(q[:3]) < 30, str(q))
             await pg.click("#condtg")      # collapse Car & Conditions: the image still has every field
             collapsed = (await grab(pg))[2:4]
             check("with Car & Conditions collapsed the image is the same size (fields still included)", collapsed == (iw, ih), f"{collapsed} vs {(iw, ih)}")
@@ -600,7 +637,7 @@ async def web_app(browser):
 async def main():
     async with async_playwright() as pw:
         browser = await pw.chromium.launch()
-        steps = (layout, collapsible, correction_select, no_pulls_message, themes, boot, font, load_message, weather_row, tile_colors, unit_case, link_preview, web_app, realtime, print_button)
+        steps = (layout, collapsible, correction_select, no_pulls_message, themes, boot, font, load_message, weather_row, tile_colors, tile_layout, unit_case, link_preview, web_app, realtime, print_button)
         for step in steps:
             if len(sys.argv) < 2 or step.__name__ in sys.argv[1:]:    # `python tools/smoke.py print_button` runs just that step
                 await step(browser)

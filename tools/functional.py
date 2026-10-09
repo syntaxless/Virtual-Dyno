@@ -450,6 +450,79 @@ async def stepped_speed(browser):
     check("speed with fine resolution is used as logged (an RPM-only ripple does not reach the power)", gap < 1.0, f"{gap:.2f}% over {n} points")
 
 
+def with_cols(text, cols, blank_near=None):
+    """Add columns to an Accessport CSV given as text. cols is [(header, fn(rpm_in_this_row) -> value)]; blank_near=(lo, hi) leaves the
+    first column empty in rows whose RPM is in that range (a logger that dropped a few samples)."""
+    lines = text.split("\n")
+    out = [lines[0] + "".join("," + h for h, _ in cols)]
+    for ln in lines[1:]:
+        rpm = float(ln.split(",")[1])
+        cells = []
+        for k, (_, fn) in enumerate(cols):
+            blank = k == 0 and blank_near and blank_near[0] <= rpm <= blank_near[1]
+            cells.append("" if blank else f"{fn(rpm):.2f}")
+        out.append(ln + "".join("," + c for c in cells))
+    return "\n".join(out)
+
+
+async def boost_tile(browser):
+    """Peak Boost Pressure (the fourth tile) is read from the log's boost column, not calculated. Needs no real log.
+
+    The synthetic pull has boost 22.0 psi at 4,200 RPM, falling away either side (a parabola, so the 100 RPM binning and the
+    smoothing take about 0.1 psi off the top)."""
+    boost = lambda rpm: 22.0 - 6.0 * ((rpm - 4200) / 1200) ** 2
+    base = synth_pull(lambda t, rpm: rpm / 59.0)
+
+    async def tile(text, name="synthetic.csv", gps=False):
+        ctx, pg, errs = await open_page(browser, expand=True)
+        if gps:
+            await pg.set_input_files("#gps", GPX)
+            await pg.fill("#rpmpm", "67")
+        else:
+            await pg.set_input_files("#file", {"name": name, "mimeType": "text/csv", "buffer": text.encode()})
+        await pg.wait_for_timeout(800)
+        n = (await pg.inner_text("#s4 .n")).strip()
+        cap = (await pg.inner_text("#s4 em")).strip()
+        others = [(await pg.inner_text(f"#s{i} .n")).strip() for i in (1, 2, 3)]
+        await ctx.close()
+        return n, cap, others, errs
+
+    n, cap, others, errs = await tile(with_cols(base, [("Boost Press. (psi)", boost)]))
+    import re
+    rpm_at = re.search(r"([\d,]+) RPM", cap)
+    rpm_at = int(rpm_at.group(1).replace(",", "")) if rpm_at else 0
+    check("Peak Boost Pressure shows the log's peak to one decimal, at the RPM where it happens (22.0 psi at 4,200 RPM, within 0.3 and 100 RPM)",
+          re.fullmatch(r"\d+\.\d", n) is not None and abs(float(n) - 22.0) <= 0.3 and abs(rpm_at - 4200) <= 100, f"{n} | {cap}")
+    check("the other three tiles still show numbers", all(re.fullmatch(r"\d+", o) for o in others), str(others))
+
+    # units in the header are converted to psi
+    for head, k in (("Boost Press. (kPa)", 6.89476), ("Boost (bar)", 1 / 14.5038), ("Boost Press. (mbar)", 68.9476)):
+        n2, cap2, _, _ = await tile(with_cols(base, [(head, lambda r, k=k: boost(r) * k)]))
+        check(f"a boost column in {head.split('(')[1][:-1]} is converted to psi", abs(float(n2) - float(n)) <= 0.1 if re.fullmatch(r"\d+\.\d", n2) else False, f"{n2} vs {n}")
+
+    # a target column (listed first) is not the measurement; neither is a duty cycle
+    n3, _, _, _ = await tile(with_cols(base, [("Trgt. Boost Press. (psi)", lambda r: boost(r) + 8), ("Wastegate Duty (%)", lambda r: 50),
+                                              ("Boost Press. (psi)", boost)]))
+    check("a target-boost column listed before the real one is ignored", re.fullmatch(r"\d+\.\d", n3) is not None and abs(float(n3) - float(n)) <= 0.1, f"{n3} vs {n}")
+
+    # no Boost column: a relative manifold pressure column stands in
+    n4, _, _, _ = await tile(with_cols(base, [("Relative Manifold Pressure (psi)", boost)]))
+    check("with no boost column, Relative Manifold Pressure stands in", re.fullmatch(r"\d+\.\d", n4) is not None and abs(float(n4) - float(n)) <= 0.1, n4)
+
+    # a few empty cells near the peak do not blank the tile
+    n5, _, _, _ = await tile(with_cols(base, [("Boost Press. (psi)", boost)], blank_near=(4100, 4300)))
+    check("empty boost cells near the peak are skipped, not allowed to blank the tile", re.fullmatch(r"\d+\.\d", n5) is not None and abs(float(n5) - 22.0) <= 0.5, n5)
+
+    # no boost at all (a naturally aspirated car, or a log without the column): N/A, and the rest of the page still works
+    n6, cap6, others6, errs6 = await tile(base)
+    check("a log with no boost column shows N/A (not a dash: the car may be naturally aspirated), with a caption that says why",
+          n6 == "N/A" and "boost" in cap6.lower(), f"{n6!r} | {cap6!r}")
+    check("the other tiles still show numbers when there is no boost column", all(re.fullmatch(r"\d+", o) for o in others6[:1] + others6[2:]), str(others6))
+    n7, cap7, _, errs7 = await tile("", gps=True)
+    check("GPS only shows N/A for boost, with a caption that asks for a log", n7 == "N/A" and "log" in cap7.lower(), f"{n7!r} | {cap7!r}")
+    check("no page errors", not (errs or errs6 or errs7), "; ".join(errs + errs6 + errs7))
+
+
 async def main():
     async with async_playwright() as pw:
         browser = await pw.chromium.launch()
@@ -457,6 +530,7 @@ async def main():
         await gps_only(browser)
         await factory_fields(browser)
         await stepped_speed(browser)
+        await boost_tile(browser)
         await weather_pressure_temp(browser)
         if LOG:
             await with_log(browser)

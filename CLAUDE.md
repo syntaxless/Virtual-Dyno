@@ -42,8 +42,9 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
 - **Themes** are CSS custom properties on `:root[data-phosphor="..."]`. The CSS base is green and `color` (a
   Solarized palette) overrides it, but **color is the default**: the head script always sets `data-phosphor` to
   the saved choice (`green` or `color`) or, with nothing valid saved, to `color`. The owner asked for that, and a
-  visitor who picked green keeps it, because the choice is saved as `green`. Tokens: `--desk --bg --screen --fg --hi --mut --dim --faint --s1 --s2 --s3 --err
-  --ink --rgb --halo --bezel`. The graph canvas reads `--screen --mut --hi --dim --s1..--s3 --rgb`, and the car
+  visitor who picked green keeps it, because the choice is saved as `green`. Tokens: `--desk --bg --screen --fg --hi --mut --dim --faint --s1 --s2 --s3 --s4 --err
+  --ink --rgb --halo --bezel`. The graph canvas reads `--screen --mut --hi --dim --s1..--s3 --rgb` (`--s4` is the Peak Boost Pressure
+  tile's pink and is not on the graph), and the car
   sprite reads colors through `RB.theme()`. The saved choice lives in `localStorage` key `dyno-phosphor`; its
   allow-list appears twice (the head script and the `setPhos` init). Update both when adding or removing a theme.
   A stored value that is no longer allowed, or storage that throws, falls back to color. The buttons' static
@@ -110,7 +111,7 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
   load and Replay press; `smoke.py`'s `realtime` check loads the demo log and times it (about 10 s of the run). On
   phones `#ro` reserves two lines, because the live readout wraps and the page would otherwise jump when it starts.
 - **Print** (`#print`, `[ Print ]`, next to Replay inside `span.acts` in `.run .top`) saves a JPEG of the region from the top
-  of the three power tiles to the bottom of Car & Conditions. It is not a copy of the screen and not a DOM-to-image
+  of the four result tiles to the bottom of Car & Conditions. It is not a copy of the screen and not a DOM-to-image
   library (none is allowed: the page loads nothing third-party, and there is no build step). `sheet(x,S,W)` draws the
   whole region on its own canvas: the page at its widest (1156 logical px, 2x, so 2312 px wide, about 400 KB), the same
   size on a phone as on a desktop, in the current theme, with the full curve even mid-replay and with every field even
@@ -149,10 +150,29 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
 - **No-pulls message**: when `render()` finds no pull it appends one red line (`<span id="nopull" class="bad">`, `--err`)
   to `#msg`, built with DOM nodes. `render()` removes any earlier `#nopull` first, so the line neither piles up when a
   setting is edited again nor stays after pulls are found; `smoke.py`'s `no_pulls_message` step checks that.
-- **Result tiles** (Peak Crank Power, Peak Crank Torque, Peak Wheel Power) take every piece of their text from one
-  per-tile variable, `--c` (the same colors as the graph lines: `--fg`, `--s2`, `--s3`): the title, the big number, the
-  unit (hp, lb-ft, whp) and the caption under it. Do not give the unit or caption their own muted color; `smoke.py`'s
-  `tile_colors` step compares all four in both themes.
+- **Result tiles** (Peak Crank Power, Peak Crank Torque, Peak Wheel Power, Peak Boost Pressure) take every piece of their text
+  from one per-tile variable, `--c` (the first three are the graph lines' colors: `--fg`, `--s2`, `--s3`; boost is `--s4`): the
+  title, the big number, the unit (hp, lb-ft, whp, psi) and the caption under it. Do not give the unit or caption their own muted
+  color; `smoke.py`'s `tile_colors` step compares the four pieces of each tile in both themes, and that the four tiles differ.
+  Layout (`.stats`): four across from 941px up, two by two from 601 to 940, one column at 600 and below; the 940 breakpoint is
+  where four across stops fitting (the unit after "485 LB-FT" has about 12px to spare at 941), so recheck it with `smoke.py`'s
+  `tile_layout` if the tile padding or number size changes. The captions under Crank Power and Crank Torque wrap to two lines when
+  four are across; that is expected.
+- **Peak Boost Pressure** (`#s4`, fourth tile, pink: `--s4` is `#ff7ad9` in green and `#e55fa6` in color) was added at the owner's
+  request. The owner compared pink, violet, orange, olive or lime, and ivory or white, and chose pink. Solarized magenta
+  (`#d33682`) is only 3.7:1 on the screen color, below the other tiles (4.6 to 5.3), so color's pink is a lightened one (5.2:1);
+  red is avoided because error messages use it. Value: `parse()` reads the first header matching `boost` that is not a target,
+  setpoint, duty, wastegate, solenoid or control column (Cobb VAG: "Boost Press. (psi)"), else a "Relative Manifold Pressure"
+  column; kPa, bar, mbar/hPa and inHg in the header are converted to psi, and a blank cell is skipped, not allowed to blank the
+  tile. It is gauge pressure as logged, never computed (no ambient subtraction, so an absolute MAP column is not matched). Each
+  plotted point carries `bp`; `build()` bins and smooths it like the power curves (`avb` ignores blanks), so the tile is the peak
+  of the plotted curve with its RPM, a few tenths under the single highest sample (31.4 against 31.6 on the dyno log). It shows one
+  decimal (`roll(id,to,dec,na)`; `_d` and `_na` are kept on the number for Print). With no boost column, and for GPS only, it
+  says **N/A**, not a dash (the owner's request: the car may be naturally aspirated), with a caption saying why; with no pulls
+  every tile shows a dash. The demo log has a simulated boost column so the tile shows a value there. Boost is not drawn on the
+  graph. `functional.py`'s `boost_tile` checks the value and RPM, unit conversion, target and duty columns being ignored, the
+  Relative Manifold Pressure fallback, blank cells, N/A, and GPS only, on generated logs; `smoke.py`'s `print_button` checks the
+  saved image has four tiles with boost's color in the last quarter.
 - **Factory numbers** are the first two Car & Conditions fields, `fhp` (Factory Horsepower, 292) and `ftq` (Factory
   Torque, 280): the 2016 Golf R's US figures. They are the only reference for the "+N hp vs stock X" captions under
   the Peak Crank Power and Torque tiles, and they change nothing but those captions. A blank or zero value drops the

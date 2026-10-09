@@ -28,8 +28,8 @@ try{let s;try{s=sessionStorage.getItem("dyno-boot");sessionStorage.setItem("dyno
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"Online Virtual Dyno","alternateName":"Virtual Dyno","url":"https://dyno.turboloser.co/"}</script>
 <style>
 @font-face{font-family:"VT323";font-style:normal;font-weight:400;font-display:block;src:url(fonts/vt323-latin-400-normal.woff2) format("woff2")}
-:root{--desk:#010503;--bg:#030f08;--screen:#020b06;--fg:#46f08a;--hi:#d6ffe6;--mut:#37b46c;--dim:#1c7a45;--faint:#0e3d22;--s1:#46f08a;--s2:#ffb938;--s3:#59e4ff;--err:#ff6b5e;--ink:#02100a;--rgb:70,240,138;--halo:#08240f;--bezel:#08140d;--mono:"VT323",ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;color-scheme:dark}
-:root[data-phosphor="color"]{--desk:#001a21;--bg:#002b36;--screen:#00212b;--fg:#268bd2;--hi:#eee8d5;--mut:#93a1a1;--dim:#839496;--faint:#586e75;--s1:#268bd2;--s2:#b58900;--s3:#2aa198;--err:#ef5f5c;--ink:#002b36;--rgb:38,139,210;--halo:#073642;--bezel:#073642}
+:root{--desk:#010503;--bg:#030f08;--screen:#020b06;--fg:#46f08a;--hi:#d6ffe6;--mut:#37b46c;--dim:#1c7a45;--faint:#0e3d22;--s1:#46f08a;--s2:#ffb938;--s3:#59e4ff;--s4:#ff7ad9;--err:#ff6b5e;--ink:#02100a;--rgb:70,240,138;--halo:#08240f;--bezel:#08140d;--mono:"VT323",ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;color-scheme:dark}
+:root[data-phosphor="color"]{--desk:#001a21;--bg:#002b36;--screen:#00212b;--fg:#268bd2;--hi:#eee8d5;--mut:#93a1a1;--dim:#839496;--faint:#586e75;--s1:#268bd2;--s2:#b58900;--s3:#2aa198;--s4:#e55fa6;--err:#ef5f5c;--ink:#002b36;--rgb:38,139,210;--halo:#073642;--bezel:#073642}
 *{box-sizing:border-box}
 html{background:var(--desk)}
 body{margin:0;min-height:100vh;padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom));background-color:var(--desk);background-image:radial-gradient(1100px 620px at 50% -80px,var(--halo),transparent 70%);color:var(--fg);font:22px/1.2 var(--mono);text-shadow:0 0 5px rgba(var(--rgb),.32)}
@@ -138,7 +138,7 @@ input[type=range]::-webkit-slider-runnable-track{height:2px;background:repeating
 input[type=range]::-moz-range-track{height:2px;background:repeating-linear-gradient(90deg,var(--dim) 0 6px,transparent 6px 10px)}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:20px;margin-top:-9px;background:var(--fg);border:0;border-radius:0;box-shadow:0 0 8px var(--fg)}
 input[type=range]::-moz-range-thumb{width:12px;height:20px;background:var(--fg);border:0;border-radius:0;box-shadow:0 0 8px var(--fg)}
-.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
 .stat{--c:var(--fg);border-color:var(--c);padding:6px 14px 12px}
 .stat legend{color:var(--c)}
 .stat b{display:block;font-weight:400;font-size:78px;line-height:.95;color:var(--c);text-shadow:0 0 14px var(--c);white-space:nowrap}
@@ -164,6 +164,7 @@ input[type=range]::-moz-range-thumb{width:12px;height:20px;background:var(--fg);
 @keyframes blink2{50%{opacity:0}}
 @media (max-width:430px){#car{width:216px;height:68px}}
 @media (max-width:480px){.ph .pl{display:none}.ph button{padding:0 5px}}
+@media (max-width:940px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:600px){body{padding-left:10px;padding-right:10px;font-size:20px}#ro{min-height:48px}.app{padding:12px 12px 8px}.foot{margin:0 12px}.ps1{padding:2px 12px 14px}.stats{grid-template-columns:minmax(0,1fr)}.stat b{font-size:64px}#cv{height:300px}.win{box-shadow:0 0 0 4px var(--bezel),0 0 0 5px #000,0 0 40px rgba(var(--rgb),.14),inset 0 0 70px rgba(var(--rgb),.07)}}
 @media (prefers-reduced-motion:reduce){.type,.ps1 i{animation:none}}
 </style></head><body>
@@ -242,6 +243,7 @@ input[type=range]::-moz-range-thumb{width:12px;height:20px;background:var(--fg);
    <fieldset class="stat" id="s1" style="--c:var(--fg)"><legend>Peak Crank Power</legend><b><span class="n">–</span><i>HP</i></b><em></em></fieldset>
    <fieldset class="stat" id="s2" style="--c:var(--s2)"><legend>Peak Crank Torque</legend><b><span class="n">–</span><i>LB-FT</i></b><em></em></fieldset>
    <fieldset class="stat" id="s3" style="--c:var(--s3)"><legend>Peak Wheel Power</legend><b><span class="n">–</span><i>WHP</i></b><em></em></fieldset>
+   <fieldset class="stat" id="s4" style="--c:var(--s4)"><legend>Peak Boost Pressure</legend><b><span class="n">–</span><i>PSI</i></b><em></em></fieldset>
   </div>
   <fieldset class="run"><legend>Dyno Run</legend>
    <div class="top"><select id="pull" aria-label="Select pull"></select><span class="acts"><button class="btn" id="replay" type="button">Replay</button><button class="btn" id="print" type="button" disabled>Print</button></span>
@@ -262,7 +264,7 @@ input[type=range]::-moz-range-thumb{width:12px;height:20px;background:var(--fg);
   <div class="notes">
    <fieldset class="how shut"><legend><button type="button" class="tg" id="howtg" aria-expanded="false" aria-controls="howbody">How It Works</button></legend>
     <div id="howbody" hidden>
-     <p>Speed is turned into acceleration (a log whose speed moves in whole-MPH steps has it rebuilt from RPM first, which removes the staircase noise), then force = mass × acceleration + aerodynamic drag + rolling resistance + hills. Wheel Power is Force × Speed, and Crank Power adds drivetrain loss and the energy spent spinning up the engine. Density Altitude is filled in from your log's pressure and temperature. With no pressure in the log it uses GPS altitude, and fetching the weather adds that hour's sea-level pressure. That sets the air density, but you can overwrite it. With GPS only there is no RPM, so power is plotted against Speed. Enter RPM per MPH for the gear you used to get RPM and torque.</p>
+     <p>Speed is turned into acceleration (a log whose speed moves in whole-MPH steps has it rebuilt from RPM first, which removes the staircase noise), then force = mass × acceleration + aerodynamic drag + rolling resistance + hills. Wheel Power is Force × Speed, and Crank Power adds drivetrain loss and the energy spent spinning up the engine. Density Altitude is filled in from your log's pressure and temperature. With no pressure in the log it uses GPS altitude, and fetching the weather adds that hour's sea-level pressure. That sets the air density, but you can overwrite it. With GPS only there is no RPM, so power is plotted against Speed. Enter RPM per MPH for the gear you used to get RPM and torque. Peak Boost Pressure is not calculated: it is read from the log's boost column and averaged into the same 100 RPM steps as the power curve, so it can sit a few tenths under the single highest sample.</p>
     </div>
    </fieldset>
   </div>
@@ -298,14 +300,16 @@ function parse(text){
   let si=f(/vehicle speed|veh.*spd|vss/i);if(si<0)si=f(/speed/i,/engine|rpm/i);
   let pi=f(/pedal/i);if(pi<0)pi=f(/throttle/i,/target|desired/i);
   const ai=f(/ambient/i,/press|baro/i),bi=f(/ambient.*press|baro/i);
+  let oi=f(/boost/i,/trgt|target|set ?p|desired|request|duty|wastegate|solenoid|control/i);if(oi<0)oi=f(/rel.*manifold|manifold.*rel/i,/trgt|target|set ?p|desired/i);
+  const bu=/kpa/i.test(H[oi]||'')?1/6.89476:/mbar|hpa/i.test(H[oi]||'')?1/68.9476:/\bbar\b/i.test(H[oi]||'')?14.5038:/inhg/i.test(H[oi]||'')?.491154:1;
   if(ti<0||ri<0||si<0)throw Error('Need Time, Engine Speed (RPM) and Vehicle Speed columns. Found: '+H.join(', '));
   const su=/km\/?h|kph/i.test(H[si])?1/3.6:/m\/s/i.test(H[si])?1:MPH;
-  const t=[],rpm=[],v=[],ped=[],am=[],bm=[];
+  const t=[],rpm=[],v=[],ped=[],am=[],bm=[],bo=[];
   for(const l of L.slice(hi+1)){const c=sp(l).map(parseFloat);
     if([c[ti],c[ri],c[si]].some(isNaN)||(t.length&&c[ti]<=t[t.length-1]))continue;
     if(ai>=0&&!isNaN(c[ai]))am.push(c[ai]);
     if(bi>=0&&!isNaN(c[bi]))bm.push(c[bi]);
-    t.push(c[ti]);rpm.push(c[ri]);v.push(c[si]*su);ped.push(pi>=0&&!isNaN(c[pi])?c[pi]:null)}
+    bo.push(oi>=0&&!isNaN(c[oi])?c[oi]*bu:NaN);t.push(c[ti]);rpm.push(c[ri]);v.push(c[si]*su);ped.push(pi>=0&&!isNaN(c[pi])?c[pi]:null)}
   if(t.length<30)throw Error('Only '+t.length+' usable rows found. The log is too short to analyze.');
   let ts=/ms|milli/i.test(H[ti])?.001:1;if(ts==1&&(t[t.length-1]-t[0])/t.length>5)ts=.001;
   const t0=t[0];for(let i=0;i<t.length;i++)t[i]=(t[i]-t0)*ts;
@@ -314,7 +318,8 @@ function parse(text){
   if(ai>=0&&am.length){const isC=/\bc\)|°\s*c|celsius/i.test(H[ai]),a=am.reduce((s,x)=>s+x,0)/am.length,F=isC?a*9/5+32:a;
     if(F>-40&&F<150){amb=Math.round(F*10)/10;an=` Air temp set to ${amb} °F from the average of “${H[ai]}”.`}}
   if(baro)an+=` Pressure set to ${baro} psi from “${H[bi]}”.`;
-  return{t,rpm,v,ped:pi>=0?ped:null,n:t.length,amb,baro,info:`Using “${H[ri]}”, “${H[si]}”, ${pi>=0?'“'+H[pi]+'”':'no pedal column (pulls found from RPM and speed only)'}.${an}`}}
+  const hasB=oi>=0&&bo.some(isFinite);
+  return{t,rpm,v,ped:pi>=0?ped:null,boost:hasB?bo:null,n:t.length,amb,baro,info:`Using “${H[ri]}”, “${H[si]}”, ${pi>=0?'“'+H[pi]+'”':'no pedal column (pulls found from RPM and speed only)'}.${hasB?` Boost from “${H[oi]}”.`:''}${an}`}}
 
 function analyze(reset){
   if(!D)return;const p=P();if(reset)gi=null;wxVis();const{t,ped}=D,n=t.length;let v=D.v,rpm=D.rpm;
@@ -357,27 +362,27 @@ function analyze(reset){
       const w=rpm[i]*Math.PI/30,kr=w/vv,ei=isFinite(kr)?Ie*kr*kr*ac*vv:0;
       const va=vv+hwd,Pw=((m+mw)*ac+.5*rho*p.cd*p.area*va*Math.abs(va)+p.crr*m*G+m*G*Math.sin(gr))*vv;
       const Pc=Pw/(1-lf)+ei;
-      pts.push({r:X[i],s:t[i],hw:Pw/HP*kc,hp:Pc/HP*kc,tq:Pc/w*LBFT*kc})}
+      pts.push({r:X[i],s:t[i],hw:Pw/HP*kc,hp:Pc/HP*kc,tq:Pc/w*LBFT*kc,bp:D.boost?D.boost[i]:NaN})}
     return{a,b,pts,lo:Math.round(X[a]),hi:Math.round(X[b]),dur:t[b]-t[a],rm:rpm[b]/(vs[b]/MPH),v0:vs[a]/MPH,v1:vs[b]/MPH}}).filter(q=>q.pts.length>5);
   if(reset||sel>=pulls.length){sel=0;pulls.forEach((q,i)=>{if(q.hi-q.lo>pulls[sel].hi-pulls[sel].lo)sel=i})}
   if(reset&&GPS&&pulls.length)return fromGPS(1);render()}
 
 function build(pull,p){
   const B={};for(const q of pull.pts){const k=Math.round(q.r/AX.bin);(B[k]=B[k]||[]).push(q)}
-  const avg=(a,f)=>a.reduce((s,q)=>s+q[f],0)/a.length;
-  let c=Object.keys(B).map(Number).sort((a,b)=>a-b).map(k=>({r:avg(B[k],'r'),tm:avg(B[k],'s'),hp:avg(B[k],'hp'),tq:avg(B[k],'tq'),hw:avg(B[k],'hw')}));
+  const avg=(a,f)=>a.reduce((s,q)=>s+q[f],0)/a.length,avb=(a,f)=>{const v=a.map(q=>q[f]).filter(isFinite);return v.length?v.reduce((s,x)=>s+x,0)/v.length:NaN};
+  let c=Object.keys(B).map(Number).sort((a,b)=>a-b).map(k=>({r:avg(B[k],'r'),tm:avg(B[k],'s'),hp:avg(B[k],'hp'),tq:avg(B[k],'tq'),hw:avg(B[k],'hw'),bp:avb(B[k],'bp')}));
   const R=Math.round(p.smooth/4);
-  if(R>0)c=c.map((q,i)=>{const a=c.slice(Math.max(0,i-R),i+R+1);return{r:q.r,tm:q.tm,hp:avg(a,'hp'),tq:avg(a,'tq'),hw:avg(a,'hw')}});
+  if(R>0)c=c.map((q,i)=>{const a=c.slice(Math.max(0,i-R),i+R+1);return{r:q.r,tm:q.tm,hp:avg(a,'hp'),tq:avg(a,'tq'),hw:avg(a,'hw'),bp:avb(a,'bp')}});
   let tmax=-Infinity;for(const q of c){tmax=Math.max(tmax,q.tm);q.tm=tmax}
   return c}
 
-function roll(id,to){
-  const el=$('#'+id+' .n');cancelAnimationFrame(el._r);el._to=to;   // _to: the final value, which Print uses while the count-up is still running
-  if(!isFinite(to)){el.textContent='–';shown[id]=0;return}
+function roll(id,to,dec=0,na='–'){   // na: what shows when there is no value (Peak Boost Pressure says N/A: the car may not have a turbo)
+  const el=$('#'+id+' .n'),fm=x=>dec?x.toFixed(dec):String(Math.round(x));cancelAnimationFrame(el._r);el._to=to;el._d=dec;el._na=na;   // _to: the final value, which Print uses while the count-up is still running
+  if(!isFinite(to)){el.textContent=na;shown[id]=0;return}
   const from=shown[id]||0;
-  if(reduce||from===to){el.textContent=Math.round(to);shown[id]=to;return}
+  if(reduce||from===to){el.textContent=fm(to);shown[id]=to;return}
   const t0=performance.now(),dur=from?600:1500;
-  const step=now=>{const k=Math.min(1,(now-t0)/dur),v=from+(to-from)*(1-Math.pow(1-k,3));el.textContent=Math.round(v);shown[id]=v;if(k<1)el._r=requestAnimationFrame(step);else shown[id]=to};
+  const step=now=>{const k=Math.min(1,(now-t0)/dur),v=from+(to-from)*(1-Math.pow(1-k,3));el.textContent=fm(v);shown[id]=v;if(k<1)el._r=requestAnimationFrame(step);else shown[id]=to};
   el._r=requestAnimationFrame(step)}
 const HINT='Hover or touch the graph for exact values';
 // Where the playback is when it is `g` (0..1) of the way through the plotted part of the pull, by log time, not by rpm:
@@ -406,18 +411,19 @@ function render(){
   $('#cond').textContent=pulls.length?cond+(pulls[sel]&&isFinite(pulls[sel].rm)&&!D.gpsOnly?` · this pull is about ${pulls[sel].rm.toFixed(1)} RPM per MPH`:''):'';
   S.innerHTML=pulls.map((q,i)=>`<option value="${i}">Pull ${i+1}: ${q.lo.toLocaleString()}–${q.hi.toLocaleString()} ${AX.u}, ${q.dur.toFixed(1)} s</option>`).join('')||'<option>No pull selected</option>';
   S.disabled=!pulls.length;hov=-1;if(fresh)shown={};
-  if(!pulls.length){cur=null;['s1','s2','s3'].forEach(i=>{roll(i,NaN);$('#'+i+' em').textContent=''});
+  if(!pulls.length){cur=null;['s1','s2','s3','s4'].forEach(i=>{roll(i,NaN);$('#'+i+' em').textContent=''});
     if(D){const e=document.createElement('span'),b=document.createElement('b');e.id='nopull';e.className='bad';b.textContent='No full-throttle pulls found.';
       e.append(document.createElement('br'),b,' Log a clean pull with the pedal fully down, or lower the throttle position (%).');$('#msg').append(e)}
     $('#ro').textContent='';$('#print').disabled=true;fresh=false;draw();return}
   $('#print').disabled=false;S.value=sel;const pp=P();cur=build(pulls[sel],pp);
-  const pk=f=>cur.reduce((b,q)=>q[f]>b[f]||!isFinite(b[f])?q:b),h=pk('hp'),t=pk('tq'),w=pk('hw'),hasT=isFinite(t.tq);
+  const pk=f=>cur.reduce((b,q)=>q[f]>b[f]||!isFinite(b[f])?q:b),h=pk('hp'),t=pk('tq'),w=pk('hw'),b=pk('bp'),hasT=isFinite(t.tq),hasB=isFinite(b.bp);
   const at=q=>AX.u=='MPH'?Math.round(q.r)+' MPH':(Math.round(q.r/10)*10).toLocaleString()+' RPM';
   const dl=(x,ref,u)=>ref>0?` · ${x>=ref?'+':'−'}${Math.abs(Math.round(x-ref))} ${u} vs stock ${ref}`:'';
-  roll('s1',h.hp);roll('s2',hasT?t.tq:NaN);roll('s3',w.hw);
+  roll('s1',h.hp);roll('s2',hasT?t.tq:NaN);roll('s3',w.hw);roll('s4',hasB?b.bp:NaN,1,'N/A');
   $('#s1 em').textContent=`at ${at(h)}${dl(h.hp,pp.fhp,'HP')}`;
   $('#s2 em').textContent=hasT?`at ${at(t)}${dl(t.tq,pp.ftq,'LB-FT')}`:'Enter RPM per MPH (under Car & Conditions) to get torque';
   $('#s3 em').textContent=`at ${at(w)} · after ${pp.loss}% loss`;
+  $('#s4 em').textContent=hasB?`at ${at(b)}`:D.gpsOnly?'Needs a log with a boost column':'No boost column found in this log';
   $('#ro').textContent=HINT;
   if(fresh){fresh=false;replay()}else draw()}
 
@@ -484,12 +490,13 @@ function load(text,name,fname){   // fname: what Print names its file after, whe
 function demo(){
   const p=P(),TQ=[[2000,240],[2500,300],[3000,340],[3500,360],[4000,362],[4500,355],[5000,345],[5500,328],[6000,308],[6500,275],[6800,255]];
   const tq=r=>{if(r<=2000)return 240;for(let i=1;i<TQ.length;i++)if(r<=TQ[i][0]){const[a,b]=TQ[i-1],[c,e]=TQ[i];return b+(e-b)*(r-a)/(c-a)}return 255};
-  const k=150,m=(p.curb+p.load)*LB+36+.2*Math.pow(k*Math.PI/30,2),rows=['Time (msec),Engine Speed (RPM),Vehicle Speed (MPH),Accel. Pedal Position (%),Ambient Air Temp (F)'];
+  const k=150,m=(p.curb+p.load)*LB+36+.2*Math.pow(k*Math.PI/30,2),rows=['Time (msec),Engine Speed (RPM),Vehicle Speed (MPH),Accel. Pedal Position (%),Ambient Air Temp (F),Boost Press. (psi)'];
+  const bst=r=>r<2000?3:r<3600?3+16*(r-2000)/1600:r<4500?19+(r-3600)/900:20-5*(r-4500)/2200;
   let v=2400/k;
   for(let time=0;k*v<6700;time+=80){
     const r=k*v,Pc=tq(r)/LBFT*r*Math.PI/30,F=Pc*(1-p.loss/100)/v;
     const a=(F-.5*1.2*p.cd*p.area*v*v-p.crr*(p.curb+p.load)*LB*G)/m;
-    rows.push(`${time},${Math.round(r+(Math.random()-.5)*40)},${Math.round(v/MPH)},100,${(p.temp+(Math.random()-.5)*2).toFixed(1)}`);v+=a*.08}
+    rows.push(`${time},${Math.round(r+(Math.random()-.5)*40)},${Math.round(v/MPH)},100,${(p.temp+(Math.random()-.5)*2).toFixed(1)},${(bst(r)+(Math.random()-.5)*.4).toFixed(1)}`);v+=a*.08}
   load(rows.join('\n'),'Simulated demo log (about 350 HP tune)','Demo')}
 
 const R2=Math.PI/180,dist=(p,q)=>6371000*Math.hypot((q.lon-p.lon)*R2*Math.cos((p.lat+q.lat)/2*R2),(q.lat-p.lat)*R2),
@@ -558,7 +565,7 @@ const gz=$('#gdrop');gz.ondragover=e=>{e.preventDefault();gz.classList.add('on')
 gz.ondrop=e=>{e.preventDefault();gz.classList.remove('on');readGPS(e.dataTransfer.files[0])};
 $('#replay').onclick=()=>{fresh=true;render()};
 
-/* Print: saves a PNG of the three power tiles, the whole graph and Car & Conditions. It is drawn on its own canvas, not
+/* Print: saves a PNG of the four result tiles, the whole graph and Car & Conditions. It is drawn on its own canvas, not
    copied from the screen, so it comes out the same size on a phone as on a desktop (the page at its widest, twice over),
    shows the full curve even mid-replay, and includes the fields even when Car & Conditions is collapsed. It reads the
    live values (tile peaks, the FIELDS inputs, the selects), so new fields appear without any change here.
@@ -583,9 +590,9 @@ function sheet(x,S,W){
   const field=(bx,by,w,h)=>{x.fillStyle='#000';x.fillRect(bx,by,w,h);x.strokeStyle=dim;x.lineWidth=1;x.strokeRect(bx+.5,by+.5,w-1,h-1)};
 
   // Power tiles
-  let y=P;const GAP=14,TW=(IW-2*GAP)/3,
-    tiles=['s1','s2','s3'].map(id=>{const e=document.getElementById(id),n=e.querySelector('.n')._to,lg=e.querySelector('legend');
-      return{col:getComputedStyle(lg).color,title:lg.textContent,num:isFinite(n)?String(Math.round(n)):'\u2013',unit:e.querySelector('i').textContent,cap:e.querySelector('em').textContent}}),
+  let y=P;const GAP=14,TW=(IW-3*GAP)/4,
+    tiles=['s1','s2','s3','s4'].map(id=>{const e=document.getElementById(id),n=e.querySelector('.n')._to,lg=e.querySelector('legend');
+      return{col:getComputedStyle(lg).color,title:lg.textContent,num:isFinite(n)?(e.querySelector('.n')._d?n.toFixed(e.querySelector('.n')._d):String(Math.round(n))):(e.querySelector('.n')._na||'\u2013'),unit:e.querySelector('i').textContent,cap:e.querySelector('em').textContent}}),
     caps=tiles.map(t=>wrap(t.cap,TW-30,20)),TH=112+21*Math.max(...caps.map(l=>l.length))+13;
   tiles.forEach((t,i)=>{
     const bx=P+Math.round(i*(TW+GAP)),w=Math.round(TW);
