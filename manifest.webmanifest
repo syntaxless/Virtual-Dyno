@@ -6,8 +6,8 @@
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#001a21",
-  "theme_color": "#001a21",
+  "background_color": "#010503",
+  "theme_color": "#010503",
   "lang": "en",
   "categories": ["automotive", "utilities"],
   "icons": [

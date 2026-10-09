@@ -5,7 +5,7 @@
 
 It is the page's own VIRTUAL DYNO banner (the stacked variant, which fills a 1.9:1 card better than the one-row
 one and stays legible when a chat app shrinks it), set in the self-hosted VT323 on the page's own screen look: the
-default (color) theme's colors, the glow, scanlines and vignette. The banner text and colors are read from
+default theme's colors (the page's default; og.png in the repo was made in color, see CLAUDE.md), the glow, scanlines and vignette. The banner text and colors are read from
 index.html, so run this again after changing the art or the palette, then commit og.png. Needs Pillow
 (pip install pillow) as well as Playwright.
 """

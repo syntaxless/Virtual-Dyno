@@ -4,7 +4,7 @@
   python tools/icons.py --check    # renders to tools/out/ only, writes nothing to the repo
 
 The icon is the page's own dyno chart: a torque curve that peaks early and falls, and a power curve that keeps climbing,
-crossing where torque and power meet (5,252 RPM), on the page's screen look in the default (color) theme. The colors are
+crossing where torque and power meet (5,252 RPM), on the page's screen look in the default (green) theme. The colors are
 read from index.html (--bg, --halo, --dim, --faint, --fg for power, --s2 for torque), so run this again and commit icons/
 after changing the palette. Four files, all PNG:
 

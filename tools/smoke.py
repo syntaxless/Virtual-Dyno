@@ -164,22 +164,22 @@ async def themes(browser):
     ctx, pg, errs = await open_page(browser)
     ph = lambda: pg.evaluate("document.documentElement.dataset.phosphor||''")
     pressed = lambda: pg.evaluate("[...document.querySelectorAll('#phos button')].filter(b=>b.getAttribute('aria-pressed')=='true').map(b=>b.dataset.p)")
-    check("the color theme is the default", await ph() == "color" and await pressed() == ["color"], f"{await ph()} {await pressed()}")
-    await pg.click('#phos button[data-p="green"]')
-    check("green theme applies", await ph() == "green" and await pressed() == ["green"])
-    await pg.reload(); await pg.wait_for_timeout(300)
-    check("a chosen green theme persists across reload", await ph() == "green" and await pressed() == ["green"])
+    check("the green theme is the default", await ph() == "green" and await pressed() == ["green"], f"{await ph()} {await pressed()}")
     await pg.click('#phos button[data-p="color"]')
-    check("color theme restores", await ph() == "color" and await pressed() == ["color"])
+    check("color theme applies", await ph() == "color" and await pressed() == ["color"])
+    await pg.reload(); await pg.wait_for_timeout(300)
+    check("a chosen color theme persists across reload", await ph() == "color" and await pressed() == ["color"])
+    await pg.click('#phos button[data-p="green"]')
+    check("green theme restores", await ph() == "green" and await pressed() == ["green"])
     await pg.evaluate("localStorage.setItem('dyno-phosphor','red')")   # a theme that no longer exists
     await pg.reload(); await pg.wait_for_timeout(300)
-    check("removed theme in storage falls back to color without errors", await ph() == "color" and not errs, "; ".join(errs))
+    check("removed theme in storage falls back to green without errors", await ph() == "green" and not errs, "; ".join(errs))
     await ctx.close()
-    # storage blocked (private modes, some embeds): still the color default, no errors
+    # storage blocked (private modes, some embeds): still the green default, no errors
     ctx, pg, errs = await open_page(browser)
     await ctx.add_init_script("Object.defineProperty(window,'localStorage',{get(){throw new Error('blocked')}})")
     await pg.reload(); await pg.wait_for_timeout(300)
-    check("with storage blocked the page still starts in color, without errors", await ph() == "color" and not errs, f"{await ph()} {errs}")
+    check("with storage blocked the page still starts in green, without errors", await ph() == "green" and not errs, f"{await ph()} {errs}")
     await ctx.close()
 
 
@@ -502,9 +502,9 @@ async def print_button(browser):
             await pg.click("#condtg")      # collapse Car & Conditions: the image still has every field
             collapsed = (await grab(pg))[2:4]
             check("with Car & Conditions collapsed the image is the same size (fields still included)", collapsed == (iw, ih), f"{collapsed} vs {(iw, ih)}")
-            await pg.click("[data-p=green]")
-            green = await pg.evaluate(IMG_INK, (await grab(pg))[4])
-            check("the image follows the theme", same_color(green["bg"], green["page"]) and not same_color(green["bg"], ink["bg"], 2), f"{green['bg']} vs {ink['bg']}")
+            await pg.click("[data-p=color]")
+            other = await pg.evaluate(IMG_INK, (await grab(pg))[4])
+            check("the image follows the theme", same_color(other["bg"], other["page"]) and not same_color(other["bg"], ink["bg"], 2), f"{other['bg']} vs {ink['bg']}")
             await pg.click("#condtg")      # open it again to reach the pedal field
             await pg.fill("#ped", "101")
             await pg.wait_for_timeout(500)
@@ -611,10 +611,22 @@ async def web_app(browser):
     desk = await pg.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--desk').trim()")
     tc = lambda: pg.evaluate("document.querySelector('meta[name=theme-color]').content")
     check("web app: the theme color is the page's background, and the manifest agrees", await tc() == desk == man.get("theme_color") == man.get("background_color"), f"{await tc()} {desk}")
-    await pg.click("#phos button[data-p=green]")
-    desk_g = await pg.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--desk').trim()")
-    check("web app: the theme color follows the green theme and back", await tc() == desk_g != desk, f"{await tc()} vs {desk_g}")
+    # the home-screen icons are drawn in the default theme: their background (a full-bleed corner pixel) is the page's --bg
+    bg = await pg.evaluate("(() => { const t = document.createElement('i'); t.style.color = getComputedStyle(document.documentElement).getPropertyValue('--bg'); document.body.append(t); const c = getComputedStyle(t).color.match(/\\d+/g).map(Number); t.remove(); return c })()")
+    corner = """async src => { const im = new Image(); im.src = src; await im.decode();
+        const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight; const x = c.getContext('2d'); x.drawImage(im, 0, 0);
+        return [...x.getImageData(2, c.height - 3, 1, 1).data].slice(0, 3) }"""
+    full_bleed = {"icons/apple-touch-icon.png": apple}
+    for (size, purpose), src in icons.items():
+        if purpose == "maskable":
+            full_bleed[src] = site.url + src
+    near = {k: await pg.evaluate(corner, u) for k, u in full_bleed.items()}
+    check("web app: the full-bleed icons are in the default theme's colors (their background is the page's --bg)",
+          bool(near) and all(max(abs(a - b) for a, b in zip(px, bg)) <= 8 for px in near.values()), f"{near} vs {bg}")
     await pg.click("#phos button[data-p=color]")
+    desk_c = await pg.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--desk').trim()")
+    check("web app: the theme color follows the color theme and back", await tc() == desk_c != desk, f"{await tc()} vs {desk_c}")
+    await pg.click("#phos button[data-p=green]")
     check("web app: back on the default theme the theme color is back", await tc() == desk)
 
     controlled = await pg.evaluate("!!navigator.serviceWorker.controller")

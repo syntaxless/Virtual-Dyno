@@ -40,16 +40,17 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
 ## How the page is built (things that are easy to break)
 
 - **Themes** are CSS custom properties on `:root[data-phosphor="..."]`. The CSS base is green and `color` (a
-  Solarized palette) overrides it, but **color is the default**: the head script always sets `data-phosphor` to
-  the saved choice (`green` or `color`) or, with nothing valid saved, to `color`. The owner asked for that, and a
-  visitor who picked green keeps it, because the choice is saved as `green`. Tokens: `--desk --bg --screen --fg --hi --mut --dim --faint --s1 --s2 --s3 --s4 --err
+  Solarized palette) overrides it, and **green is the default**: the head script always sets `data-phosphor` to
+  the saved choice (`green` or `color`) or, with nothing valid saved, to `green`. The owner asked for that (it was color for a
+  while, and green before that), and a visitor who picked color keeps it, because only a click saves a choice (`setPhos(p,true)`;
+  the init call does not save). Tokens: `--desk --bg --screen --fg --hi --mut --dim --faint --s1 --s2 --s3 --s4 --err
   --ink --rgb --halo --bezel`. The graph canvas reads `--screen --mut --hi --dim --s1..--s3 --rgb` (`--s4` is the Peak Boost Pressure
   tile's pink and is not on the graph), and the car
   sprite reads colors through `RB.theme()`. The saved choice lives in `localStorage` key `dyno-phosphor`; its
   allow-list appears twice (the head script and the `setPhos` init). Update both when adding or removing a theme.
   A stored value that is no longer allowed, or storage that throws, falls back to color. The buttons' static
-  `aria-pressed` in the markup matches the default (color); `setPhos` keeps it right after that. `shot.py` shows the
-  color theme unless you pass `--theme green`.
+  `aria-pressed` in the markup matches the default (green), and so does the static `<meta name="theme-color">` (`#010503`); `setPhos` keeps it right after that. `shot.py` shows the
+  green theme unless you pass `--theme color`.
 - **ASCII title**: an `<h1 class="vh">` (visually hidden, for accessibility) followed by two banner variants, both
   `aria-hidden`: `.art.stack` (VIRTUAL over DYNO, 19 rows by 68 columns) and `.art.row` (VIRTUAL DYNO on one row,
   11 rows by 106 columns). Both are figlet "banner3" lettering (7 rows tall) with the spaces drawn as dots, inside a
@@ -241,9 +242,10 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
   with no browser bars, and with no signal. This is the owner's choice over app-store apps for now (a store listing would
   need a native wrapper, Apple rejects apps that are just a website, and Open-Meteo's free tier is non-commercial only).
   Files: `manifest.webmanifest` (standalone, `start_url` and `scope` are `./` so it works on the custom domain and under a
-  project path, colors `#001a21` = the color theme's `--desk`), `icons/` (192 and 512 "any" with clear corners, a full-bleed
-  512 "maskable" whose chart sits inside the central 80%, and a 180 full-bleed `apple-touch-icon.png`; rebuild them with
-  `python tools/icons.py` after a palette change and commit them), and `sw.js`. The `<head>` links the manifest, the icon, the
+  project path, colors `#010503` = the green theme's `--desk`, the default), `icons/` (192 and 512 "any" with clear corners, a full-bleed
+  512 "maskable" whose chart sits inside the central 80%, and a 180 full-bleed `apple-touch-icon.png`, all in the default green
+  phosphor look: `tools/icons.py` reads the page's default theme, so rebuild them with `python tools/icons.py` and commit them after
+  a palette change or a change of default theme; `smoke.py`'s `web_app` checks that the full-bleed ones are the default's `--bg`), and `sw.js`. The `<head>` links the manifest, the icon, the
   apple-touch-icon and `<meta name="theme-color">`; `setPhos()` keeps theme-color equal to the current `--desk`, so the phone's
   bar follows the theme. Registration is the last line of the page script and is guarded for `http(s)` (a `file://` copy, which
   is what most of the tests open, skips it). `sw.js` is network-first for same-origin GETs, with a 4 s cutoff, and keeps each
@@ -258,7 +260,9 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
   own, and iPhone uses Share, then Add to Home Screen), so do not add one unasked. The install flows themselves have not been
   tested on real phones from here.
 - **Link preview** (what chat apps and social sites show when the URL is pasted): `og.png` is the stacked VIRTUAL DYNO
-  banner on the page's own screen look, in the default (color) theme, at 1200x630. `og:image` and `twitter:image` are
+  banner on the page's own screen look at 1200x630. It was made in the color theme, when that was the default; when the owner
+  made green the default (2026-10-08) they asked only for the home-screen icons to change, so it is still color. `og.py` reads the
+  page's default theme, so rerunning it now renders green: rerun it and commit `og.png` if the owner wants the preview to match. `og:image` and `twitter:image` are
   absolute URLs on the CNAME domain, `twitter:card` is `summary_large_image` (the old `summary` is the small square
   card), and the dimensions and alt text are in the `og:image:*` tags. `python tools/og.py` rebuilds the PNG from
   the banner text and colors in `index.html` (needs Pillow), so rerun it and commit `og.png` after changing the art or
