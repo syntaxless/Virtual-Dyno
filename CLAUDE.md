@@ -133,6 +133,10 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
   encode WebP and some sites reject it). To go back to PNG, change the type in the `toBlob` call and the extension in
   `snap()`, and the signature and size parsing in `smoke.py`. `smoke.py`'s `print_button` step checks the placement,
   the JPEG and its size (under 600 KB), that every width gives the same size, theme, collapsed state and no outside request.
+  The last thing `sheet()` draws is the line "virtual dyno @ dyno.turboloser.co", right-aligned at the Car & Conditions frame's right edge
+  just under it (the owner's request). It is in the image only and must not appear on the page; it is plain text in `sheet()`, so
+  change it there if the domain in `CNAME` ever changes. `print_button` checks the text, its right alignment and position (it is
+  the lowest thing drawn, ink only in the right half of the bottom strip) and that the page itself does not show it.
 - **Load Data**: its two upload boxes sit in `.drops`, an auto-fit grid (`minmax(260px,1fr)`), so they are side by
   side when there is room (tablet and up) and stacked on phones. The weather form's controls (`#wx .wl` and the paste
   `textarea`, which is a block so it stacks under its link) are capped at 560px (a form, not text). Place, Date and Local

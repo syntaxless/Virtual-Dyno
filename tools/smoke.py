@@ -6,7 +6,7 @@ Checks layout at phone/tablet/desktop widths (including which banner variant sho
 Car & Conditions and How It Works sections, the Power Correction dropdown, the one-line place-date-time weather row, tile text colors and layout (four across, two by two, one column), units in capitals, theme switching/persistence,
 the boot-in animation gate, and the self-hosted font (loads from the site, nothing third-party is
 requested, and the page degrades to a plain heading when the font file cannot load), and real-time Replay
-(takes as long as the pull did, live readout, click to skip), and the Print button (a JPEG of the same size on any screen), and the installable web app (manifest, icons, theme color, and a service
+(takes as long as the pull did, live readout, click to skip), and the Print button (a JPEG of the same size on any screen, with a "virtual dyno @ dyno.turboloser.co" line at the bottom right that the page itself does not show), and the installable web app (manifest, icons, theme color, and a service
 worker that, served from a local http server, keeps the page working offline and still shows a new deploy at once).
 """
 import asyncio
@@ -419,6 +419,19 @@ IMG_TILES = """async ([b64, col]) => {
   return q }"""
 
 
+# Ink in the left and right halves of a strip along the bottom of the saved image (below the Car & Conditions frame).
+IMG_FOOT = """async b64 => {
+  const im = new Image(); im.src = 'data:image/jpeg;base64,' + b64; await im.decode();
+  const c = document.createElement('canvas'); c.width = im.width; c.height = im.height;
+  const x = c.getContext('2d'); x.drawImage(im, 0, 0);
+  const sh = 88, d = x.getImageData(0, c.height - sh, c.width, sh).data, bg = [d[0], d[1], d[2]], n = [0, 0];
+  for (let i = 0; i < d.length; i += 4) if (Math.abs(d[i] - bg[0]) + Math.abs(d[i + 1] - bg[1]) + Math.abs(d[i + 2] - bg[2]) > 30) n[(i / 4 % c.width) < c.width / 2 ? 0 : 1]++;
+  return {left: n[0], right: n[1]} }"""
+# Records every fillText on the saved image's canvas (the live graph and the measuring pass draw on smaller ones).
+SPY_SHEET = ("(() => { window.__sheet = []; const f = CanvasRenderingContext2D.prototype.fillText;"
+             " CanvasRenderingContext2D.prototype.fillText = function (t, ...a) { if (this.canvas.width > 2000) window.__sheet.push({t: String(t), x: a[0], y: a[1], al: this.textAlign}); return f.call(this, t, ...a) } })()")
+
+
 async def print_button(browser):
     """The Print button: next to Replay, off until there is a pull, and it saves one JPEG (under 600 KB) of the same size on
     any screen (page at its widest, twice over), in the current theme, with the fields even when Car & Conditions is
@@ -466,14 +479,22 @@ async def print_button(browser):
         g = await pg.evaluate("""(()=>{const r=document.getElementById('replay').getBoundingClientRect(),p=document.getElementById('print').getBoundingClientRect();
             return {off:document.getElementById('print').disabled,gap:Math.round(p.left-r.right),dy:Math.round(p.top-r.top)}})()""")
         check(f"{w}px: Print is on and sits right next to Replay", not g["off"] and g["dy"] == 0 and 0 <= g["gap"] <= 16, str(g))
+        await pg.evaluate(SPY_SHEET)
         name, jpg, iw, ih, b64, reqs, nbytes = await grab(pg)
         sizes[w] = (iw, ih)
+        sheet = await pg.evaluate("window.__sheet")
+        foot = [c for c in sheet if c["t"] == "virtual dyno @ dyno.turboloser.co"]
+        check(f"{w}px: the image says where it came from, right-aligned at the bottom, below everything else",
+              len(foot) == 1 and foot[0]["al"] == "right" and foot[0]["x"] >= 1100 and all(c["y"] <= foot[0]["y"] for c in sheet), str(foot))
+        check(f"{w}px: that line is in the image only, not on the page", not await pg.evaluate("document.body.innerText.includes('turboloser')"))
         check(f"{w}px: Print saves a JPEG named after the loaded file (the demo has no upload, so it is called Demo)", jpg and name == "Demo_VirtualDyno.jpg", f"{name} jpeg={jpg}")
         check(f"{w}px: the file is small enough to upload anywhere (under 600 KB)", 0 < nbytes <= 600 * 1024, f"{nbytes / 1024:.0f} KB")
         check(f"{w}px: Print makes no request to another site", not reqs, str(reqs))
         check(f"{w}px: no page errors", not errs, "; ".join(errs))
         if w == 1200:
             ink = await pg.evaluate(IMG_INK, b64)
+            fv = await pg.evaluate(IMG_FOOT, b64)
+            check("the line under the Car & Conditions frame sits at the bottom right (ink on the right half of the last strip, none on the left)", fv["right"] > 300 and fv["left"] < 5, str(fv))
             check("the image is drawn on the page's own background and is not blank", same_color(ink["bg"], ink["page"]) and 0.03 <= ink["ink"] <= 0.6, str(ink))
             col4 = await pg.evaluate("getComputedStyle(document.querySelector('#s4 legend')).color")
             q = await pg.evaluate(IMG_TILES, [b64, col4])

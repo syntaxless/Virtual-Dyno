@@ -639,7 +639,9 @@ function sheet(x,S,W){
     x.restore()});
   const CH=Math.round(oy+50+15-y);
   box(rx,y,IW,CH,dim,ft(22,ck)+16);T('- ',rx+23,y,22,26.4,dim,{gl:GL});T(ck.slice(2),rx+23+ft(22,'- '),y,22,26.4,hi,{gl:GL});
-  return y+CH+P}
+  // The one thing in the image that is not on the page: where it came from, at the bottom right under the frame
+  const FY=y+CH+8;T('virtual dyno @ dyno.turboloser.co',rx+IW,FY,22,24,mut,{al:'right',gl:GL,max:IW/2});
+  return FY+24+P}
 
 async function snap(){
   const ro=$('#ro'),note=t=>{ro.textContent=t;setTimeout(()=>{if(ro.textContent==t)ro.textContent=HINT},3500)};
