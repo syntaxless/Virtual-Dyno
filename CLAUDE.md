@@ -242,10 +242,14 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
   with no browser bars, and with no signal. This is the owner's choice over app-store apps for now (a store listing would
   need a native wrapper, Apple rejects apps that are just a website, and Open-Meteo's free tier is non-commercial only).
   Files: `manifest.webmanifest` (standalone, `start_url` and `scope` are `./` so it works on the custom domain and under a
-  project path, colors `#010503` = the green theme's `--desk`, the default), `icons/` (192 and 512 "any" with clear corners, a full-bleed
-  512 "maskable" whose chart sits inside the central 80%, and a 180 full-bleed `apple-touch-icon.png`, all in the default green
-  phosphor look: `tools/icons.py` reads the page's default theme, so rebuild them with `python tools/icons.py` and commit them after
-  a palette change or a change of default theme; `smoke.py`'s `web_app` checks that the full-bleed ones are the default's `--bg`), and `sw.js`. The `<head>` links the manifest, the icon, the
+  project path, colors `#010503` = the green theme's `--desk`, the default), `icons/` (192 and 512 "any" with a stepped frame and clear corners, a full-bleed
+  512 "maskable" whose chart sits inside the central 80%, and a 192 full-bleed `apple-touch-icon.png`, all in the default green
+  phosphor palette). The icons are 8-bit pixel art (the owner's request, 2026-10-08): `tools/icons.py` draws the dyno chart on a
+  32x32 grid of hard pixels with Pillow (a 7-color palette read from the page, an ordered-dither glow at the top, one-pixel curves
+  with a shaded underside) and scales it with nearest-neighbour, which is why every size is a whole multiple of 32 (6x for 192,
+  16x for 512) and why the iPhone icon is 192, not 180 (180 is not a multiple; iOS accepts any size and scales it down, the owner
+  chose that). It reads the page's default theme, so rebuild with `python tools/icons.py` and commit after a palette change or a
+  change of default theme; `smoke.py`'s `web_app` checks the sizes and that the full-bleed ones are the default's `--bg`), and `sw.js`. The `<head>` links the manifest, the icon, the
   apple-touch-icon and `<meta name="theme-color">`; `setPhos()` keeps theme-color equal to the current `--desk`, so the phone's
   bar follows the theme. Registration is the last line of the page script and is guarded for `http(s)` (a `file://` copy, which
   is what most of the tests open, skips it). `sw.js` is network-first for same-origin GETs, with a 4 s cutoff, and keeps each
@@ -269,6 +273,8 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
   the palette. Keep it under 300 KB: some chat apps skip bigger previews, and `smoke.py`'s `link_preview` step checks
   the size, the real PNG dimensions against the meta tags, and that the file exists. Chat apps and social sites cache a
   preview per URL, so a changed image can take a while (or a re-scrape in their debugger tools) to show up.
+  The owner looked at 8-bit versions of it (pixel blocks instead of VT323 text) and kept the current look, so do not make it 8-bit
+  unasked; the 8-bit look is for the home-screen icons only.
 - Text and punctuation in the file are plain ASCII (straight apostrophes), which VT323 renders reliably.
 - **Units are capitals wherever a visitor reads them**: RPM, MPH, HP, WHP (the owner's style; "lb-ft" and "hPa" are
   unchanged). That covers page text, field labels, captions, messages, the hover readout and the graph's canvas labels.

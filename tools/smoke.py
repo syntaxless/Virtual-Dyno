@@ -606,7 +606,7 @@ async def web_app(browser):
     check("web app: each icon is a PNG of its stated size; the 'any' ones have clear corners and the maskable one is full-bleed", ok_icons and bool(icons), "; ".join(detail))
     apple = await pg.evaluate("document.querySelector('link[rel=apple-touch-icon]') && document.querySelector('link[rel=apple-touch-icon]').href")
     w, h, corner, _ = await pg.evaluate(probe, apple) if apple else (0, 0, 0, 0)
-    check("web app: the iPhone home-screen icon is 180x180 and has no transparency", (w, h) == (180, 180) and corner == 255, f"{apple} {w}x{h} corner alpha {corner}")
+    check("web app: the iPhone home-screen icon is 192x192 (a whole multiple of the icon's 32-pixel grid) and has no transparency", (w, h) == (192, 192) and corner == 255, f"{apple} {w}x{h} corner alpha {corner}")
     check("web app: a favicon is linked", bool(await pg.evaluate("document.querySelector('link[rel=icon]') && document.querySelector('link[rel=icon]').href")))
     desk = await pg.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--desk').trim()")
     tc = lambda: pg.evaluate("document.querySelector('meta[name=theme-color]').content")
