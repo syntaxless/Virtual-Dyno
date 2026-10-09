@@ -260,9 +260,9 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
   own, and iPhone uses Share, then Add to Home Screen), so do not add one unasked. The install flows themselves have not been
   tested on real phones from here.
 - **Link preview** (what chat apps and social sites show when the URL is pasted): `og.png` is the stacked VIRTUAL DYNO
-  banner on the page's own screen look at 1200x630. It was made in the color theme, when that was the default; when the owner
-  made green the default (2026-10-08) they asked only for the home-screen icons to change, so it is still color. `og.py` reads the
-  page's default theme, so rerunning it now renders green: rerun it and commit `og.png` if the owner wants the preview to match. `og:image` and `twitter:image` are
+  banner on the page's own screen look, in the default (green) theme, at 1200x630 (about 280 KB). `og.py` reads the page's default
+  theme, so after changing the default theme or the palette rerun it and commit `og.png` (the owner asked for it to follow the
+  default when green became the default on 2026-10-08). `og:image` and `twitter:image` are
   absolute URLs on the CNAME domain, `twitter:card` is `summary_large_image` (the old `summary` is the small square
   card), and the dimensions and alt text are in the `og:image:*` tags. `python tools/og.py` rebuilds the PNG from
   the banner text and colors in `index.html` (needs Pillow), so rerun it and commit `og.png` after changing the art or
