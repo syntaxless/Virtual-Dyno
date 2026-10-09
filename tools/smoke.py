@@ -96,7 +96,7 @@ async def layout(browser):
 async def collapsible(browser):
     ctx, pg, errs = await open_page(browser)           # the page as a visitor first sees it
     # Car & Conditions starts open (its fields are there at load); How It Works starts collapsed
-    shown = await pg.evaluate("['#fhp', '#curb', '#corr'].map(q => document.querySelector(q).getClientRects().length > 0)")
+    shown = await pg.evaluate("['#curb', '#load', '#corr'].map(q => document.querySelector(q).getClientRects().length > 0)")
     check("Car & Conditions fields are visible at load, with no click", all(shown), str(shown))
     for name, tg, body, open0 in (("Car & Conditions", "condtg", "condbody", True), ("How It Works", "howtg", "howbody", False)):
         st = lambda: pg.evaluate(f"[document.getElementById('{tg}').getAttribute('aria-expanded'),"

@@ -211,47 +211,21 @@ async def with_log(browser):
     await ctx.close()
 
 
-async def factory_fields(browser):
-    """Factory Horsepower / Torque are the first two Car & Conditions fields and the only reference for the vs-factory captions."""
+async def tile_captions(browser):
+    """The Peak Crank Power and Peak Crank Torque captions say only where the peak is ("at 116 MPH", "at 6,910 RPM"): the
+    owner removed the "+N HP vs stock" comparison and the Factory Horsepower / Factory Torque fields as unnecessary."""
     import re
     ctx, pg, errs = await open_page(browser, expand=True)
-    ids = await pg.eval_on_selector_all("#fields input", "els => els.slice(0, 3).map(e => e.id)")
-    labels = await pg.eval_on_selector_all("#fields label", "els => els.slice(0, 2).map(e => e.firstChild.textContent.trim())")
-    vals = [await pg.input_value("#fhp"), await pg.input_value("#ftq")]
-    print(f"     first fields: {ids} {labels} defaults {vals}")
-    check("Factory Horsepower and Factory Torque are the first two fields, defaulting to the Golf R's 292 / 280",
-          ids[:2] == ["fhp", "ftq"] and vals == ["292", "280"] and all(labels), f"{ids} {labels} {vals}")
-
+    first = await pg.eval_on_selector_all("#fields input", "els => els.slice(0, 2).map(e => e.id)")
+    gone = await pg.evaluate("!document.getElementById('fhp') && !document.getElementById('ftq') && !/factory/i.test(document.getElementById('fields').textContent)")
+    check("the Factory Horsepower and Factory Torque fields are gone (Car & Conditions starts with Curb Weight)", gone and first[:1] == ["curb"], f"{first}")
     await pg.set_input_files("#gps", GPX)
     await pg.fill("#rpmpm", "67")
     await pg.wait_for_timeout(COUNTUP_MS)
-    hp, tq = [float((await pg.inner_text(f"#s{i} .n")).strip()) for i in (1, 2)]
-    cap = lambda i: pg.inner_text(f"#s{i} em")
-
-    async def delta(i, shown):
-        m = re.search(r"([+\u2212])(\d+) \S+ \D*?(\d+)\s*$", await cap(i))
-        return (m and (int(m.group(2)) * (1 if m.group(1) == "+" else -1), int(m.group(3)))) or None
-
-    d1, d2 = await delta(1, hp), await delta(2, tq)
-    check("captions compare to the default factory numbers", bool(d1 and d2 and d1[1] == 292 and d2[1] == 280), f"{d1} {d2}")
-    check("the caption difference is the shown number minus factory (within rounding)",
-          bool(d1 and d2 and abs(d1[0] - (hp - 292)) <= 1 and abs(d2[0] - (tq - 280)) <= 1), f"{d1} vs {hp - 292}; {d2} vs {tq - 280}")
-
-    await pg.fill("#fhp", "400")
-    await pg.fill("#ftq", "500")
-    await pg.wait_for_timeout(COUNTUP_MS)
-    d1, d2 = await delta(1, hp), await delta(2, tq)
-    shown = [float((await pg.inner_text(f"#s{i} .n")).strip()) for i in (1, 2)]
-    check("editing the factory fields changes only the captions, to the new reference",
-          bool(d1 and d2 and d1[1] == 400 and d2[1] == 500 and abs(d1[0] - (hp - 400)) <= 1 and abs(d2[0] - (tq - 500)) <= 1)
-          and shown == [hp, tq], f"{d1} {d2} shown {shown}")
-
-    await pg.fill("#fhp", "")
-    await pg.fill("#ftq", "0")
-    await pg.wait_for_timeout(COUNTUP_MS)
-    c1, c2 = await cap(1), await cap(2)
-    check("a blank or zero factory value drops the comparison instead of printing one against 0",
-          not re.search(r"[+\u2212]\d", c1 + c2) and bool(c1.strip()) and bool(c2.strip()), f"{c1!r} {c2!r}")
+    caps = [(await pg.inner_text(f"#s{i} em")).strip() for i in (1, 2, 3)]
+    print(f"     captions: {caps}")
+    check("the power and torque captions only say where the peak is, with no comparison to stock",
+          bool(re.fullmatch(r"at [\d,]+ (RPM|MPH)", caps[0])) and bool(re.fullmatch(r"at [\d,]+ (RPM|MPH)", caps[1])) and not any("stock" in c.lower() for c in caps), str(caps))
     check("no page errors", not errs, "; ".join(errs))
     await ctx.close()
 
@@ -528,7 +502,7 @@ async def main():
         browser = await pw.chromium.launch()
         await correction_formulas(browser)
         await gps_only(browser)
-        await factory_fields(browser)
+        await tile_captions(browser)
         await stepped_speed(browser)
         await boost_tile(browser)
         await weather_pressure_temp(browser)

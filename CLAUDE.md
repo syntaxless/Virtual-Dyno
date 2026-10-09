@@ -156,8 +156,10 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
   color; `smoke.py`'s `tile_colors` step compares the four pieces of each tile in both themes, and that the four tiles differ.
   Layout (`.stats`): four across from 941px up, two by two from 601 to 940, one column at 600 and below; the 940 breakpoint is
   where four across stops fitting (the unit after "485 LB-FT" has about 12px to spare at 941), so recheck it with `smoke.py`'s
-  `tile_layout` if the tile padding or number size changes. The captions under Crank Power and Crank Torque wrap to two lines when
-  four are across; that is expected.
+  `tile_layout` if the tile padding or number size changes. The Crank Power and Crank Torque captions say only where the peak is
+  ("at 6,910 RPM"); the owner removed the "+N HP vs stock" comparison and the Factory Horsepower and Factory Torque fields as
+  unnecessary, so do not bring them back unasked (`functional.py`'s `tile_captions` checks both are gone). The Wheel Power caption
+  ("at N RPM - after 20% loss") may wrap on the narrower four-across widths; that is fine.
 - **Peak Boost Pressure** (`#s4`, fourth tile, pink: `--s4` is `#ff7ad9` in green and `#e55fa6` in color) was added at the owner's
   request. The owner compared pink, violet, orange, olive or lime, and ivory or white, and chose pink. Solarized magenta
   (`#d33682`) is only 3.7:1 on the screen color, below the other tiles (4.6 to 5.3), so color's pink is a lightened one (5.2:1);
@@ -173,11 +175,6 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
   graph. `functional.py`'s `boost_tile` checks the value and RPM, unit conversion, target and duty columns being ignored, the
   Relative Manifold Pressure fallback, blank cells, N/A, and GPS only, on generated logs; `smoke.py`'s `print_button` checks the
   saved image has four tiles with boost's color in the last quarter.
-- **Factory numbers** are the first two Car & Conditions fields, `fhp` (Factory Horsepower, 292) and `ftq` (Factory
-  Torque, 280): the 2016 Golf R's US figures. They are the only reference for the "+N hp vs stock X" captions under
-  the Peak Crank Power and Torque tiles, and they change nothing but those captions. A blank or zero value drops the
-  comparison (the caption keeps just the "at N rpm" part). They sit in `FIELDS` like the other fields, so they need no
-  extra wiring. `functional.py` checks the order, defaults, captions and the blank case.
 - **Density altitude inputs.** The air density comes from the `da`, `temp` and `humid` fields (DA is filled in
   automatically until the user types in it). Its pressure comes from, in order: the log's "Ambient Pressure" column
   (`atm.baro`, a measurement, so it always wins), then the weather answer's sea-level pressure (`pressure_msl`)
