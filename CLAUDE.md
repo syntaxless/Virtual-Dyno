@@ -187,7 +187,7 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
   `atm.wp` is cleared whenever a log or track is loaded (`load`, `gpsOnly`, `fromGPS`). `functional.py` checks all of
   this against an independent calculation.
 - **Power Correction** is the `#corr` select in Car & Conditions (a `label.sl` between Speed Source and Smoothing):
-  Uncorrected (default, `none`), SAE J1349 (`j1349`), SAE J607 (STD/STP) (`j607`), DIN 70020 (`din`), ISO 1585 (`iso`).
+  Uncorrected (default, `none`), SAE J1349 (`j1349`), SAE J607 (STD) (`j607`), DIN 70020 (`din`), ISO 1585 (`iso`).
   It replaced a checkbox (`label.chk`, `#sae`, the `[ ]`/`[X]` CSS), which is gone. The factor comes from the global
   pure function `corrFactor(std, T, pd, pt)` (T in K, `pd` dry-air pressure and `pt` total pressure in Pa, both worked
   out in `analyze()` from the density-altitude, temperature and humidity fields); `analyze()` multiplies hp, torque and
@@ -198,8 +198,8 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
   - J607 (STD): `(101325/pt)*sqrt(T/288.71)` (60 F, 29.92 inHg, total barometric pressure, no humidity term). This is
     what a Dynojet's STD does, checked against a real WinPEP 8 sheet (Golf R, 10/8/2026): STD:1.02 for 71.33 F, 29.60
     inHg, 48.09% RH and for 71.47 F, 29.61 inHg, 47.41% RH. The dry-air form it replaced gives 1.035 (shown as 1.03), so
-    it was wrong against a real dyno; `functional.py` has both sheet lines as checks. Whether "STP" means the same
-    reference is still unverified.
+    it was wrong against a real dyno; `functional.py` has both sheet lines as checks. The label used to read
+    "(STD/STP)"; the owner removed the STP part (it was never verified to be the same reference), so do not add it back unasked.
   - DIN 70020: `(101300/pt)*sqrt(T/293.15)` (20 C, 1013 mbar, total pressure, no humidity term). The owner wrote
     "DIN 70200"; the standard is DIN 70020, so that is the label.
   The factor is the last step: `analyze()` multiplies it into each point's finished hp, torque and wheel power (`kc`,

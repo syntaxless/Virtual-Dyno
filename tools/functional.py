@@ -34,7 +34,7 @@ async def nums(pg):
 
 
 # (value, label) of the Power Correction choices that change the numbers
-STANDARDS = [("j1349", "SAE J1349"), ("j607", "SAE J607 (STD/STP)"), ("din", "DIN 70020"), ("iso", "ISO 1585")]
+STANDARDS = [("j1349", "SAE J1349"), ("j607", "SAE J607 (STD)"), ("din", "DIN 70020"), ("iso", "ISO 1585")]
 
 
 def expected_cf(std, temp_f, rh, da_ft):
