@@ -497,6 +497,232 @@ async def boost_tile(browser):
     check("no page errors", not (errs or errs6 or errs7), "; ".join(errs + errs6 + errs7))
 
 
+MPH, G, LB = 0.44704, 9.80665, 0.45359237
+
+
+def synth_coast(crr=0.0105, grade=0.0, wind=0.0, cda_scale=1.0, v_lift=100, v_stop=30, mode="clutch", brake_after=None, ped=True,
+                ambient=None, hz=45):
+    """A pull then a coast as Accessport CSV text, from the same force equation the page uses, integrated here with RK4
+    (3,500 lb with driver, 36 kg of wheels, Cd .32, 2.2 m2, air density at 0 ft) so the page's fit can be checked against a known answer.
+
+    mode: "clutch" (clutch in: RPM falls away from speed), "gear" (in gear: RPM follows speed and the engine's own braking adds drag),
+    "none" (the log stops at the lift). brake_after: seconds after the lift at which hard braking starts. Returns (csv, times, speeds in m/s).
+    Speed is logged in whole MPH, like a Cobb log."""
+    m, mw = 3500 * LB, 36.0
+    kap = 0.5 * 1.225 * 0.32 * cda_scale * 2.2 / (m + mw)
+    dt = 1.0 / hz
+    hdr = ["Time (sec)", "Engine Speed (RPM)", "Vehicle Speed (mph)"] + (["Accel Pedal Position (%)"] if ped else []) + (["Ambient Air Temp. (F)"] if ambient else [])
+    rows, times, speeds = [], [], []
+
+    def emit(t, v, rpm, pedal):
+        cells = [f"{t:.3f}", f"{rpm:.0f}", f"{round(v / MPH):g}"] + ([f"{pedal:g}"] if ped else []) + ([f"{ambient}"] if ambient else [])
+        rows.append(",".join(cells)); times.append(t); speeds.append(v)
+
+    t, v = 0.0, 30 * MPH
+    while v < v_lift * MPH:                          # the pull: 2 m/s2 in a locked gear at 58.6 RPM per MPH
+        emit(t, v, 58.6 * v / MPH, 100)
+        v += 2.0 * dt; t += dt
+    if mode == "none":
+        return "\n".join([",".join(hdr)] + rows), times, speeds
+    t_lift, rpm0 = t, 58.6 * v / MPH
+    force = lambda x, extra: -(kap * (x + wind) * abs(x + wind) + (crr * m * G + m * G * grade) / (m + mw)) - extra
+    while v > v_stop * MPH:
+        el = t - t_lift
+        extra = (0.35 if mode == "gear" else 0.0) + (3.0 if brake_after is not None and el > brake_after else 0.0)
+        rpm = 850 + (rpm0 - 850) * math.exp(-max(0.0, el - 0.15) / 0.8) if mode == "clutch" else 58.6 * v / MPH
+        emit(t, v, rpm, 0)
+        k1 = force(v, extra); k2 = force(v + dt / 2 * k1, extra); k3 = force(v + dt / 2 * k2, extra); k4 = force(v + dt * k3, extra)
+        v += dt / 6 * (k1 + 2 * k2 + 2 * k3 + k4); t += dt
+        if brake_after is not None and el > brake_after + 3:
+            break
+    return "\n".join([",".join(hdr)] + rows), times, speeds
+
+
+def synth_track(times, speeds, grade=0.0, lead=6.0, hz=10):
+    """A GPX of the same drive, due east at 39.74 N, elevation 1,600 m + grade x distance, speed in m/s, starting `lead` s before the log
+    at 2026-10-01 18:00 UTC. Exact: no GPS noise."""
+    import datetime
+    base = datetime.datetime(2026, 10, 1, 18, 0, 0)
+    T = [-lead] + times + [times[-1] + 4.0]
+    V = [speeds[0]] + speeds + [speeds[-1]]
+    D = [0.0]
+    for i in range(1, len(T)):
+        D.append(D[-1] + (T[i] - T[i - 1]) * (V[i] + V[i - 1]) / 2)
+
+    def at(x, arr, j=[0]):
+        lo, hi = 0, len(T) - 1
+        while hi - lo > 1:
+            mid = (lo + hi) // 2
+            if T[mid] <= x:
+                lo = mid
+            else:
+                hi = mid
+        w = (x - T[lo]) / (T[hi] - T[lo])
+        return arr[lo] * (1 - w) + arr[hi] * w
+
+    pts, x = [], T[0]
+    while x <= T[-1]:
+        d, vv = at(x, D), at(x, V)
+        ts = (base + datetime.timedelta(seconds=x + lead)).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+        pts.append(f'<trkpt lat="39.7400000" lon="{-104.98 + d / (111320 * math.cos(math.radians(39.74))):.7f}"><ele>{1600 + grade * d:.2f}</ele>'
+                   f'<time>{ts}</time><speed>{vv:.3f}</speed></trkpt>')
+        x += 1.0 / hz
+    return '<?xml version="1.0"?><gpx version="1.1" creator="synthetic"><trk><trkseg>' + "".join(pts) + "</trkseg></trk></gpx>"
+
+
+async def coast_state(pg):
+    return await pg.evaluate("""() => ({crr: document.getElementById('crr').value, tag: srcOf('crr'),
+        status: coast ? coast.status : null, fit: coast && coast.crr != null ? coast.crr : null, sig: coast && coast.sig != null ? coast.sig : null,
+        line: document.getElementById('coastmsg') ? document.getElementById('coastmsg').textContent : ''})""")
+
+
+async def load_coast(browser, text, track=None, fields=None, before=None):
+    """Open the page, optionally set fields first, load a log and a GPS track, and put density altitude at 0 ft (what the generator used)."""
+    ctx, pg, errs = await open_page(browser, expand=True)
+    for k, val in (fields or {}).items():
+        await pg.fill("#" + k, str(val))
+    await pg.set_input_files("#file", {"name": "coast.csv", "mimeType": "text/csv", "buffer": text.encode()})
+    await pg.wait_for_timeout(500)
+    if track:
+        await pg.set_input_files("#gps", {"name": "coast.gpx", "mimeType": "application/gpx+xml", "buffer": track.encode()})
+        await pg.wait_for_timeout(1200)
+    await pg.fill("#da", "0")
+    await pg.wait_for_timeout(250)
+    return ctx, pg, errs
+
+
+async def coast_fit(browser):
+    """Rolling Resistance from a coast-down (pedal at 0, clutch in): the page fits it, with the road grade from GPS elevation, and fills the
+    field until the user types in it. Checked against logs generated from the force equation with a known answer. Needs no real log."""
+    import re
+    TRUE = 0.0105
+
+    # 1. a clean clutch-in coast on a 0.4% downhill, with an exact GPS track: the field gets the true value, tagged as measured
+    txt, t, v = synth_coast(crr=TRUE, grade=-0.004, v_lift=100, v_stop=30)
+    track = synth_track(t, v, grade=-0.004)
+    ctx, pg, errs = await load_coast(browser, txt, track)
+    st = await coast_state(pg)
+    check("coast with GPS: Rolling Resistance is filled with the true value (0.0105, within 0.001) and tagged coast",
+          st["status"] == "ok" and abs(float(st["crr"]) - TRUE) <= 0.001 and st["tag"] == "coast", str(st))
+    check("the line under the log message names the value, the coast and its +/-, and says the grade came from GPS",
+          "set to" in st["line"] and "+/-" in st["line"] and "MPH" in st["line"] and "GPS" in st["line"], st["line"][:160])
+    sig = float(re.search(r"\+/-(\d\.\d+)", st["line"]).group(1)) if "+/-" in st["line"] else 9
+    check("the stated uncertainty is realistic for a coast like this (0.0005 to 0.0025)", 0.0005 <= sig <= 0.0025, f"+/-{sig}")
+    # the pull uses the fitted value: same numbers as typing that value in by hand, and different from the default
+    grab = "() => pulls[sel].pts.map(q => q.hw)"          # wheel horsepower of every point of the pull
+    auto = await pg.evaluate(grab)
+    await pg.fill("#crr", st["crr"]); await pg.wait_for_timeout(300)
+    by_hand = await pg.evaluate(grab)
+    await pg.fill("#crr", "0.012"); await pg.wait_for_timeout(300)
+    default = await pg.evaluate(grab)
+    check("the pull is calculated with the fitted value (identical to typing it in), not the 0.012 default",
+          max(abs(a - b) for a, b in zip(auto, by_hand)) < 1e-6 and max(abs(a - b) for a, b in zip(auto, default)) > 0.3, f"{max(abs(a - b) for a, b in zip(auto, default)):.2f} whp apart")
+    st2 = await coast_state(pg)
+    check("typing a Rolling Resistance keeps it (tag typed), and the line says the typed value was kept",
+          st2["crr"] == "0.012" and st2["tag"] == "typed" and "kept" in st2["line"], str(st2))
+    check("no page errors", not errs, "; ".join(errs))
+    await ctx.close()
+
+    # 2. the same coast with no GPS: the slope is unknown, so nothing is filled and the line says why (0.1% of grade = 0.001 of Crr)
+    ctx, pg, errs = await load_coast(browser, txt)
+    st = await coast_state(pg)
+    check("coast with no GPS elevation and no grade typed: the field is left at 0.012 and the line explains why",
+          st["status"] == "nogps" and st["crr"] == "0.012" and st["tag"] == "" and "GPS" in st["line"], str(st))
+    await pg.fill("#grade", "-0.4"); await pg.wait_for_timeout(300)
+    st = await coast_state(pg)
+    check("typing the road grade (-0.4) is enough: the fit is used and is the true value within 0.001",
+          st["status"] == "ok" and abs(float(st["crr"]) - TRUE) <= 0.001 and st["tag"] == "coast", str(st))
+    await ctx.close()
+
+    # 3. a coast that is too short or too fast to beat the default is reported but not used
+    txt3, t3, v3 = synth_coast(crr=TRUE, v_lift=100, v_stop=65)
+    ctx, pg, errs = await load_coast(browser, txt3, synth_track(t3, v3), None)
+    st = await coast_state(pg)
+    check("a short coast (100 to 65 MPH) is not used: the field stays 0.012 and the line says it is too loose",
+          st["status"] == "weak" and st["crr"] == "0.012" and "too loose" in st["line"], str(st))
+    await ctx.close()
+
+    # 4. in gear (engine braking): never used, with a line that says to press the clutch in
+    txt4, t4, v4 = synth_coast(crr=TRUE, v_lift=100, v_stop=40, mode="gear")
+    ctx, pg, errs = await load_coast(browser, txt4, synth_track(t4, v4))
+    st = await coast_state(pg)
+    check("an off-throttle slow-down in gear is not used (RPM follows speed), and the line says to press the clutch in",
+          st["status"] == "gear" and st["crr"] == "0.012" and "clutch" in st["line"], str(st))
+    await ctx.close()
+
+    # 5. hard braking at the end of the coast is cut off, not fitted
+    txtb, tb, vb = synth_coast(crr=TRUE, grade=-0.004, v_lift=100, v_stop=30, brake_after=75)
+    ctx, pg, errs = await load_coast(browser, txtb, synth_track(tb, vb, grade=-0.004))
+    st = await coast_state(pg)
+    check("braking hard at the end of the coast does not spoil the fit (true value within 0.0015)",
+          st["status"] == "ok" and abs(float(st["crr"]) - TRUE) <= 0.0015, str(st))
+    await ctx.close()
+
+    # 6. a log with no coast, or no pedal column: nothing happens and nothing is said
+    txt6, t6, v6 = synth_coast(mode="none")
+    ctx, pg, errs = await load_coast(browser, txt6)
+    st = await coast_state(pg)
+    check("a log that ends at the lift has no coast: no line, Rolling Resistance stays 0.012", st["status"] is None and st["line"] == "" and st["crr"] == "0.012", str(st))
+    await ctx.close()
+    txt7, _, _ = synth_coast(crr=TRUE, ped=False)
+    ctx, pg, errs = await load_coast(browser, txt7)
+    st = await coast_state(pg)
+    check("a log with no pedal column is not searched for a coast", st["status"] is None and st["crr"] == "0.012", str(st))
+    check("no page errors", not errs, "; ".join(errs))
+    await ctx.close()
+
+    # 7. a new log replaces an earlier fit: a coast, then a log without one puts the default back and clears the tag
+    ctx, pg, errs = await load_coast(browser, txt, track)
+    first = await coast_state(pg)
+    await pg.set_input_files("#file", {"name": "plain.csv", "mimeType": "text/csv", "buffer": synth_coast(mode="none")[0].encode()})
+    await pg.wait_for_timeout(600)
+    second = await coast_state(pg)
+    check("loading a log with no coast after one with a coast puts the 0.012 default back and clears the tag",
+          first["tag"] == "coast" and second["crr"] == "0.012" and second["tag"] == "" and second["line"] == "", f"{first['crr']} -> {second}")
+    await ctx.close()
+
+
+async def field_tags(browser):
+    """A small tag in a field says where its value came from (log, gps, weather, coast, typed). It is CSS, so it can never reach Print."""
+    txt, t, v = synth_coast(crr=0.0105, grade=-0.004, ambient=71.5)
+    ctx, pg, errs = await open_page(browser, expand=True)
+    await pg.route("**/*open-meteo.com/**", lambda r: r.fulfill(
+        status=200, headers={"access-control-allow-origin": "*", "content-type": "application/json"}, body=wx_json(temp_f=68, msl=1013.25, rh=40)))
+    tags = lambda: pg.evaluate("Object.fromEntries(FIELDS.map(([id]) => [id, srcOf(id)]))")
+    check("before anything is loaded no field has a tag", not any((await tags()).values()))
+    await pg.set_input_files("#file", {"name": "coast.csv", "mimeType": "text/csv", "buffer": txt.encode()})
+    await pg.wait_for_timeout(600)
+    tg = await tags()
+    check("the air temperature from the log's sensor is tagged log", tg["temp"] == "log" and tg["head"] == "" and tg["humid"] == "", str(tg))
+    await pg.set_input_files("#gps", {"name": "coast.gpx", "mimeType": "application/gpx+xml", "buffer": synth_track(t, v, grade=-0.004).encode()})
+    await pg.wait_for_timeout(1500)
+    tg = await tags()
+    check("heading and grade from the GPS track are tagged gps, density altitude too (its pressure is the GPS altitude)",
+          tg["head"] == "gps" and tg["grade"] == "gps" and tg["da"] == "gps", str(tg))
+    check("the coast fit is tagged coast", tg["crr"] in ("coast", ""), str(tg))
+    await pg.click("#wxget")
+    await pg.wait_for_timeout(900)
+    tg = await tags()
+    check("humidity, wind and wind direction from the weather lookup are tagged weather, and so is density altitude (its sea-level pressure)",
+          tg["humid"] == "weather" and tg["wind"] == "weather" and tg["wdir"] == "weather" and tg["da"] == "weather" and tg["temp"] == "log", str(tg))
+    await pg.fill("#curb", "3400")
+    await pg.fill("#humid", "30")
+    tg = await tags()
+    check("typing in a field tags it typed, and the others keep theirs", tg["curb"] == "typed" and tg["humid"] == "typed" and tg["wind"] == "weather", str(tg))
+    ok = await pg.evaluate("""() => [...document.querySelectorAll('#fields label')].every((l, i) => l.firstChild.nodeType === 3 && l.children.length === 1
+        && l.children[0].tagName === 'INPUT' && l.firstChild.textContent === FIELDS[i][1])""")
+    check("the tag is not in the label's text or markup (Print reads the label), only in CSS", ok)
+    shown = await pg.evaluate("""() => { const l = document.getElementById('humid').closest('label'); return getComputedStyle(l, '::after').content }""")
+    check("the tag is drawn by CSS from data-src", shown.strip('"') == "typed", shown)
+    await pg.set_input_files("#file", {"name": "plain.csv", "mimeType": "text/csv", "buffer": synth_coast(mode="none")[0].encode()})
+    await pg.wait_for_timeout(600)
+    tg = await tags()
+    check("a new log clears the tags that came from the old data and keeps the typed ones",
+          tg["temp"] == "" and tg["humid"] == "typed" and tg["curb"] == "typed" and tg["wind"] != "weather", str(tg))
+    check("no page errors", not errs, "; ".join(errs))
+    await ctx.close()
+
+
 async def main():
     async with async_playwright() as pw:
         browser = await pw.chromium.launch()
@@ -505,6 +731,8 @@ async def main():
         await tile_captions(browser)
         await stepped_speed(browser)
         await boost_tile(browser)
+        await coast_fit(browser)
+        await field_tags(browser)
         await weather_pressure_temp(browser)
         if LOG:
             await with_log(browser)

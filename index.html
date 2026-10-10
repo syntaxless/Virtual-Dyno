@@ -123,6 +123,9 @@ summary:focus-visible{outline:1px dashed var(--hi);outline-offset:3px}
 .fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:10px 16px}
 .opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px 22px;margin-top:14px;align-items:end}
 .opts .sl{margin-top:0}
+label.f{position:relative}
+label.f[data-src]::after{content:attr(data-src);position:absolute;right:24px;bottom:5px;font-size:16px;line-height:1;color:var(--s2);pointer-events:none}
+label.f[data-src=typed]::after{color:var(--dim)}
 label.f,.sl{display:flex;flex-direction:column;justify-content:space-between;gap:2px;color:var(--mut);font-size:20px;line-height:1.05}
 input[type=number],input[type=text],input[type=date],input[type=time],select,textarea{width:100%;margin:0;font:inherit;font-size:22px;color:var(--hi);background:#000;border:1px solid var(--dim);border-radius:0;padding:1px 6px;caret-color:var(--fg);text-shadow:none}
 input[type=number]:focus,input[type=text]:focus,input[type=date]:focus,input[type=time]:focus,select:focus,textarea:focus{outline:0;border-color:var(--fg);box-shadow:0 0 9px rgba(var(--rgb),.5)}
@@ -264,7 +267,7 @@ input[type=range]::-moz-range-thumb{width:12px;height:20px;background:var(--fg);
   <div class="notes">
    <fieldset class="how shut"><legend><button type="button" class="tg" id="howtg" aria-expanded="false" aria-controls="howbody">How It Works</button></legend>
     <div id="howbody" hidden>
-     <p>Speed is turned into acceleration (a log whose speed moves in whole-MPH steps has it rebuilt from RPM first, which removes the staircase noise), then force = mass × acceleration + aerodynamic drag + rolling resistance + hills. Wheel Power is Force × Speed, and Crank Power adds drivetrain loss and the energy spent spinning up the engine. Density Altitude is filled in from your log's pressure and temperature. With no pressure in the log it uses GPS altitude, and fetching the weather adds that hour's sea-level pressure. That sets the air density, but you can overwrite it. With GPS only there is no RPM, so power is plotted against Speed. Enter RPM per MPH for the gear you used to get RPM and torque. Peak Boost Pressure is not calculated: it is read from the log's boost column and averaged into the same 100 RPM steps as the power curve, so it can sit a few tenths under the single highest sample.</p>
+     <p>Speed is turned into acceleration (a log whose speed moves in whole-MPH steps has it rebuilt from RPM first, which removes the staircase noise), then force = mass × acceleration + aerodynamic drag + rolling resistance + hills. Wheel Power is Force × Speed, and Crank Power adds drivetrain loss and the energy spent spinning up the engine. Density Altitude is filled in from your log's pressure and temperature. With no pressure in the log it uses GPS altitude, and fetching the weather adds that hour's sea-level pressure. That sets the air density, but you can overwrite it. If the log also has a coast-down (pedal at 0% and the clutch in, so RPM falls away from speed) long enough and slow enough to beat the default, Rolling Resistance is fitted from it, with the road grade taken from GPS elevation when a GPS file is loaded. A small tag in a field says where its value came from: the log, the GPS track, the weather, the coast or your own typing. With GPS only there is no RPM, so power is plotted against Speed. Enter RPM per MPH for the gear you used to get RPM and torque. Peak Boost Pressure is not calculated: it is read from the log's boost column and averaged into the same 100 RPM steps as the power curve, so it can sit a few tenths under the single highest sample.</p>
     </div>
    </fieldset>
   </div>
@@ -286,8 +289,15 @@ function corrFactor(std,T,pd,pt){
   if(std=='din')return(101300/pt)*Math.sqrt(T/293.15);
   if(std=='iso')return Math.pow(99000/pd,1.2)*Math.pow(T/298.15,.6);
   return 1}
+// A small tag in a field says where its value came from: the log, the GPS track, the weather, the coast-down, or typed by hand.
+// Fields with no tag still hold the page's default. The tag is CSS (label[data-src]::after), so Print, which reads the label text, never sees it.
+const SRC={log:"From the log",gps:"From the GPS track",weather:"From the weather lookup",coast:"Measured from the coast-down",typed:"Entered by hand"};
+const fieldLabel=id=>{const l=$('#'+id)&&$('#'+id).closest('label.f');return l||null};
+function src(id,kind){const l=fieldLabel(id);if(!l)return;if(kind){l.dataset.src=kind;l.title=SRC[kind]}else{delete l.dataset.src;l.removeAttribute('title')}}
+const srcOf=id=>{const l=fieldLabel(id);return l?l.dataset.src||'':''};
+const clearSrc=()=>FIELDS.forEach(([id])=>{if(id!='crr'&&srcOf(id)!='typed')src(id,null)});   // crr: analyze() decides if an earlier fit still stands
 const P=()=>{const o={smooth:+$('#smooth').value};FIELDS.forEach(([id])=>o[id]=+$('#'+id).value);o.corr=$('#corr').value;o.spd=$('#spd').value;return o};
-let D=null,logName='',gpsName='',pulls=[],sel=0,cur=null,hov=-1,mp={},GPS=null,gi=null,cond='',atm={baro:0,wp:0,alt:null},daAuto=true,fresh=false,shown={},grow=1,gAF=0,AX={u:'RPM',bin:100,tick:500,span:1000};
+let D=null,logName='',gpsName='',pulls=[],sel=0,cur=null,hov=-1,mp={},GPS=null,gi=null,cond='',atm={baro:0,wp:0,alt:null},daAuto=true,crrAuto=true,coast=null,fresh=false,shown={},grow=1,gAF=0,AX={u:'RPM',bin:100,tick:500,span:1000};
 const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function parse(text){
@@ -320,6 +330,65 @@ function parse(text){
   if(baro)an+=` Pressure set to ${baro} psi from “${H[bi]}”.`;
   const hasB=oi>=0&&bo.some(isFinite);
   return{t,rpm,v,ped:pi>=0?ped:null,boost:hasB?bo:null,n:t.length,amb,baro,info:`Using “${H[ri]}”, “${H[si]}”, ${pi>=0?'“'+H[pi]+'”':'no pedal column (pulls found from RPM and speed only)'}.${hasB?` Boost from “${H[oi]}”.`:''}${an}`}}
+
+/* Coast-down: Rolling Resistance from a slow-down with the pedal off and the clutch in. Then nothing but the road and the air acts on the car:
+     (m+mw) dv/dt = -( 0.5 rho Cd A (v+wind)|v+wind| + Crr m g + m g sin(grade) )
+   Writing kap = 0.5 rho Cd A / (m+mw) and I(t) = the integral of (v+wind)|v+wind|, that is v + kap I = v0 - c t, a straight line in t, so
+   Crr comes from a least-squares line and a whole-MPH speed never has to be differentiated. In gear the engine's own braking adds an
+   unknown drag, so those slow-downs are skipped; the clutch is in when RPM falls away from speed (the RPM-per-MPH ratio drops).
+   Rolling resistance and grade are the same term in the force equation, so the grade of the coast is taken from GPS elevation when there
+   is some (else from the Road Grade field) and removed. Only a fit that is better than a typical default guess (CRR_SIG) is used. */
+const CRR_RANGE=[.004,.025],CRR_SIG=.0025,CRR0=FIELDS.find(f=>f[0]=='crr')[2];
+function findCoasts(t,v,rpm,ped,kap){
+  const n=t.length,out=[],off=i=>ped[i]!=null&&ped[i]<=1.5;
+  for(let s=1;s<n;s++){
+    if(!off(s)||off(s-1))continue;                    // a lift: the pedal goes from on to about 0
+    let e=s;while(e+1<n&&off(e+1))e++;
+    const s0=s;s=e;
+    if(t[e]-t[s0]<5)continue;                         // a shift is not a coast
+    const r=[];for(let i=s0-1;i>=0&&t[s0]-t[i]<.8;i--)if(v[i]>3&&rpm[i]>0)r.push(rpm[i]/v[i]);   // RPM per m/s while still in gear
+    if(r.length<5)continue;
+    r.sort((x,y)=>x-y);const r0=r[r.length>>1];
+    let c=-1;for(let i=s0;i<=e;i++){if(v[i]>0&&rpm[i]/v[i]<.92*r0){if(c<0)c=i;if(t[i]-t[c]>=.3)break}else c=-1}
+    if(c<0||t[e]-t[c]<.3){if(t[e]-t[s0]>=8&&v[s0]-v[e]>=10*MPH)out.push({a:s0,b:e,gear:true});continue}   // RPM followed speed: in gear (only a long slow-down is worth saying so about; braking in gear is common)
+    const dt=(t[e]-t[s0])/Math.max(1,e-s0),hw=Math.round(.75/dt);
+    let a=c;while(a<e&&t[a]-t[c]<.8)a++;                // let the clutch-out transient settle
+    let b=e,lo=rpm[a];
+    for(let i=a;i<=e;i++){lo=Math.min(lo,rpm[i]);if(rpm[i]>lo+300){b=i-1;break}}      // RPM climbing: the clutch is back out
+    for(let i=a+hw;i<=b-hw;i++){                         // slowing far faster than road and air can: the brakes
+      const w=[],y=[];for(let j=i-hw;j<=i+hw;j++){w.push(t[j]-t[i]);y.push(v[j])}
+      const mx=w.reduce((q,x)=>q+x,0)/w.length,my=y.reduce((q,x)=>q+x,0)/y.length;let sxy=0,sxx=0;w.forEach((x,k)=>{sxy+=(x-mx)*(y[k]-my);sxx+=(x-mx)**2});
+      if(-sxy/sxx>kap*v[i]*v[i]+.15+.9){b=i-hw;break}}
+    b-=Math.round(.4/dt);                               // and the last moments before the pedal or clutch
+    if(b-a>=20)out.push({a,b,gear:false})}
+  return out}
+
+// Fits Crr to the coast, trying the whole coast and its slow end (Crr is most of the slowing at low speed, drag at high speed) and
+// keeping the one with the smallest uncertainty. X: {t,v,kap,hwd,m,mw,grade}; grade is the Road Grade field (%).
+function coastFit(sg,X){
+  const{t,v,kap,hwd,m,mw}=X,f=(m+mw)/(m*G);let best=null;
+  for(const V of[1e9,40,33,27,20]){
+    let i0=sg.a;while(i0<sg.b&&v[i0]>V)i0++;
+    if(V<1e9&&(i0==sg.a||t[sg.b]-t[i0]<8))continue;
+    const n=sg.b-i0+1;if(n<20)continue;
+    const T=[],I=[],J=[],Y=[];let iq=0,ij=0,L=0;
+    for(let k=0;k<n;k++){const i=i0+k,u=v[i]+hwd;T.push(t[i]-t[i0]);
+      if(k){const h=T[k]-T[k-1],up=v[i-1]+hwd;iq+=h*(u*Math.abs(u)+up*Math.abs(up))/2;ij+=h*(Math.abs(u)+Math.abs(up))/2;L+=h*(v[i]+v[i-1])/2}
+      I.push(iq);J.push(ij);Y.push(v[i]+kap*iq)}
+    const mean=a=>a.reduce((q,x)=>q+x,0)/n,mt=mean(T);let stt=0;for(const x of T)stt+=(x-mt)**2;
+    if(!(stt>0))continue;
+    const sl=a=>{const ma=mean(a);let q=0;for(let k=0;k<n;k++)q+=(T[k]-mt)*(a[k]-ma);return q/stt},sy=sl(Y),my=mean(Y);
+    let ss=0;for(let k=0;k<n;k++)ss+=(Y[k]-my-sy*(T[k]-mt))**2;
+    // grade of this stretch: GPS elevation when the track has any (a stretch it does not cover well enough is skipped), else the Road Grade field
+    let gps=null;if(gi&&GPS&&gi.alt!=null){const g=elev(t[i0]+gi.off,t[sg.b]+gi.off);if(g.grade==null||g.len<150||g.n<8)continue;gps=g}
+    const gd=(gps?gps.grade:X.grade)/100,rms=Math.sqrt(ss/n),
+      sig=Math.hypot(Math.max(.13,rms)/Math.sqrt(stt)*f,           // scatter of the speed (a whole MPH is about .13 m/s rms)
+        .05*kap*sl(I)*f,                                             // drag area 5% off
+        3*MPH*2*kap*sl(J)*f,                                         // wind 3 MPH off
+        (gps?1.5/Math.max(L,1):.0015));                              // grade: 1.5 m of GPS elevation drift over the coast, or 0.15% for one the user typed
+    const crr=-sy*f-Math.sin(Math.atan(gd));
+    if(!best||sig<best.sig)best={a:i0,b:sg.b,dur:t[sg.b]-t[i0],v0:v[i0]/MPH,v1:v[sg.b]/MPH,crr,sig,rms:rms/MPH,gps:!!gps,assumed:!gps&&!X.typed,grade:gd*100,len:L}}
+  return best}
 
 function analyze(reset){
   if(!D)return;const p=P();if(reset)gi=null;wxVis();const{t,ped}=D,n=t.length;let v=D.v,rpm=D.rpm;
@@ -355,6 +424,16 @@ function analyze(reset){
   const srcTxt=D.gpsOnly?'GPS only':p.spd=='gps'&&gi?'Cobb log + GPS speed':p.spd=='cal'&&gi?`Cobb log scaled ×${gi.ratio.toFixed(3)} to GPS`:'Cobb log';
   cond=`${srcTxt} · Air ${rho.toFixed(3)} kg/m³ (density altitude ${Math.round(p.da).toLocaleString()} ft, ${Math.round(p.temp)} °F, ${p.humid}% humidity) · ${hwd>=0?'headwind':'tailwind'} ${Math.abs(hwd/MPH).toFixed(1)} MPH · grade ${p.grade}% · ${p.corr=='none'?'uncorrected':`${cn} factor ${kc.toFixed(3)} applied`}`;
   const m=(p.curb+p.load)*LB,mw=36,Ie=.2,lf=p.loss/100;
+  coast=null;
+  if(!D.gpsOnly&&ped){
+    const kap=.5*rho*p.cd*p.area/(m+mw),all=findCoasts(t,v,rpm,ped,kap);let best=null;
+    for(const sg of all.filter(q=>!q.gear)){const r=coastFit(sg,{t,v,kap,hwd,m,mw,grade:p.grade,typed:srcOf('grade')=='typed'});if(r&&(!best||r.sig<best.sig))best=r}
+    if(best){
+      const why=best.sig>CRR_SIG?'weak':best.assumed?'nogps':best.rms>1.2?'noisy':best.crr<CRR_RANGE[0]||best.crr>CRR_RANGE[1]?'range':'';
+      coast={...best,status:why||(crrAuto?'ok':'kept')};
+      if(coast.status=='ok'){p.crr=+best.crr.toFixed(3);$('#crr').value=p.crr.toFixed(3);src('crr','coast')}}
+    else if(all.some(q=>q.gear))coast={status:'gear'}}
+  if((!coast||coast.status!='ok')&&crrAuto&&srcOf('crr')=='coast'){p.crr=CRR0;$('#crr').value=CRR0;src('crr',null)}   // a value from an earlier fit
   pulls=raw.map(([a,b])=>{const pts=[];
     const tr=Math.round(hw/3),Y=steady(a,b);
     for(let i=a+tr;i<=b-tr;i++){
@@ -406,8 +485,22 @@ function replay(){
     else $('#ro').textContent=HINT};
   grow=0;gAF=requestAnimationFrame(step)}
 
+// The coast-down line under the log message: what was found, what it was used for, or why not.
+function coastLine(c){
+  const e=document.createElement('span'),ap=x=>{const q=document.createElement('span');q.className='ap';q.textContent=x;return q};e.id='coastmsg';e.append(document.createElement('br'));
+  if(c.status=='gear'){e.append("The off-throttle slow-down was in gear, where the engine's own braking adds drag, so it was not used for rolling resistance. Press the clutch in (or shift to neutral) to coast.");return e}
+  const pm=`+/-${+Math.max(.001,Math.round(c.sig*2000)/2000).toFixed(4)}`,r3=c.crr.toFixed(3),
+    run=`${Math.round(c.dur)} s coast (${Math.round(c.v0)} to ${Math.round(c.v1)} MPH)`;
+  if(c.status=='ok')e.append('Rolling Resistance set to ',ap(r3),` from a ${run}, about ${pm}.`+(c.gps?` Its grade, ${c.grade.toFixed(1)}%, is from the GPS elevation.`:` Its grade was taken as the Road Grade field's ${c.grade.toFixed(1)}%.`));
+  else if(c.status=='kept')e.append(`A ${run} measures rolling resistance at ${r3} (${pm}). The value you typed was kept.`);
+  else if(c.status=='weak')e.append(`A ${run} gives rolling resistance ${r3} but only to about ${pm}, too loose to use, so the field was left alone. Coast from 70 MPH or more down to about 30 MPH with the clutch in (about a minute) for a firm number.`);
+  else if(c.status=='nogps')e.append(`A ${run} gives rolling resistance ${r3}, but with no GPS elevation the road's slope is unknown, and every 0.1% of grade reads as 0.001 of rolling resistance, so the field was left alone. Load a GPS file with the log, or type the road grade, to use it.`);
+  else if(c.status=='noisy')e.append(`A ${run} did not look like a clean coast (braking, or the clutch coming back?), so it was not used.`);
+  else e.append(`A ${run} gives rolling resistance ${r3}, outside the believable range (${CRR_RANGE[0]} to ${CRR_RANGE[1]}), so it was not used. A hill, a headwind or braking would cause that.`);
+  return e}
+
 function render(){
-  const S=$('#pull'),old=$('#nopull');if(old)old.remove();$('#spd').disabled=!(D&&!D.gpsOnly&&gi);
+  const S=$('#pull'),old=$('#nopull'),oc=$('#coastmsg');if(old)old.remove();if(oc)oc.remove();$('#spd').disabled=!(D&&!D.gpsOnly&&gi);
   $('#cond').textContent=pulls.length?cond+(pulls[sel]&&isFinite(pulls[sel].rm)&&!D.gpsOnly?` · this pull is about ${pulls[sel].rm.toFixed(1)} RPM per MPH`:''):'';
   S.innerHTML=pulls.map((q,i)=>`<option value="${i}">Pull ${i+1}: ${q.lo.toLocaleString()}–${q.hi.toLocaleString()} ${AX.u}, ${q.dur.toFixed(1)} s</option>`).join('')||'<option>No pull selected</option>';
   S.disabled=!pulls.length;hov=-1;if(fresh)shown={};
@@ -415,6 +508,7 @@ function render(){
     if(D){const e=document.createElement('span'),b=document.createElement('b');e.id='nopull';e.className='bad';b.textContent='No full-throttle pulls found.';
       e.append(document.createElement('br'),b,' Log a clean pull with the pedal fully down, or lower the throttle position (%).');$('#msg').append(e)}
     $('#ro').textContent='';$('#print').disabled=true;fresh=false;draw();return}
+  if(coast)$('#msg').append(coastLine(coast));
   $('#print').disabled=false;S.value=sel;const pp=P();cur=build(pulls[sel],pp);
   const pk=f=>cur.reduce((b,q)=>q[f]>b[f]||!isFinite(b[f])?q:b),h=pk('hp'),t=pk('tq'),w=pk('hw'),b=pk('bp'),hasT=isFinite(t.tq),hasB=isFinite(b.bp);
   const at=q=>AX.u=='MPH'?Math.round(q.r)+' MPH':(Math.round(q.r/10)*10).toLocaleString()+' RPM';
@@ -479,11 +573,11 @@ function calcDA(){
   if(pa==null)return null;
   const pv=Math.min(p.humid,100)/100*610.78*Math.pow(10,7.5*Tc/(Tc+237.3)),rho=(pa-pv)/(287.058*T)+pv/(461.495*T);
   return 44330.77*(1-Math.pow(rho/1.225,1/4.25588))/.3048}
-function syncDA(){if(!daAuto)return;const d=calcDA();if(d!=null)$('#da').value=Math.round(d)}
+function syncDA(){if(!daAuto)return;const d=calcDA();if(d!=null){$('#da').value=Math.round(d);src('da',atm.baro>0?'log':atm.wp>0?'weather':'gps')}}
 
 function load(text,name,fname){   // fname: what Print names its file after, when it is not the name shown in the message
   const M=$('#msg');fresh=true;wxReq++;$('#wxmsg').textContent='';
-  try{D=parse(text);logName=fname||name;M.className='msg';M.textContent=`${name}: ${D.n.toLocaleString()} rows. ${D.info}`;if(D.amb!=null)$('#temp').value=D.amb;atm.baro=D.baro||0;atm.wp=0;daAuto=true;syncDA();if(atm.baro)M.textContent+=` Density altitude set to ${$('#da').value} ft from the log's pressure and temperature.`;analyze(true)}
+  try{D=parse(text);logName=fname||name;M.className='msg';M.textContent=`${name}: ${D.n.toLocaleString()} rows. ${D.info}`;clearSrc();crrAuto=true;if(D.amb!=null){$('#temp').value=D.amb;src('temp','log')}atm.baro=D.baro||0;atm.wp=0;daAuto=true;syncDA();if(atm.baro)M.textContent+=` Density altitude set to ${$('#da').value} ft from the log's pressure and temperature.`;analyze(true)}
   catch(e){D=null;logName='';pulls=[];M.className='msg err';M.textContent=e.message;render();wxVis()}}
 
 function demo(){
@@ -523,6 +617,16 @@ function parseGPS(text){
 
 const gAt=(T,k)=>{const g=GPS;let lo=0,hi=g.length-1;if(T<=g[0].t)return g[0][k];if(T>=g[hi].t)return g[hi][k];while(hi-lo>1){const m=(lo+hi)>>1;g[m].t<=T?lo=m:hi=m}const w=(T-g[lo].t)/(g[hi].t-g[lo].t);return g[lo][k]*(1-w)+g[hi][k]*w};
 
+// Mean altitude (ft) and road grade (%, the slope of a straight line through elevation against distance travelled) of the GPS points
+// between two GPS times; n and len (metres of track) say how much it was fitted to.
+function elev(T0,T1){
+  const W=GPS.filter(p=>p.t>=T0&&p.t<=T1&&p.ele!=null);let grade=null,alt=null,len=0;
+  if(W.length){alt=W.reduce((s,p)=>s+p.ele,0)/W.length/.3048}
+  if(W.length>=4){const X=[0];for(let i=1;i<W.length;i++)X.push(X[i-1]+dist(W[i-1],W[i]));len=X[X.length-1];
+    const mx=X.reduce((s,x)=>s+x,0)/X.length,my=W.reduce((s,p)=>s+p.ele,0)/W.length;let sxy=0,sxx=0;W.forEach((p,i)=>{sxy+=(X[i]-mx)*(p.ele-my);sxx+=(X[i]-mx)**2});
+    if(sxx>0)grade=sxy/sxx*100}
+  return{grade,alt,len,n:W.length}}
+
 function matchGPS(a,b){
   const{t,v}=D,g=GPS,L=t[b]-t[a],T0=g[0].t,T1=g[g.length-1].t;
   if(T1-T0<L)return null;
@@ -532,11 +636,7 @@ function matchGPS(a,b){
   if(D.gpsOnly){best=0;bs=T0+t[a]}else for(let S=T0;S<=T1-L;S+=.1){let gu=0,uu=0,gg=0;for(const[x,u]of E){const y=at(S+x,'v');gu+=y*u;uu+=u*u;gg+=y*y}
     const k=gu/uu,e=Math.sqrt(Math.max(0,gg-k*gu)/E.length);if(e<best){best=e;bs=S;sc=k}}
   const sg=sc,se=1;
-  const W=g.filter(p=>p.t>=bs&&p.t<=bs+L&&p.ele!=null);let grade=null,alt=null;
-  if(W.length){alt=W.reduce((s,p)=>s+p.ele,0)/W.length/.3048}
-  if(W.length>=4){const X=[0];for(let i=1;i<W.length;i++)X.push(X[i-1]+dist(W[i-1],W[i]));
-    const mx=X.reduce((s,x)=>s+x,0)/X.length,my=W.reduce((s,p)=>s+p.ele,0)/W.length;let sxy=0,sxx=0;W.forEach((p,i)=>{sxy+=(X[i]-mx)*(p.ele-my);sxx+=(X[i]-mx)**2});
-    if(sxx>0)grade=sxy/sxx*100}
+  const{grade,alt}=elev(bs,bs+L);
   const p0={lat:at(bs,'lat'),lon:at(bs,'lon')},p1={lat:at(bs+L,'lat'),lon:at(bs+L,'lon')};
   return{off:bs-t[a],err:best,ratio:sg/se,head:bear(p0,p1),grade,alt,lat:p0.lat,lon:p0.lon,T:bs}}
 
@@ -547,7 +647,7 @@ function fromGPS(init){
     if(gi){if(init&&!D.gpsOnly)$('#spd').value=GPS.hz>=5?'gps':'ecu';const day=x=>new Date(x*1e3).toISOString().slice(0,10),recent=Date.now()/1e3-gi.T<60*86400;
       wxUrl=`https://${recent?'api.open-meteo.com/v1/forecast':'archive-api.open-meteo.com/v1/archive'}?latitude=${gi.lat.toFixed(2)}&longitude=${gi.lon.toFixed(2)}&start_date=${day(gi.T)}&end_date=${day(gi.T+86400)}&hourly=relative_humidity_2m,wind_speed_10m,wind_direction_10m,temperature_2m,pressure_msl&wind_speed_unit=mph&temperature_unit=fahrenheit&timezone=GMT`;$('#wxlink').href=wxUrl;$('#wxman').open=false;$('#wxget').disabled=false;
       wxReq++;atm.wp=0;$('#wxin').value='';$('#wxmsg').textContent='';
-      const f=(id,x)=>$('#'+id).value=x;f('head',Math.round(gi.head));f('grade',gi.grade==null?0:gi.grade.toFixed(1));if(gi.alt!=null){atm.alt=gi.alt;syncDA()}
+      const f=(id,x)=>$('#'+id).value=x;f('head',Math.round(gi.head));src('head','gps');f('grade',gi.grade==null?0:gi.grade.toFixed(1));src('grade',gi.grade==null?null:'gps');if(gi.alt!=null){atm.alt=gi.alt;syncDA()}
       const dv=100/gi.ratio-100;M.className='msg'+(gi.err>3*MPH?' err':'');
       M.textContent=`${D.gpsOnly?'Pull located':'GPS matched to this pull (speed error '+(gi.err/MPH).toFixed(1)+' MPH)'} near ${gi.lat.toFixed(4)}, ${gi.lon.toFixed(4)} at ${new Date(gi.T*1e3).toLocaleString()}. Heading ${Math.round(gi.head)}°, grade ${gi.grade==null?'unknown (no elevation)':gi.grade.toFixed(1)+'%'}.${D.gpsOnly?'':` ECU speed reads ${dv>=0?'+':''}${dv.toFixed(1)}% vs GPS.`}`+(gi.err>3*MPH?' The match is poor, so check that this is the right track.':'')}
     else{M.className='msg err';M.textContent='The GPS track is shorter than this pull, so it could not be matched.'}}
@@ -691,14 +791,14 @@ function applyWx(text,T,zone,useWind){const M=$('#wxmsg');
       zm=gi&&gi.alt!=null?gi.alt*.3048:typeof j.elevation==='number'&&isFinite(j.elevation)?j.elevation:null;
     let tt='',tn='',pt=[];atm.wp=0;
     if(tF!=null&&tF>-40&&tF<150){
-      if(D.amb==null){$('#temp').value=Math.round(tF*10)/10;tt=`, ${Math.round(tF)} °F`}
+      if(D.amb==null){$('#temp').value=Math.round(tF*10)/10;src('temp','weather');tt=`, ${Math.round(tF)} °F`}
       else if(Math.abs(tF-D.amb)>=5)tn=` Open-Meteo has ${Math.round(tF)} °F for that hour. The log's ambient sensor read ${Math.round(D.amb)} °F, and that was kept.`}
     if(pm!=null&&pm>870&&pm<1090&&zm!=null&&zm>-500&&zm<6000){
       const Tk=(tF!=null?(tF-32)*5/9:15-.0065*zm)+273.15;
       atm.wp=pm*100*Math.exp(-9.80665*zm/(287.058*(Tk+.0065*zm/2)))}
-    $('#humid').value=Math.round(rh);syncDA();
+    $('#humid').value=Math.round(rh);src('humid','weather');syncDA();
     if(atm.wp>0&&!(atm.baro>0)&&daAuto)pt=[' ',[`Density altitude set to ${$('#da').value} ft`],` from that hour's sea-level pressure (${Math.round(pm)} hPa) at ${Math.round(zm*3.28084)} ft.`];
-    if(useWind){$('#wind').value=sp.toFixed(1);$('#wdir').value=Math.round(dr)}
+    if(useWind){$('#wind').value=sp.toFixed(1);$('#wdir').value=Math.round(dr);src('wind','weather');src('wdir','weather')}
     M.className='msg';
     say(M,`Filled for ${new Date(T).toISOString().slice(11,16)} ${zone}: `,[`${Math.round(rh)}% humidity${tt}${useWind?`, wind ${wd}`:''}`],
       useWind?'. This is 10 m wind, so wind at the road is often lower.':`. Wind was ${wd} at that hour but was not applied, because the car's heading is unknown. Enter it under Car & Conditions, then fetch again.`,...pt,tn);
@@ -749,7 +849,7 @@ fi.onchange=()=>{const f=fi.files[0];fi.value='';read(f)};
 dz.ondragover=e=>{e.preventDefault();dz.classList.add('on')};dz.ondragleave=()=>dz.classList.remove('on');
 dz.ondrop=e=>{e.preventDefault();dz.classList.remove('on');read(e.dataTransfer.files[0])};
 $('#demo').onclick=demo;$('#pull').onchange=e=>{sel=+e.target.value;fresh=true;GPS?fromGPS():render()};
-document.querySelectorAll('#fields input,#smooth,#corr,#spd').forEach(el=>el.addEventListener('input',()=>{if(el.id=='head')headSet=true;if(el.id=='da')daAuto=false;else if(el.id=='temp'||el.id=='humid')syncDA();analyze(false)}));
+document.querySelectorAll('#fields input,#smooth,#corr,#spd').forEach(el=>el.addEventListener('input',()=>{if(el.id=='head')headSet=true;if(el.id=='da')daAuto=false;else if(el.id=='temp'||el.id=='humid')syncDA();if(el.id=='crr')crrAuto=false;src(el.id,'typed');analyze(false)}));
 addEventListener('resize',draw);
 const RB=(()=>{
   const cv=document.getElementById('car');

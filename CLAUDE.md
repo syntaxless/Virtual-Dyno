@@ -236,7 +236,46 @@ https://dyno.turboloser.co (GitHub Pages, served from `main`). The repo is publi
   ~0.3 s of a run (the ECU shows full throttle and flat torque to 7,170 RPM while WinPEP peaks near 6,750), so the page's
   peak-power RPM reads about 150 RPM later than the dyno's; the 3,500-3,750 RPM spool knee reads 5% low from the regression
   window. Drivetrain loss, drag, rolling resistance and the mass defaults are NOT tested by a dyno and still need road logs of
-  the same car and tune on a known weight, plus a coast-down. The dyno logs and photos are not in the repo and must not be.
+  the same car and tune on a known weight, plus a coast-down (the coast-down fit now exists but has not been run on a real coast). The dyno logs and photos are not in the repo and must not be.
+- **Coast-down Rolling Resistance** (the owner's request, 2026-10-09: fill as many fields as possible from measurements, to remove
+  human error). With the pedal at 0 and the clutch in, nothing but the road and the air slows the car, so `(m+mw) dv/dt = -(0.5 rho Cd A
+  (v+wind)|v+wind| + Crr m g + m g sin(grade))`. With `kap = 0.5 rho Cd A / (m+mw)` and `I(t)` the integral of `(v+wind)|v+wind|`, that is
+  `v + kap I = v0 - c t`, a straight line, so `coastFit()` gets Crr from a least-squares line and a whole-MPH speed is never differentiated
+  (`Crr = c (m+mw)/(m g) - sin(grade)`). Crr and grade are the same term, which is why the coast's grade matters as much as its length.
+  `findCoasts()` finds a coast: the pedal goes to 1.5% or less for 5 s or more, and RPM per speed falls 8% below its in-gear value just
+  before the lift (the same 8% as the gear-change split) for 0.3 s, which means the clutch is in; the first 0.8 s after that and the last
+  0.4 s are dropped, and it ends early if RPM climbs 300 (clutch out) or the slowing exceeds what road and air explain by 0.9 m/s2
+  (brakes). RPM that follows speed is an in-gear slow-down (engine braking adds an unknown drag): never used, and when it is long (8 s and 10 MPH
+  or more; braking in gear after a pull is common) the line says to press the clutch in. It needs a pedal column and a log (not GPS only). `coastFit()` tries the whole coast and its slow end (speed under 90, 75, 60
+  and 45 MPH; Crr is most of the slowing at low speed, drag at high speed) and keeps the one with the smallest uncertainty `sig`, the sum in
+  quadrature of: scatter of the speed (0.13 m/s, a whole MPH) over the window, drag area 5% off, wind 3 MPH off, and the grade (1.5 m of GPS
+  elevation drift over the coast's length, or 0.15% for a grade the user typed). Checked on 60 random generated runs (hills, wind, drag
+  area, GPS elevation error): the stated sig averaged 0.0018 against a real scatter of 0.0016 (slightly cautious), mean error -0.0002, and
+  with exact inputs the error is zero. The grade of the coast is `elev()` over the coast's GPS times (`gi.off` maps log time to GPS time;
+  `elev()` is also what the pull's grade uses, unchanged), and a stretch the GPS track cannot grade (under 150 m or 8 points) is skipped.
+  With a GPS file that has elevation, grade is never taken from the field; without one it is the Road Grade field and the result is only
+  **used if the user typed that grade** (status `nogps`: the line says so). The field is filled only when `sig` is at most 0.0025 (`CRR_SIG`:
+  no worse than a typical default guess), the residual is under 1.2 MPH rms and Crr is within 0.004 to 0.025; otherwise the line says
+  why (`weak`, `noisy`, `range`, `gear`) and the field is left alone. Like Density Altitude it fills until the user types in the field
+  (`crrAuto`, set again by every new log; a typed value is kept and the line says so, status `kept`); a fit from an earlier log is put
+  back to the default 0.012 when the new log has no good coast (tag `coast` is how `analyze()` knows the value was a fit). The fit uses the
+  Cd, Frontal Area, mass, wind and density altitude fields, so it re-fits when they change. The line is `#coastmsg`, appended to `#msg` by
+  `render()` the way `#nopull` is, built with DOM nodes. Print is unaffected (it reads the field's value). The default log (2.2 s of coast)
+  is below the 5 s minimum, so it says nothing and its numbers are unchanged. `functional.py`'s `coast_fit` checks all of this on
+  generated logs with a known Crr (`synth_coast`, `synth_track`); the owner's real logs have no usable coast yet, so it is **not yet
+  checked against a real coast**. Not done, on purpose: fitting drag area (the coast sees only drag area per unit mass, so a wrong mass
+  would show up as a wrong Cd x A), averaging a coast in each direction (it cancels hill and wind), and a brake-switch column.
+  A long coast for a good number: pedal off, clutch in (or neutral), no braking, steady steering, calm wind, from 70 MPH or more down
+  to about 30 MPH (60 to 90 s, about a mile), with GPS recording the whole time.
+- **Field source tags.** A small tag at the right of a field's box says where its value came from: `log` (air temperature, density altitude
+  from the log's pressure), `gps` (heading, grade, density altitude from GPS altitude), `weather` (humidity, wind, wind direction, and
+  temperature or density altitude when the log lacks them), `coast` (Rolling Resistance) or `typed`. A field with no tag still holds the
+  page's default. It is `label.f[data-src]::after` (CSS), so the label's text and markup are unchanged and Print, which reads
+  `l.firstChild.textContent` and the input's value, never draws it; set it with `src(id, kind)`, read it with `srcOf(id)`. The listener on
+  `#fields input` tags a field `typed`; a new log (`load()`) clears every tag except `typed` and `crr` (analyze decides whether an earlier
+  fit stands). The values themselves are not cleared, so a humidity from the last weather lookup stays with no tag. Amber for measured
+  (the `.ap` accent), `--dim` for typed. `smoke.py`'s `field_tag_fit` checks there is room beside a 7-character value at every width;
+  `functional.py`'s `field_tags` checks who sets which tag.
 - **Installable web app (PWA).** The page can be installed from the browser (Chrome and Edge: the install button in the address
   bar or the menu; Android Chrome: Install app; iPhone Safari: Share, then Add to Home Screen) and then opens in its own window
   with no browser bars, and with no signal. This is the owner's choice over app-store apps for now (a store listing would

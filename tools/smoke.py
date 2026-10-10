@@ -308,6 +308,32 @@ async def tile_layout(browser):
     await ctx.close()
 
 
+async def field_tag_fit(browser):
+    """The source tag in a field (log, gps, weather, coast, typed; drawn by CSS at the right edge of the box) never runs into the value.
+    Every field is tagged with the longest tag ("weather") and given a long value, and the room left between the value and the tag is
+    measured with the page's own fonts, at widths from a small phone to the full window."""
+    JS = """() => { const c = document.createElement('canvas').getContext('2d'); let worst = 1e9, who = '';
+        for (const l of document.querySelectorAll('#fields label')) {
+          l.dataset.src = 'weather'; const i = l.querySelector('input'); i.value = '88888.8'; const ics = getComputedStyle(i), t = getComputedStyle(l, '::after');
+          c.font = ics.font; const vw = c.measureText(i.value).width + parseFloat(ics.paddingLeft);
+          c.font = t.font; const tw = c.measureText(t.content.replace(/"/g, '')).width;
+          const room = i.getBoundingClientRect().width - parseFloat(t.right) - tw - vw;
+          if (room < worst) { worst = room; who = l.firstChild.textContent }
+          const lr = l.getBoundingClientRect(), ir = i.getBoundingClientRect(), th = parseFloat(t.fontSize), tb = lr.bottom - parseFloat(t.bottom);
+          if (tb - th < ir.top || tb > ir.bottom) { worst = -999; who = l.firstChild.textContent + ' (vertical)' } }
+        return {worst: Math.round(worst), who, hs: document.documentElement.scrollWidth - innerWidth} }"""
+    ctx, pg, errs = await open_page(browser, width=1200, expand=True)
+    await pg.click("#demo")
+    await pg.wait_for_timeout(400)
+    for w in (1200, 900, 600, 430, 375, 320):
+        await pg.set_viewport_size({"width": w, "height": 900})
+        await pg.wait_for_timeout(120)
+        m = await pg.evaluate(JS)
+        check(f"{w}px: a tag has room beside a 7-character value in every field, and sits inside the box", m["worst"] >= 4 and m["hs"] <= 0, str(m))
+    check("no page errors", not errs, "; ".join(errs))
+    await ctx.close()
+
+
 async def unit_case(browser):
     """RPM, MPH, HP and WHP are written in capitals everywhere the visitor reads them: the page text (How It Works open),
     the hover readout, and the labels the graph draws on its canvas. Run with a demo log (RPM axis) and with GPS only (MPH axis)."""
@@ -670,7 +696,7 @@ async def web_app(browser):
 async def main():
     async with async_playwright() as pw:
         browser = await pw.chromium.launch()
-        steps = (layout, collapsible, correction_select, no_pulls_message, themes, boot, font, load_message, weather_row, tile_colors, tile_layout, unit_case, link_preview, web_app, realtime, print_button)
+        steps = (layout, collapsible, correction_select, no_pulls_message, themes, boot, font, load_message, weather_row, tile_colors, tile_layout, field_tag_fit, unit_case, link_preview, web_app, realtime, print_button)
         for step in steps:
             if len(sys.argv) < 2 or step.__name__ in sys.argv[1:]:    # `python tools/smoke.py print_button` runs just that step
                 await step(browser)
